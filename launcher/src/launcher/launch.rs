@@ -87,7 +87,7 @@ pub async fn launch(
     let launcher_dir = config.get_launcher_dir();
     let mut minecraft_dir = get_instance_dir(&launcher_dir, version_metadata.get_name());
     let libraries_dir = get_libraries_dir(&launcher_dir);
-    let natives_dir = get_natives_dir(&launcher_dir);
+    let natives_dir = get_natives_dir(&launcher_dir, version_metadata.get_parent_id());
 
     let minecraft_dir_short = minecraft_dir.clone();
     if cfg!(windows) {

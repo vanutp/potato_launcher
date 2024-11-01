@@ -55,8 +55,8 @@ pub fn get_libraries_dir(data_dir: &Path) -> PathBuf {
     created(data_dir.join("libraries"))
 }
 
-pub fn get_natives_dir(data_dir: &Path) -> PathBuf {
-    created(data_dir.join("natives"))
+pub fn get_natives_dir(data_dir: &Path, id: &str) -> PathBuf {
+    created(data_dir.join("natives").join(id))
 }
 
 pub fn get_rel_versions_dir() -> PathBuf {

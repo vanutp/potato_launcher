@@ -34,6 +34,7 @@ pub enum LangMessage {
     ModpackSynced,
     NoConnectionToSyncServer,
     ModpackSyncError(String),
+    CheckingJava,
     DownloadingJava,
     JavaInstalled { version: String },
     NeedJava { version: String },
@@ -188,6 +189,10 @@ impl LangMessage {
             LangMessage::ModpackSyncError(e) => match lang {
                 Lang::English => format!("Error syncing modpack: {}", e),
                 Lang::Russian => format!("Ошибка синхронизации модпака: {}", e),
+            },
+            LangMessage::CheckingJava => match lang {
+                Lang::English => "Checking Java...".to_string(),
+                Lang::Russian => "Проверка Java...".to_string(),
             },
             LangMessage::DownloadingJava => match lang {
                 Lang::English => "Downloading Java...".to_string(),

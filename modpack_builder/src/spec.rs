@@ -1,6 +1,9 @@
 use log::{debug, error, info, warn};
 use serde::Deserialize;
-use std::{collections::{HashMap, HashSet}, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 use tokio::fs;
 
 use shared::{

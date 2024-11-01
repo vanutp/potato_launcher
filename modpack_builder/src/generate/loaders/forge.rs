@@ -341,7 +341,7 @@ pub async fn install_forge(
 
         info!("Getting java {}", &java_version);
         let java_installation;
-        if let Some(existing_java_installation) = get_java(&java_version, &java_dir) {
+        if let Some(existing_java_installation) = get_java(&java_version, &java_dir).await {
             java_installation = existing_java_installation;
         } else {
             info!("Java installation not found, downloading");

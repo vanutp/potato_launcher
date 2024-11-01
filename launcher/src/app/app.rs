@@ -136,6 +136,7 @@ impl LauncherApp {
                                 &self.runtime,
                                 &version_metadata,
                                 &mut self.config,
+                                ctx,
                                 need_check,
                             );
 
@@ -168,7 +169,11 @@ impl LauncherApp {
                                 match force_launch_result {
                                     ForceLaunchResult::ForceLaunchSelected => {
                                         self.modpack_sync_state.schedule_sync_if_needed();
-                                        self.java_state.schedule_download_if_needed();
+                                        self.java_state.schedule_download_if_needed(
+                                            &self.runtime,
+                                            &version_metadata,
+                                            &mut self.config,
+                                        );
                                     }
                                     ForceLaunchResult::CancelSelected => {
                                         self.java_state.cancel_download();
@@ -190,7 +195,7 @@ impl LauncherApp {
                 ui.horizontal(|ui| {
                     let selected_metadata_ref = selected_metadata.as_deref();
                     self.settings_state
-                        .render_ui(ui, &mut self.config, selected_metadata_ref);
+                        .render_ui(ui, &self.runtime, &mut self.config, selected_metadata_ref);
                 });
                 ui.add_space(5.0);
             });

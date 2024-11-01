@@ -1,5 +1,5 @@
 use shared::paths::get_java_dir;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
@@ -16,19 +16,59 @@ use super::progress_bar::GuiProgressBar;
 
 #[derive(Clone, PartialEq)]
 pub enum JavaDownloadStatus {
+    CheckingJava,
     NotDownloaded,
-    Downloading,
     Downloaded,
     DownloadError(String),
     DownloadErrorOffline,
 }
 
-pub struct JavaDownloadResult {
+struct JavaCheckResult {
+    java_path: Option<PathBuf>,
+}
+
+fn check_java(
+    runtime: &Runtime,
+    java_version: &str,
+    java_dir: &Path,
+    existing_path: Option<&str>,
+    ctx: &egui::Context,
+) -> BackgroundTask<JavaCheckResult> {
+    let java_version = java_version.to_string();
+    let java_dir = java_dir.to_path_buf();
+    let existing_path = existing_path.map(|s| s.to_string());
+    let ctx = ctx.clone();
+
+    let fut = async move {
+        if let Some(path) = existing_path {
+            let path = PathBuf::from(path);
+            if java::check_java(&java_version, &path).await {
+                return JavaCheckResult {
+                    java_path: Some(path),
+                };
+            }
+        }
+        let java_path = java::get_java(&java_version, &java_dir)
+            .await
+            .map(|j| j.path);
+        JavaCheckResult { java_path }
+    };
+
+    BackgroundTask::with_callback(
+        fut,
+        runtime,
+        Box::new(move || {
+            ctx.request_repaint();
+        }),
+    )
+}
+
+struct JavaDownloadResult {
     pub status: JavaDownloadStatus,
     pub java_installation: Option<java::JavaInstallation>,
 }
 
-pub fn download_java(
+fn download_java(
     runtime: &Runtime,
     required_version: &str,
     java_dir: &Path,
@@ -67,6 +107,7 @@ pub fn download_java(
 
 pub struct JavaState {
     status: JavaDownloadStatus,
+    check_java_task: Option<BackgroundTask<JavaCheckResult>>,
     java_download_task: Option<BackgroundTask<JavaDownloadResult>>,
     java_download_progress_bar: Arc<GuiProgressBar>,
     settings_opened: bool,
@@ -80,38 +121,31 @@ impl JavaState {
             size: 1024 * 1024,
         });
         Self {
-            status: JavaDownloadStatus::NotDownloaded,
+            status: JavaDownloadStatus::CheckingJava,
+            check_java_task: None,
             java_download_task: None,
             java_download_progress_bar,
             settings_opened: false,
         }
     }
 
-    fn check_java(
+    fn schedule_download(
         &mut self,
+        runtime: &Runtime,
         metadata: &CompleteVersionMetadata,
         config: &mut runtime_config::Config,
     ) {
-        if let Some(java_path) = config.java_paths.get(metadata.get_name()) {
-            if !java::check_java(&metadata.get_java_version(), java_path.as_ref()) {
-                config.java_paths.remove(metadata.get_name());
-                config.save();
-            }
-        }
+        let launcher_dir = config.get_launcher_dir();
+        let java_dir = get_java_dir(&launcher_dir);
 
-        if config.java_paths.get(metadata.get_name()).is_none() {
-            let launcher_dir = config.get_launcher_dir();
+        self.java_download_progress_bar.reset();
 
-            if let Some(java_installation) =
-                java::get_java(&metadata.get_java_version(), &get_java_dir(&launcher_dir))
-            {
-                config.java_paths.insert(
-                    metadata.get_name().to_string(),
-                    java_installation.path.to_str().unwrap().to_string(),
-                );
-                config.save();
-            }
-        }
+        self.java_download_task = Some(download_java(
+            runtime,
+            &metadata.get_java_version(),
+            &java_dir,
+            self.java_download_progress_bar.clone(),
+        ));
     }
 
     pub fn update(
@@ -119,63 +153,75 @@ impl JavaState {
         runtime: &Runtime,
         metadata: &CompleteVersionMetadata,
         config: &mut runtime_config::Config,
+        ctx: &egui::Context,
         need_java_check: bool,
     ) {
         if need_java_check {
-            self.check_java(metadata, config);
-            if config.java_paths.get(metadata.get_name()).is_some() {
-                self.status = JavaDownloadStatus::Downloaded;
-            }
-            if config.java_paths.get(metadata.get_name()).is_none()
-                && self.status == JavaDownloadStatus::Downloaded
-            {
-                self.status = JavaDownloadStatus::NotDownloaded;
-            }
+            self.status = JavaDownloadStatus::CheckingJava;
+            let launcher_dir = config.get_launcher_dir();
+            let java_dir = get_java_dir(&launcher_dir);
+
+            self.check_java_task = Some(check_java(
+                runtime,
+                &metadata.get_java_version(),
+                &java_dir,
+                config
+                    .java_paths
+                    .get(metadata.get_name())
+                    .map(|s| s.as_str()),
+                ctx,
+            ));
 
             self.settings_opened = false;
         }
 
-        if self.status == JavaDownloadStatus::Downloading && self.java_download_task.is_none() {
-            let launcher_dir = config.get_launcher_dir();
-            let java_dir = get_java_dir(&launcher_dir);
+        if let Some(task) = self.check_java_task.as_ref() {
+            if task.has_result() {
+                let task = self.check_java_task.take().unwrap();
+                let result = task.take_result();
 
-            self.java_download_progress_bar.reset();
+                match result {
+                    BackgroundTaskResult::Finished(result) => {
+                        if let Some(java_path) = result.java_path {
+                            config.java_paths.insert(
+                                metadata.get_name().to_string(),
+                                java_path.to_string_lossy().to_string(),
+                            );
+                            config.save();
+                            self.status = JavaDownloadStatus::Downloaded;
+                        } else {
+                            config.java_paths.remove(metadata.get_name());
+                            config.save();
+                            self.status = JavaDownloadStatus::NotDownloaded;
+                        }
+                    }
 
-            let java_download_task = download_java(
-                runtime,
-                &metadata.get_java_version(),
-                &java_dir,
-                self.java_download_progress_bar.clone(),
-            );
-            self.java_download_task = Some(java_download_task);
+                    BackgroundTaskResult::Cancelled => {
+                        self.status = JavaDownloadStatus::NotDownloaded;
+                    }
+                }
+            }
         }
 
         if let Some(task) = self.java_download_task.as_ref() {
             if task.has_result() {
                 let task = self.java_download_task.take().unwrap();
                 let result = task.take_result();
+
                 match result {
                     BackgroundTaskResult::Finished(result) => {
                         self.status = result.status;
-                        self.java_download_task = None;
                         if self.status == JavaDownloadStatus::Downloaded {
                             let path = result.java_installation.as_ref().unwrap().path.clone();
-                            if java::check_java(&metadata.get_java_version(), &path) {
-                                config.java_paths.insert(
-                                    metadata.get_name().to_string(),
-                                    path.to_str().unwrap().to_string(),
-                                );
-                                config.save();
-                            } else {
-                                self.status = JavaDownloadStatus::DownloadError(
-                                    "Downloaded Java is not valid".to_string(),
-                                );
-                            }
+                            config.java_paths.insert(
+                                metadata.get_name().to_string(),
+                                path.to_string_lossy().to_string(),
+                            );
+                            config.save();
                         }
                     }
                     BackgroundTaskResult::Cancelled => {
                         self.status = JavaDownloadStatus::NotDownloaded;
-                        self.java_download_task = None;
                     }
                 }
             }
@@ -183,18 +229,26 @@ impl JavaState {
     }
 
     fn is_download_needed(&self) -> bool {
+        if self.java_download_task.is_some() {
+            return false;
+        }
         match self.status {
+            JavaDownloadStatus::CheckingJava => false,
             JavaDownloadStatus::NotDownloaded => true,
             JavaDownloadStatus::DownloadError(_) => true,
             JavaDownloadStatus::DownloadErrorOffline => true,
-            JavaDownloadStatus::Downloading => false,
             JavaDownloadStatus::Downloaded => false,
         }
     }
 
-    pub fn schedule_download_if_needed(&mut self) {
+    pub fn schedule_download_if_needed(
+        &mut self,
+        runtime: &Runtime,
+        metadata: &CompleteVersionMetadata,
+        config: &mut runtime_config::Config,
+    ) {
         if self.is_download_needed() {
-            self.status = JavaDownloadStatus::Downloading;
+            self.schedule_download(runtime, metadata, config);
         }
     }
 
@@ -205,15 +259,19 @@ impl JavaState {
         selected_metadata: &CompleteVersionMetadata,
     ) {
         match self.status {
-            JavaDownloadStatus::NotDownloaded => {
-                ui.label(
-                    LangMessage::NeedJava {
-                        version: selected_metadata.get_java_version().clone(),
-                    }
-                    .to_string(&config.lang),
-                );
+            JavaDownloadStatus::CheckingJava => {
+                ui.label(LangMessage::CheckingJava.to_string(&config.lang));
             }
-            JavaDownloadStatus::Downloading => {} // message is shown in progress bar
+            JavaDownloadStatus::NotDownloaded => {
+                if self.java_download_task.is_none() {
+                    ui.label(
+                        LangMessage::NeedJava {
+                            version: selected_metadata.get_java_version().clone(),
+                        }
+                        .to_string(&config.lang),
+                    );
+                }
+            }
             JavaDownloadStatus::DownloadError(ref e) => {
                 ui.label(LangMessage::ErrorDownloadingJava(e.clone()).to_string(&config.lang));
             }
@@ -230,7 +288,7 @@ impl JavaState {
             }
         }
 
-        if self.status == JavaDownloadStatus::Downloading {
+        if self.java_download_task.is_some() {
             self.java_download_progress_bar.render(ui, &config.lang);
             self.render_cancel_button(ui, &config.lang);
         }

@@ -235,7 +235,7 @@ pub async fn sync_modpack(
     let version_name = version_metadata.get_name();
 
     let libraries_dir = get_libraries_dir(launcher_dir);
-    let natives_dir = get_natives_dir(launcher_dir);
+    let natives_dir = get_natives_dir(launcher_dir, version_metadata.get_parent_id());
     let instance_dir = get_instance_dir(launcher_dir, &version_name);
 
     let mut check_entries = vec![];

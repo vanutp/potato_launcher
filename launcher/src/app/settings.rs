@@ -4,6 +4,7 @@ use crate::utils;
 use crate::version::complete_version_metadata::CompleteVersionMetadata;
 
 use shared::java;
+use tokio::runtime::Runtime;
 
 use super::language_selector::LanguageSelector;
 
@@ -26,6 +27,7 @@ impl SettingsState {
     pub fn render_ui(
         &mut self,
         ui: &mut egui::Ui,
+        runtime: &Runtime,
         config: &mut Config,
         selected_metadata: Option<&CompleteVersionMetadata>,
     ) {
@@ -49,12 +51,13 @@ impl SettingsState {
 
         self.language_selector.render_ui(ui, config);
 
-        self.render_settings_window(ui, config, selected_metadata);
+        self.render_settings_window(ui, runtime, config, selected_metadata);
     }
 
     fn render_settings_window(
         &mut self,
         ui: &mut egui::Ui,
+        runtime: &Runtime,
         config: &mut Config,
         selected_metadata: Option<&CompleteVersionMetadata>,
     ) {
@@ -78,7 +81,10 @@ impl SettingsState {
                 {
                     if let Some(selected_metadata) = selected_metadata {
                         if let Some(path) = rfd::FileDialog::new().pick_file() {
-                            if java::check_java(&selected_metadata.get_java_version(), &path) {
+                            if runtime.block_on(java::check_java(
+                                &selected_metadata.get_java_version(),
+                                &path,
+                            )) {
                                 self.picked_java_path = Some(path.display().to_string());
                                 config.java_paths.insert(
                                     selected_metadata.get_name().to_string(),
@@ -87,7 +93,8 @@ impl SettingsState {
                                 config.save();
                                 update_status = true;
                             } else {
-                                self.picked_java_path = None;
+                                self.picked_java_path =
+                                    "Invalid Java Installation".to_string().into();
                             }
                         }
                     }
