@@ -143,7 +143,7 @@ pub async fn launch(
         "assets_root".to_string() => config.get_assets_dir().to_str().unwrap().to_string(),
         "assets_index_name".to_string() => version_metadata.get_asset_index()?.id.to_string(),
         "auth_uuid".to_string() => version_auth_data.user_info.uuid.replace("-", ""),
-        "auth_access_token".to_string() => version_auth_data.token.clone(),
+        "auth_access_token".to_string() => version_auth_data.access_token.clone(),
         "clientid".to_string() => "".to_string(),
         "auth_xuid".to_string() => "".to_string(),
         "user_type".to_string() => if online { "mojang" } else { "offline" }.to_string(),

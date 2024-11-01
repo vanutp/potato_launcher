@@ -7,8 +7,7 @@ use crate::config::runtime_config::VersionAuthData;
 use crate::lang::LangMessage;
 use crate::message_provider::MessageProvider;
 
-use super::base::AuthProvider;
-use super::base::UserInfo;
+use super::base::{AuthProvider, AuthResultData, AuthState};
 
 struct AuthMessageState {
     auth_message: Option<LangMessage>,
@@ -28,9 +27,17 @@ impl AuthMessageProvider {
     }
 }
 
+
+#[derive(thiserror::Error, Debug)]
+pub enum AuthError {
+    #[error("Auth loop exceeded max iterations")]
+    InfiniteAuthLoop,
+}
+
+
 impl MessageProvider for AuthMessageProvider {
     fn set_message(&self, message: LangMessage) {
-        if let LangMessage::AuthMessage { .. } = message {
+        if matches!(message, LangMessage::AuthMessage { .. } | LangMessage::DeviceAuthMessage { .. }) {
             let mut state = self.state.lock().unwrap();
             state.auth_message = Some(message);
             self.ctx.request_repaint();
@@ -52,51 +59,65 @@ impl MessageProvider for AuthMessageProvider {
 }
 
 pub async fn auth(
-    existing_token: Option<String>,
+    auth_data: Option<VersionAuthData>,
     auth_provider: Arc<dyn AuthProvider + Send + Sync>,
     auth_message_provider: Arc<AuthMessageProvider>,
 ) -> BoxResult<VersionAuthData> {
-    let mut token = existing_token;
-    let mut user_info: Option<UserInfo> = None;
+    let mut auth_result_data = auth_data
+        .map_or(None, |data| Some(AuthResultData {
+            access_token: data.access_token,
+            refresh_token: data.refresh_token,
+        }));
+    let mut auth_state = auth_result_data
+        .clone()
+        .map_or(AuthState::Auth, |data| AuthState::UserInfo(data));
 
-    let tries_num = if token.is_some() { 2 } else { 1 };
-    for i in 0..tries_num {
-        if token.is_none() {
-            token = Some(
-                auth_provider
+    for _ in 0..10 {
+        match auth_state {
+            AuthState::Auth => {
+                auth_state = auth_provider
                     .authenticate(auth_message_provider.clone())
-                    .await?,
-            );
-        }
-
-        match auth_provider.get_user_info(token.as_ref().unwrap()).await {
-            Ok(info) => {
-                user_info = Some(info);
-                break;
+                    .await?;
             }
 
-            Err(e) => {
-                let mut token_error = false;
-                if let Some(re) = e.downcast_ref::<reqwest::Error>() {
-                    if let Some(status) = re.status() {
-                        if status.is_client_error() {
-                            token_error = true;
-                        }
-                    }
-                }
+            AuthState::Refresh => {
+                let refresh_token = auth_result_data
+                    .as_ref()
+                    .and_then(|data| data.refresh_token.clone());
+                auth_state = match refresh_token {
+                    Some(refresh_token) => auth_provider.refresh(refresh_token).await?,
+                    None => AuthState::Auth
+                };
+            }
 
-                if token_error && i + 1 != tries_num {
-                    // try again with a new token in the next iteration
-                    token = None;
-                } else {
-                    return Err(e);
-                }
+            AuthState::UserInfo(data) => {
+                auth_result_data = Some(data.clone());
+                auth_state = auth_provider
+                    .get_user_info(&data.access_token)
+                    .await
+                    .or_else(|e| {
+                        let is_client_error = e.downcast_ref::<reqwest::Error>()
+                            .and_then(|re| re.status())
+                            .map(|status| status.is_client_error())
+                            .unwrap_or(false);
+                        if is_client_error {
+                            Ok(AuthState::Refresh)
+                        } else {
+                            Err(e)
+                        }
+                    })?;
+            }
+
+            AuthState::Success(info) => {
+                let auth_result_data = auth_result_data.unwrap();
+                return Ok(VersionAuthData {
+                    access_token: auth_result_data.access_token,
+                    refresh_token: auth_result_data.refresh_token,
+                    user_info: info,
+                });
             }
         }
     }
 
-    return Ok(VersionAuthData {
-        token: token.unwrap(),
-        user_info: user_info.unwrap(),
-    });
+    Err(Box::new(AuthError::InfiniteAuthLoop))
 }

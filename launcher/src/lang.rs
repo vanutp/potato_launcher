@@ -9,6 +9,7 @@ pub enum Lang {
 #[derive(Clone, PartialEq, Debug)]
 pub enum LangMessage {
     AuthMessage { url: String },
+    DeviceAuthMessage { url: String, code: String },
     NoConnectionToAuthServer { offline_username: Option<String> },
     AuthTimeout,
     AuthError(String),
@@ -80,6 +81,14 @@ impl LangMessage {
                 Lang::Russian => {
                     "Авторизуйтесь в открывшемся окне браузера.\nИли откройте ссылку вручную."
                         .to_string()
+                }
+            },
+            LangMessage::DeviceAuthMessage { url: _, code } => match lang {
+                Lang::English => {
+                    format!("Authorize in the browser window.\nOr open the link manually and enter the code: {}", code)
+                }
+                Lang::Russian => {
+                    format!("Авторизуйтесь в открывшемся окне браузера.\nИли откройте ссылку вручную и введите код: {}", code)
                 }
             },
             LangMessage::NoConnectionToAuthServer {

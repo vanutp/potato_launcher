@@ -19,7 +19,7 @@ use crate::config::build_config;
 use crate::lang::LangMessage;
 use crate::message_provider::MessageProvider;
 
-use super::base::{AuthProvider, UserInfo};
+use super::base::{AuthProvider, AuthResultData, AuthState, UserInfo};
 
 const ELY_BY_BASE: &str = "https://ely.by/";
 
@@ -174,7 +174,7 @@ impl ElyByAuthProvider {
 
 #[async_trait]
 impl AuthProvider for ElyByAuthProvider {
-    async fn authenticate(&self, message_provider: Arc<dyn MessageProvider>) -> BoxResult<String> {
+    async fn authenticate(&self, message_provider: Arc<dyn MessageProvider>) -> BoxResult<AuthState> {
         let addr = SocketAddr::from(([127, 0, 0, 1], 0));
         let listener = TcpListener::bind(addr).await?;
 
@@ -214,14 +214,16 @@ impl AuthProvider for ElyByAuthProvider {
                     )
                 }),
             )
-            .await?;
+                .await?;
 
             if let Some(token) = token_rx.recv().await {
                 match token {
-                    TokenResult::Token(token) => return Ok(token),
-                    TokenResult::InvalidCode => {
-                        continue;
-                    }
+                    TokenResult::Token(token) =>
+                        return Ok(AuthState::UserInfo(AuthResultData {
+                            access_token: token,
+                            refresh_token: None,
+                        })),
+                    TokenResult::InvalidCode => continue,
                     TokenResult::Error(e) => return Err(e),
                 }
             } else {
@@ -230,17 +232,21 @@ impl AuthProvider for ElyByAuthProvider {
         }
     }
 
-    async fn get_user_info(&self, token: &str) -> BoxResult<UserInfo> {
+    async fn refresh(&self, _: String) -> BoxResult<AuthState> {
+        Ok(AuthState::Auth)
+    }
+
+    async fn get_user_info(&self, token: &str) -> BoxResult<AuthState> {
         let client = Client::new();
-        let resp = client
+        let resp: UserInfo = client
             .get("https://account.ely.by/api/account/v1/info")
             .header("Authorization", format!("Bearer {}", token))
             .send()
             .await?
-            .error_for_status()?;
-
-        let data: UserInfo = resp.json().await?;
-        Ok(data)
+            .error_for_status()?
+            .json()
+            .await?;
+        Ok(AuthState::Success(resp))
     }
 
     fn get_auth_url(&self) -> Option<String> {

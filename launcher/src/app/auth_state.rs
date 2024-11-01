@@ -26,7 +26,7 @@ enum AuthStatus {
 
 fn authenticate<Callback>(
     runtime: &Runtime,
-    token: Option<&str>,
+    auth_data: Option<VersionAuthData>,
     auth_provider: Arc<dyn AuthProvider + Send + Sync>,
     auth_message_provider: Arc<AuthMessageProvider>,
     callback: Callback,
@@ -34,13 +34,9 @@ fn authenticate<Callback>(
 where
     Callback: FnOnce() + Send + 'static,
 {
-    let token = token.map(|x| x.to_string());
     let fut = async move {
-        match auth(token, auth_provider, auth_message_provider).await {
-            Ok(auth_result) => AuthStatus::Authorized(VersionAuthData {
-                token: auth_result.token,
-                user_info: auth_result.user_info,
-            }),
+        match auth(auth_data, auth_provider, auth_message_provider).await {
+            Ok(data) => AuthStatus::Authorized(data),
 
             Err(e) => {
                 let mut connect_error = false;
@@ -126,6 +122,7 @@ impl AuthState {
             ui.label(auth_message.to_string(lang));
             let url = match auth_message {
                 LangMessage::AuthMessage { url } => Some(url),
+                LangMessage::DeviceAuthMessage { url, .. } => Some(url),
                 _ => None,
             }
             .unwrap();
@@ -151,14 +148,13 @@ impl AuthState {
         ctx: &egui::Context,
         runtime: &Runtime,
         auth_provider: Arc<dyn AuthProvider + Send + Sync>,
-        token: Option<&str>,
+        auth_data: Option<&VersionAuthData>,
     ) {
         let ctx = ctx.clone();
-        let selected_token = token.map(|x| x.to_string());
         self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
         self.auth_task = Some(authenticate(
             runtime,
-            selected_token.as_deref(),
+            auth_data.cloned(),
             auth_provider,
             self.auth_message_provider.clone(),
             move || {
@@ -178,7 +174,6 @@ impl AuthState {
         let lang = &config.lang;
         let version_auth_data = config.get_version_auth_data(auth_data);
         let selected_username = version_auth_data.map(|x| x.user_info.username.clone());
-        let selected_token = version_auth_data.map(|x| x.token.clone());
 
         let auth_provider = get_auth_provider(auth_data);
         let auth_provider_name = auth_provider.get_name();
@@ -186,8 +181,7 @@ impl AuthState {
         match &self.auth_status {
             AuthStatus::NotAuthorized if self.auth_task.is_none() => {
                 if let Some(version_auth_data) = config.get_version_auth_data(auth_data) {
-                    let token = version_auth_data.token.clone();
-                    self.set_auth_task(ctx, runtime, auth_provider.clone(), Some(&token));
+                    self.set_auth_task(ctx, runtime, auth_provider.clone(), Some(version_auth_data));
                 }
             }
             _ => {}
@@ -231,7 +225,7 @@ impl AuthState {
             AuthStatus::NotAuthorized if self.auth_task.is_some() => {}
             _ => {
                 if ui.button(LangMessage::Authorize.to_string(lang)).clicked() {
-                    self.set_auth_task(ctx, runtime, auth_provider, selected_token.as_deref());
+                    self.set_auth_task(ctx, runtime, auth_provider, version_auth_data);
                 }
             }
         }

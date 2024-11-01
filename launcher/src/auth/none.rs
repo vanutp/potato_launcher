@@ -1,6 +1,6 @@
 use crate::message_provider::MessageProvider;
 
-use super::base::{AuthProvider, UserInfo};
+use super::base::{AuthProvider, AuthResultData, AuthState, UserInfo};
 use async_trait::async_trait;
 use shared::utils::BoxResult;
 use std::sync::Arc;
@@ -15,15 +15,22 @@ impl NoneAuthProvider {
 
 #[async_trait]
 impl AuthProvider for NoneAuthProvider {
-    async fn authenticate(&self, _: Arc<dyn MessageProvider>) -> BoxResult<String> {
-        Ok("".to_string())
+    async fn authenticate(&self, _: Arc<dyn MessageProvider>) -> BoxResult<AuthState> {
+        Ok(AuthState::UserInfo(AuthResultData {
+            access_token: "".to_string(),
+            refresh_token: None,
+        }))
     }
 
-    async fn get_user_info(&self, _: &str) -> BoxResult<UserInfo> {
-        Ok(UserInfo {
+    async fn refresh(&self, _: String) -> BoxResult<AuthState> {
+        Ok(AuthState::Auth)
+    }
+
+    async fn get_user_info(&self, _: &str) -> BoxResult<AuthState> {
+        Ok(AuthState::Success(UserInfo {
             uuid: "00000000-0000-0000-0000-000000000000".to_string(),
             username: "demo".to_string(),
-        })
+        }))
     }
 
     fn get_auth_url(&self) -> Option<String> {

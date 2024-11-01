@@ -8,7 +8,8 @@ use crate::{auth::base::UserInfo, constants, lang::Lang};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct VersionAuthData {
-    pub token: String,
+    pub access_token: String,
+    pub refresh_token: Option<String>,
     pub user_info: UserInfo,
 }
 
