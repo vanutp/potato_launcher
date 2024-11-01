@@ -45,7 +45,6 @@ async fn get_installation(path: &Path) -> Option<JavaInstallation> {
     let mut cmd = Command::new(&path);
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         use winapi::um::winbase::CREATE_NO_WINDOW;
 
         cmd.creation_flags(CREATE_NO_WINDOW);
