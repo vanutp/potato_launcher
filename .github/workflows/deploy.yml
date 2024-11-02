@@ -38,12 +38,12 @@ jobs:
         run: |
           mkdir -p build
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            cargo build --bin launcher --release
-            mv "target/release/launcher.exe" "build/${LAUNCHER_NAME}.exe"
+            cargo build --bin launcher --profile release-lto
+            mv "target/release-lto/launcher.exe" "build/${LAUNCHER_NAME}.exe"
             echo "$VERSION" > build/version_windows.txt
           elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            cargo build --bin launcher --release
-            mv "target/release/launcher" "build/${DATA_LAUNCHER_NAME}"
+            cargo build --bin launcher --profile release-lto
+            mv "target/release-lto/launcher" "build/${DATA_LAUNCHER_NAME}"
             echo "$VERSION" > build/version_linux.txt
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
             mkdir -p icon.iconset
@@ -66,16 +66,16 @@ jobs:
 
             export MACOSX_DEPLOYMENT_TARGET=10.8
 
-            cargo bundle --bin launcher --release --target aarch64-apple-darwin
+            cargo bundle --bin launcher --profile release-lto --target aarch64-apple-darwin
             mkdir -p app
-            cp -r "target/aarch64-apple-darwin/release/bundle/osx/Potato Launcher.app" "app/$LAUNCHER_NAME.app"
+            cp -r "target/aarch64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app" "app/$LAUNCHER_NAME.app"
 
             rustup target add x86_64-apple-darwin
-            cargo bundle --bin launcher --release --target x86_64-apple-darwin
+            cargo bundle --bin launcher --profile release-lto --target x86_64-apple-darwin
 
             lipo -create -output "app/$LAUNCHER_NAME.app/Contents/MacOS/launcher" \
-              "target/x86_64-apple-darwin/release/bundle/osx/Potato Launcher.app/Contents/MacOS/launcher" \
-              "target/aarch64-apple-darwin/release/bundle/osx/Potato Launcher.app/Contents/MacOS/launcher"
+              "target/x86_64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app/Contents/MacOS/launcher" \
+              "target/aarch64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app/Contents/MacOS/launcher"
 
             codesign --force --deep --sign - "app/$LAUNCHER_NAME.app"
 
