@@ -36,11 +36,11 @@ impl LaunchState {
         &mut self,
         runtime: &Runtime,
         config: &runtime_config::Config,
-        selected_modpack: &CompleteVersionMetadata,
+        selected_instance: &CompleteVersionMetadata,
         version_auth_data: &VersionAuthData,
         online: bool,
     ) {
-        match runtime.block_on(launch::launch(selected_modpack, config, version_auth_data, online)) {
+        match runtime.block_on(launch::launch(selected_instance, config, version_auth_data, online)) {
             Ok(child) => {
                 if config.close_launcher_after_launch {
                     std::process::exit(0);
@@ -87,7 +87,7 @@ impl LaunchState {
         runtime: &Runtime,
         ui: &mut egui::Ui,
         config: &mut runtime_config::Config,
-        selected_modpack: &CompleteVersionMetadata,
+        selected_instance: &CompleteVersionMetadata,
         version_auth_data: &VersionAuthData,
         online: bool,
     ) {
@@ -108,7 +108,7 @@ impl LaunchState {
                     || LaunchState::big_button_clicked(ui, &LangMessage::Launch.to_string(lang))
                 {
                     self.force_launch = false;
-                    self.launch(runtime, config, selected_modpack, version_auth_data, online);
+                    self.launch(runtime, config, selected_instance, version_auth_data, online);
                 }
             }
         }
