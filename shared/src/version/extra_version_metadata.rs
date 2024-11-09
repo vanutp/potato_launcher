@@ -31,11 +31,12 @@ pub enum AuthData {
     Telegram(TelegramAuthData),
     #[serde(rename = "ely.by")]
     ElyBy(ElyByAuthData),
+    Microsoft,
 }
 
 impl Default for AuthData {
     fn default() -> Self {
-        AuthData::None
+        AuthData::Microsoft
     }
 }
 
@@ -46,6 +47,7 @@ impl AuthData {
             AuthData::ElyBy(auth_data) => {
                 format!("elyby_{}_{}", auth_data.client_id, auth_data.client_secret)
             }
+            AuthData::Microsoft => "microsoft".to_string(),
             AuthData::None => "none".to_string(),
         }
     }

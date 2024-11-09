@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use tokio::process::{Child, Command as TokioCommand};
 
 use crate::auth::base::get_auth_provider;
+use crate::auth::version_auth_data::VersionAuthData;
 use crate::config::runtime_config::Config;
 use crate::version::complete_version_metadata::CompleteVersionMetadata;
 use crate::version::rules;
@@ -60,8 +61,6 @@ fn process_args(
 
 #[derive(thiserror::Error, Debug)]
 pub enum LaunchError {
-    #[error("Not authorized")]
-    NotAuthorized,
     #[error("Missing authlib injector")]
     MissingAuthlibInjector,
     #[error("Missing library {0}")]
@@ -73,16 +72,11 @@ pub enum LaunchError {
 pub async fn launch(
     version_metadata: &CompleteVersionMetadata,
     config: &Config,
+    version_auth_data: &VersionAuthData,
     online: bool,
 ) -> BoxResult<Child> {
     let auth_data = version_metadata.get_auth_data();
     let auth_provider = get_auth_provider(auth_data);
-
-    let version_auth_data = config.get_version_auth_data(auth_data);
-    if version_auth_data.is_none() {
-        return Err(Box::new(LaunchError::NotAuthorized));
-    }
-    let version_auth_data = version_auth_data.unwrap();
 
     let launcher_dir = config.get_launcher_dir();
     let mut minecraft_dir = get_instance_dir(&launcher_dir, version_metadata.get_name());
@@ -143,7 +137,7 @@ pub async fn launch(
         "assets_root".to_string() => config.get_assets_dir().to_str().unwrap().to_string(),
         "assets_index_name".to_string() => version_metadata.get_asset_index()?.id.to_string(),
         "auth_uuid".to_string() => version_auth_data.user_info.uuid.replace("-", ""),
-        "auth_access_token".to_string() => version_auth_data.token.clone(),
+        "auth_access_token".to_string() => version_auth_data.access_token.clone(),
         "clientid".to_string() => "".to_string(),
         "auth_xuid".to_string() => "".to_string(),
         "user_type".to_string() => if online { "mojang" } else { "offline" }.to_string(),

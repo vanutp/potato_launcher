@@ -125,15 +125,17 @@ impl ManifestState {
     }
 
     pub fn render_ui(&mut self, ui: &mut egui::Ui, config: &mut runtime_config::Config) -> bool {
+        let lang = config.lang;
+
         let mut selected_modpack_name = config.selected_modpack_name.clone();
 
         ui.horizontal(|ui| {
-            ui.label(LangMessage::SelectModpack.to_string(&config.lang));
+            ui.label(LangMessage::SelectModpack.to_string(lang));
             egui::ComboBox::from_id_source("modpacks")
                 .selected_text(
                     selected_modpack_name
                         .clone()
-                        .unwrap_or_else(|| LangMessage::NotSelected.to_string(&config.lang)),
+                        .unwrap_or_else(|| LangMessage::NotSelected.to_string(lang)),
                 )
                 .show_ui(ui, |ui| match self.manifest.as_ref() {
                     Some(r) => {
@@ -148,29 +150,27 @@ impl ManifestState {
                         }
                     }
                     None => {
-                        ui.label(LangMessage::NoModpacks.to_string(&config.lang));
+                        ui.label(LangMessage::NoModpacks.to_string(lang));
                     }
                 });
         });
 
         match self.status {
             FetchStatus::Fetching => {
-                ui.label(LangMessage::FetchingVersionManifest.to_string(&config.lang));
+                ui.label(LangMessage::FetchingVersionManifest.to_string(lang));
             }
             FetchStatus::FetchedRemote => {}
             FetchStatus::FetchedLocalOffline => {
-                ui.label(LangMessage::NoConnectionToManifestServer.to_string(&config.lang));
+                ui.label(LangMessage::NoConnectionToManifestServer.to_string(lang));
             }
             FetchStatus::FetchedLocalRemoteError(ref s) => {
-                ui.label(
-                    LangMessage::ErrorFetchingRemoteManifest(s.clone()).to_string(&config.lang),
-                );
+                ui.label(LangMessage::ErrorFetchingRemoteManifest(s.clone()).to_string(lang));
             }
         }
 
         if self.status != FetchStatus::FetchedRemote && self.status != FetchStatus::Fetching {
             if ui
-                .button(LangMessage::FetchManifest.to_string(&config.lang))
+                .button(LangMessage::FetchManifest.to_string(lang))
                 .clicked()
             {
                 self.status = FetchStatus::Fetching;

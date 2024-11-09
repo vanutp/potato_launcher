@@ -86,3 +86,13 @@ impl<T> From<SingleOrVec<T>> for Vec<T> {
         }
     }
 }
+
+pub fn get_data_dir() -> PathBuf {
+    let data_dir = dirs::data_dir()
+        .expect("Failed to get data directory")
+        .join(build_config::get_data_launcher_name());
+    if !data_dir.exists() {
+        std::fs::create_dir_all(&data_dir).expect("Failed to create data directory");
+    }
+    data_dir
+}

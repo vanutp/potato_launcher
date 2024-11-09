@@ -3,8 +3,7 @@ use shared::paths::get_logs_dir;
 use tokio::{process::Child, runtime::Runtime};
 
 use crate::{
-    config::runtime_config, lang::LangMessage, launcher::launch,
-    version::complete_version_metadata::CompleteVersionMetadata,
+    auth::version_auth_data::VersionAuthData, config::runtime_config, lang::LangMessage, launcher::launch, version::complete_version_metadata::CompleteVersionMetadata
 };
 
 enum LauncherStatus {
@@ -38,9 +37,10 @@ impl LaunchState {
         runtime: &Runtime,
         config: &runtime_config::Config,
         selected_modpack: &CompleteVersionMetadata,
+        version_auth_data: &VersionAuthData,
         online: bool,
     ) {
-        match runtime.block_on(launch::launch(selected_modpack, config, online)) {
+        match runtime.block_on(launch::launch(selected_modpack, config, version_auth_data, online)) {
             Ok(child) => {
                 if config.close_launcher_after_launch {
                     std::process::exit(0);
@@ -88,13 +88,16 @@ impl LaunchState {
         ui: &mut egui::Ui,
         config: &mut runtime_config::Config,
         selected_modpack: &CompleteVersionMetadata,
+        version_auth_data: &VersionAuthData,
         online: bool,
     ) {
+        let lang = config.lang;
+
         match &mut self.status {
             LauncherStatus::Running { child } => {
-                ui.label(LangMessage::Running.to_string(&config.lang));
+                ui.label(LangMessage::Running.to_string(lang));
                 if ui
-                    .button(LangMessage::KillMinecraft.to_string(&config.lang))
+                    .button(LangMessage::KillMinecraft.to_string(lang))
                     .clicked()
                 {
                     let _ = runtime.block_on(child.kill());
@@ -102,27 +105,21 @@ impl LaunchState {
             }
             _ => {
                 if self.force_launch
-                    || LaunchState::big_button_clicked(
-                        ui,
-                        &LangMessage::Launch.to_string(&config.lang),
-                    )
+                    || LaunchState::big_button_clicked(ui, &LangMessage::Launch.to_string(lang))
                 {
                     self.force_launch = false;
-                    self.launch(runtime, config, selected_modpack, online);
+                    self.launch(runtime, config, selected_modpack, version_auth_data, online);
                 }
             }
         }
 
         match &self.status {
             LauncherStatus::Error(e) => {
-                ui.label(LangMessage::LaunchError(e.clone()).to_string(&config.lang));
+                ui.label(LangMessage::LaunchError(e.clone()).to_string(lang));
             }
             LauncherStatus::ProcessErrorCode(e) => {
-                ui.label(LangMessage::ProcessErrorCode(e.clone()).to_string(&config.lang));
-                if ui
-                    .button(LangMessage::OpenLogs.to_string(&config.lang))
-                    .clicked()
-                {
+                ui.label(LangMessage::ProcessErrorCode(e.clone()).to_string(lang));
+                if ui.button(LangMessage::OpenLogs.to_string(lang)).clicked() {
                     open::that(get_logs_dir(&config.get_launcher_dir())).unwrap();
                 }
             }
@@ -135,20 +132,17 @@ impl LaunchState {
         ui: &mut egui::Ui,
         config: &mut runtime_config::Config,
     ) -> ForceLaunchResult {
+        let lang = config.lang;
+
         if !self.force_launch {
-            if LaunchState::big_button_clicked(
-                ui,
-                &LangMessage::DownloadAndLaunch.to_string(&config.lang),
-            ) {
+            if LaunchState::big_button_clicked(ui, &LangMessage::DownloadAndLaunch.to_string(lang))
+            {
                 self.force_launch = true;
                 return ForceLaunchResult::ForceLaunchSelected;
             }
         } else {
             let mut cancel_clicked = false;
-            if LaunchState::big_button_clicked(
-                ui,
-                &LangMessage::CancelLaunch.to_string(&config.lang),
-            ) {
+            if LaunchState::big_button_clicked(ui, &LangMessage::CancelLaunch.to_string(lang)) {
                 self.force_launch = false;
                 cancel_clicked = true;
             }

@@ -1,12 +1,14 @@
 use crate::lang::LangMessage;
 use crate::message_provider::MessageProvider;
 
-use super::base::{AuthProvider, UserInfo};
+use super::{
+    base::{AuthProvider, AuthResultData, AuthState},
+    version_auth_data::UserInfo,
+};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
 use shared::utils::BoxResult;
-use std::sync::Arc;
 use std::{collections::HashMap, time::Duration};
 
 #[derive(Deserialize)]
@@ -49,7 +51,7 @@ impl TGAuthProvider {
 
 #[async_trait]
 impl AuthProvider for TGAuthProvider {
-    async fn authenticate(&self, message_provider: Arc<dyn MessageProvider>) -> BoxResult<String> {
+    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> BoxResult<AuthState> {
         let bot_name = self.get_bot_name().await?;
         let body = self
             .client
@@ -100,25 +102,30 @@ impl AuthProvider for TGAuthProvider {
                 }
             }
 
-            std::thread::sleep(Duration::from_secs(1));
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
 
-        Ok(access_token)
+        Ok(AuthState::UserInfo(AuthResultData {
+            access_token,
+            refresh_token: None,
+        }))
     }
 
-    async fn get_user_info(&self, token: &str) -> BoxResult<UserInfo> {
-        let resp = self
+    async fn refresh(&self, _: String) -> BoxResult<AuthState> {
+        Ok(AuthState::Auth)
+    }
+
+    async fn get_user_info(&self, token: &str) -> BoxResult<AuthState> {
+        let resp: UserInfo = self
             .client
             .get(format!("{}/login/profile", self.base_url))
             .header("Authorization", format!("Bearer {}", token))
             .send()
+            .await?
+            .error_for_status()?
+            .json()
             .await?;
-
-        resp.error_for_status_ref()?;
-
-        let body = resp.text().await?;
-        let user_info: UserInfo = serde_json::from_str(&body).unwrap();
-        Ok(user_info)
+        Ok(AuthState::Success(resp))
     }
 
     fn get_auth_url(&self) -> Option<String> {

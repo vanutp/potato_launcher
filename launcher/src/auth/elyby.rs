@@ -9,7 +9,6 @@ use reqwest::Client;
 use serde::Deserialize;
 use shared::utils::{BoxError, BoxResult};
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
@@ -19,7 +18,8 @@ use crate::config::build_config;
 use crate::lang::LangMessage;
 use crate::message_provider::MessageProvider;
 
-use super::base::{AuthProvider, UserInfo};
+use super::base::{AuthProvider, AuthResultData, AuthState};
+use super::version_auth_data::UserInfo;
 
 const ELY_BY_BASE: &str = "https://ely.by/";
 
@@ -111,7 +111,7 @@ async fn handle_request(
     client_secret: String,
     redirect_uri: String,
     req: Request<hyper::body::Incoming>,
-    token_tx: Arc<mpsc::UnboundedSender<TokenResult>>,
+    token_tx: Box<mpsc::UnboundedSender<TokenResult>>,
 ) -> BoxResult<Response<Full<Bytes>>> {
     let query = req.uri().query().ok_or("Missing query string")?;
     let auth_query: AuthQuery = serde_urlencoded::from_str(query)?;
@@ -162,7 +162,7 @@ impl ElyByAuthProvider {
         }
     }
 
-    fn print_auth_url(&self, redirect_uri: &str, message_provider: Arc<dyn MessageProvider>) {
+    fn print_auth_url(&self, redirect_uri: &str, message_provider: &dyn MessageProvider) {
         let url = format!(
             "https://account.ely.by/oauth2/v1?client_id={}&redirect_uri={}&response_type=code&scope=account_info%20minecraft_server_session&prompt=select_account",
             &self.client_id, redirect_uri
@@ -174,7 +174,7 @@ impl ElyByAuthProvider {
 
 #[async_trait]
 impl AuthProvider for ElyByAuthProvider {
-    async fn authenticate(&self, message_provider: Arc<dyn MessageProvider>) -> BoxResult<String> {
+    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> BoxResult<AuthState> {
         let addr = SocketAddr::from(([127, 0, 0, 1], 0));
         let listener = TcpListener::bind(addr).await?;
 
@@ -199,7 +199,7 @@ impl AuthProvider for ElyByAuthProvider {
             let io = TokioIo::new(stream);
 
             let (token_tx, mut token_rx) = mpsc::unbounded_channel();
-            let token_tx = Arc::new(token_tx);
+            let token_tx = Box::new(token_tx);
 
             http.serve_connection(
                 io,
@@ -218,10 +218,13 @@ impl AuthProvider for ElyByAuthProvider {
 
             if let Some(token) = token_rx.recv().await {
                 match token {
-                    TokenResult::Token(token) => return Ok(token),
-                    TokenResult::InvalidCode => {
-                        continue;
+                    TokenResult::Token(token) => {
+                        return Ok(AuthState::UserInfo(AuthResultData {
+                            access_token: token,
+                            refresh_token: None,
+                        }))
                     }
+                    TokenResult::InvalidCode => continue,
                     TokenResult::Error(e) => return Err(e),
                 }
             } else {
@@ -230,17 +233,21 @@ impl AuthProvider for ElyByAuthProvider {
         }
     }
 
-    async fn get_user_info(&self, token: &str) -> BoxResult<UserInfo> {
+    async fn refresh(&self, _: String) -> BoxResult<AuthState> {
+        Ok(AuthState::Auth)
+    }
+
+    async fn get_user_info(&self, token: &str) -> BoxResult<AuthState> {
         let client = Client::new();
-        let resp = client
+        let resp: UserInfo = client
             .get("https://account.ely.by/api/account/v1/info")
             .header("Authorization", format!("Bearer {}", token))
             .send()
             .await?
-            .error_for_status()?;
-
-        let data: UserInfo = resp.json().await?;
-        Ok(data)
+            .error_for_status()?
+            .json()
+            .await?;
+        Ok(AuthState::Success(resp))
     }
 
     fn get_auth_url(&self) -> Option<String> {

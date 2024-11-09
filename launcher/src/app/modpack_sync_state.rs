@@ -119,6 +119,7 @@ impl ModpackSyncState {
     ) -> bool {
         if need_modpack_check {
             self.status = ModpackSyncStatus::NotSynced;
+            self.modpack_sync_task = None;
         }
 
         if self.status == ModpackSyncStatus::NotSynced {
@@ -221,9 +222,11 @@ impl ModpackSyncState {
         config: &mut runtime_config::Config,
         manifest_online: bool,
     ) {
+        let lang = config.lang;
+
         match &self.status {
             ModpackSyncStatus::NotSynced => {
-                ui.label(LangMessage::ModpackNotSynced.to_string(&config.lang));
+                ui.label(LangMessage::ModpackNotSynced.to_string(lang));
             }
             ModpackSyncStatus::Syncing {
                 ignore_version: _,
@@ -232,23 +235,23 @@ impl ModpackSyncState {
                 // should be shown in the progress bar
             }
             ModpackSyncStatus::Synced => {
-                ui.label(LangMessage::ModpackSynced.to_string(&config.lang));
+                ui.label(LangMessage::ModpackSynced.to_string(lang));
             }
             ModpackSyncStatus::SyncError(e) => {
-                ui.label(LangMessage::ModpackSyncError(e.clone()).to_string(&config.lang));
+                ui.label(LangMessage::ModpackSyncError(e.clone()).to_string(lang));
             }
             ModpackSyncStatus::SyncErrorOffline => {
-                ui.label(LangMessage::NoConnectionToSyncServer.to_string(&config.lang));
+                ui.label(LangMessage::NoConnectionToSyncServer.to_string(lang));
             }
         }
 
         if manifest_online {
             if self.modpack_sync_task.is_some() && !self.modpack_sync_window_open {
-                self.modpack_sync_progress_bar.render(ui, &config.lang);
-                self.render_cancel_button(ui, &config.lang);
+                self.modpack_sync_progress_bar.render(ui, lang);
+                self.render_cancel_button(ui, lang);
             } else {
                 if ui
-                    .button(LangMessage::SyncModpack.to_string(&config.lang))
+                    .button(LangMessage::SyncModpack.to_string(lang))
                     .clicked()
                 {
                     match &self.status {
@@ -267,12 +270,12 @@ impl ModpackSyncState {
                     }
                 }
 
-                self.render_sync_window(ui, &config.lang);
+                self.render_sync_window(ui, lang);
             }
         }
     }
 
-    pub fn render_sync_window(&mut self, ui: &mut egui::Ui, lang: &Lang) {
+    pub fn render_sync_window(&mut self, ui: &mut egui::Ui, lang: Lang) {
         let mut modpack_sync_window_open = self.modpack_sync_window_open.clone();
         egui::Window::new(LangMessage::SyncModpack.to_string(lang))
             .open(&mut modpack_sync_window_open)
@@ -307,7 +310,7 @@ impl ModpackSyncState {
         self.status == ModpackSyncStatus::Synced
     }
 
-    fn render_cancel_button(&mut self, ui: &mut egui::Ui, lang: &Lang) {
+    fn render_cancel_button(&mut self, ui: &mut egui::Ui, lang: Lang) {
         if ui
             .button(LangMessage::CancelDownload.to_string(lang))
             .clicked()

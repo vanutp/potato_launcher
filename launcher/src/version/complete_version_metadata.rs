@@ -23,7 +23,7 @@ pub struct CompleteVersionMetadata {
 
 const DEFAULT_RESOURCES_URL_BASE: &str = "https://resources.download.minecraft.net";
 
-const AUTH_DATA_NONE: AuthData = AuthData::None;
+const AUTH_DATA_MICROSOFT: AuthData = AuthData::Microsoft;
 
 #[derive(thiserror::Error, Debug)]
 pub enum VersionMetadataError {
@@ -126,7 +126,7 @@ impl CompleteVersionMetadata {
     pub fn get_auth_data(&self) -> &AuthData {
         match &self.extra {
             Some(extra) => &extra.auth_provider,
-            None => &AUTH_DATA_NONE,
+            None => &AUTH_DATA_MICROSOFT,
         }
     }
 
