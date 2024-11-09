@@ -3,7 +3,8 @@ use shared::paths::get_logs_dir;
 use tokio::{process::Child, runtime::Runtime};
 
 use crate::{
-    auth::version_auth_data::VersionAuthData, config::runtime_config, lang::LangMessage, launcher::launch, version::complete_version_metadata::CompleteVersionMetadata
+    auth::version_auth_data::VersionAuthData, config::runtime_config, lang::LangMessage,
+    launcher::launch, version::complete_version_metadata::CompleteVersionMetadata,
 };
 
 enum LauncherStatus {
@@ -40,7 +41,12 @@ impl LaunchState {
         version_auth_data: &VersionAuthData,
         online: bool,
     ) {
-        match runtime.block_on(launch::launch(selected_instance, config, version_auth_data, online)) {
+        match runtime.block_on(launch::launch(
+            selected_instance,
+            config,
+            version_auth_data,
+            online,
+        )) {
             Ok(child) => {
                 if config.close_launcher_after_launch {
                     std::process::exit(0);
@@ -108,7 +114,13 @@ impl LaunchState {
                     || LaunchState::big_button_clicked(ui, &LangMessage::Launch.to_string(lang))
                 {
                     self.force_launch = false;
-                    self.launch(runtime, config, selected_instance, version_auth_data, online);
+                    self.launch(
+                        runtime,
+                        config,
+                        selected_instance,
+                        version_auth_data,
+                        online,
+                    );
                 }
             }
         }

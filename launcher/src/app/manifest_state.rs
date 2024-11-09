@@ -228,9 +228,7 @@ impl ManifestState {
                 ui.label(LangMessage::NoConnectionToManifestServer.to_string(lang));
             }
             FetchStatus::FetchError(ref s) => {
-                ui.label(
-                    LangMessage::ErrorFetchingRemoteManifest(s.clone()).to_string(lang),
-                );
+                ui.label(LangMessage::ErrorFetchingRemoteManifest(s.clone()).to_string(lang));
             }
         }
 

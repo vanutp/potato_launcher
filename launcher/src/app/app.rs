@@ -150,9 +150,7 @@ impl LauncherApp {
                                 self.auth_state
                                     .reset_auth_if_needed(version_metadata.get_auth_data());
                             }
-                            need_check |= self
-                                .auth_state
-                                .update();
+                            need_check |= self.auth_state.update();
 
                             if need_check {
                                 self.instance_sync_state.reset_status();
@@ -166,7 +164,9 @@ impl LauncherApp {
                                 version_metadata.get_auth_data(),
                             );
 
-                            let version_auth_data = self.auth_state.get_version_auth_data(version_metadata.get_auth_data());
+                            let version_auth_data = self
+                                .auth_state
+                                .get_version_auth_data(version_metadata.get_auth_data());
 
                             if let Some(version_auth_data) = version_auth_data {
                                 let manifest_online =
@@ -216,37 +216,37 @@ impl LauncherApp {
                                 {
                                     self.launch_state.update();
 
-                                self.launch_state.render_ui(
-                                    &self.runtime,
-                                    ui,
-                                    &mut self.config,
-                                    &version_metadata,
-                                    version_auth_data,
-                                    self.auth_state.online(),
-                                );
-                            } else {
-                                let force_launch_result =
-                                    self.launch_state.render_download_ui(ui, &mut self.config);
-                                match force_launch_result {
-                                    ForceLaunchResult::ForceLaunchSelected => {
-                                        self.instance_sync_state.schedule_sync_if_needed();
-                                        self.java_state.schedule_download_if_needed(
-                                            &self.runtime,
-                                            &version_metadata,
-                                            &mut self.config,
-                                        );
+                                    self.launch_state.render_ui(
+                                        &self.runtime,
+                                        ui,
+                                        &mut self.config,
+                                        &version_metadata,
+                                        version_auth_data,
+                                        self.auth_state.online(),
+                                    );
+                                } else {
+                                    let force_launch_result =
+                                        self.launch_state.render_download_ui(ui, &mut self.config);
+                                    match force_launch_result {
+                                        ForceLaunchResult::ForceLaunchSelected => {
+                                            self.instance_sync_state.schedule_sync_if_needed();
+                                            self.java_state.schedule_download_if_needed(
+                                                &self.runtime,
+                                                &version_metadata,
+                                                &mut self.config,
+                                            );
+                                        }
+                                        ForceLaunchResult::CancelSelected => {
+                                            self.java_state.cancel_download();
+                                            self.instance_sync_state.cancel_sync();
+                                        }
+                                        ForceLaunchResult::NotSelected => {}
                                     }
-                                    ForceLaunchResult::CancelSelected => {
-                                        self.java_state.cancel_download();
-                                        self.instance_sync_state.cancel_sync();
-                                    }
-                                    ForceLaunchResult::NotSelected => {}
                                 }
                             }
                         }
                     }
-                }
+                });
             });
-        });
     }
 }

@@ -516,6 +516,7 @@ impl NewInstanceState {
                         ui.horizontal(|ui| {
                             if self.instance_generate_task.is_none() {
                                 if ui.button(LangMessage::CreateInstance.to_string(lang)).clicked() {
+                                    self.instance_sync_progress_bar.reset();
                                     let task = create_new_instance(
                                         &runtime,
                                         ui.ctx(),
@@ -535,10 +536,10 @@ impl NewInstanceState {
                                         .map_or(false, |e| e.is_connect())
                                     {
                                         LangMessage::InstanceGenerateErrorOffline
-                                            .to_string(config.lang)
+                                            .to_string(lang)
                                     } else {
                                         LangMessage::InstanceGenerateError(error.to_string())
-                                            .to_string(config.lang)
+                                            .to_string(lang)
                                     });
                                 }
                             } else {
@@ -548,7 +549,7 @@ impl NewInstanceState {
                                 }
                             }
                         });
-                        if self.instance_generate_task.is_some() {
+                        if self.instance_generate_task.is_some() && self.instance_sync_progress_bar.get_state().total > 0 {
                             self.instance_sync_progress_bar.render(ui, lang);
                         }
                     }

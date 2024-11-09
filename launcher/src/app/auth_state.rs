@@ -120,7 +120,9 @@ impl AuthState {
                                 if let Some(version_auth_data) = result.version_auth_data {
                                     self.runtime_auth_storage
                                         .insert(&result.auth_data, version_auth_data.clone());
-                                    let _ = self.auth_storage.insert(&result.auth_data, version_auth_data);
+                                    let _ = self
+                                        .auth_storage
+                                        .insert(&result.auth_data, version_auth_data);
                                 }
                             }
                             _ => {}
