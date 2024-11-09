@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq)]
 pub enum Lang {
     English,
     Russian,
@@ -69,10 +69,11 @@ pub enum LangMessage {
     CancelDownload,
     Retry,
     OpenLogs,
+    LogicError,
 }
 
 impl LangMessage {
-    pub fn to_string(&self, lang: &Lang) -> String {
+    pub fn to_string(&self, lang: Lang) -> String {
         match self {
             LangMessage::AuthMessage { url: _ } => match lang {
                 Lang::English => {
@@ -347,7 +348,11 @@ impl LangMessage {
             LangMessage::OpenLogs => match lang {
                 Lang::English => "Open logs folder".to_string(),
                 Lang::Russian => "Открыть папку с логами".to_string(),
-            }
+            },
+            LangMessage::LogicError => match lang {
+                Lang::English => "Logic error".to_string(),
+                Lang::Russian => "Логическая ошибка".to_string(),
+            },
         }
     }
 }

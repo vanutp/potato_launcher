@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
 
-const MINECRAFT_LOGIN_WITH_XBOX: &str = "https://api.minecraftservices.com/authentication/login_with_xbox";
+const MINECRAFT_LOGIN_WITH_XBOX: &str =
+    "https://api.minecraftservices.com/authentication/login_with_xbox";
 const XBOX_USER_AUTHENTICATE: &str = "https://user.auth.xboxlive.com/user/authenticate";
 const XBOX_XSTS_AUTHORIZE: &str = "https://xsts.auth.xboxlive.com/xsts/authorize";
 
@@ -18,7 +19,9 @@ pub struct MinecraftAccessToken(pub String);
 
 impl Debug for MinecraftAccessToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("MinecraftAccessToken").field(&"[redacted]").finish()
+        f.debug_tuple("MinecraftAccessToken")
+            .field(&"[redacted]")
+            .finish()
     }
 }
 
@@ -136,7 +139,8 @@ impl MinecraftAuthorizationFlow {
     /// Microsoft access token and returns a [MinecraftAuthenticationResponse]
     /// that contains the Minecraft access token.
     pub async fn exchange_microsoft_token(
-        &self, microsoft_access_token: impl AsRef<str>,
+        &self,
+        microsoft_access_token: impl AsRef<str>,
     ) -> Result<MinecraftAuthenticationResponse, MinecraftAuthorizationError> {
         let (xbox_token, user_hash) = self.xbox_token(microsoft_access_token).await?;
         let xbox_security_token = self.xbox_security_token(xbox_token).await?;
@@ -161,7 +165,8 @@ impl MinecraftAuthorizationFlow {
     }
 
     async fn xbox_security_token(
-        &self, xbox_token: String,
+        &self,
+        xbox_token: String,
     ) -> Result<XboxLiveAuthenticationResponse, MinecraftAuthorizationError> {
         let response = self
             .http_client
@@ -196,7 +201,8 @@ impl MinecraftAuthorizationFlow {
     }
 
     async fn xbox_token(
-        &self, microsoft_access_token: impl AsRef<str>,
+        &self,
+        microsoft_access_token: impl AsRef<str>,
     ) -> Result<(String, String), MinecraftAuthorizationError> {
         let xbox_authenticate_json = json!({
             "Properties": {

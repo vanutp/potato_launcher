@@ -1,15 +1,17 @@
 use image::Luma;
 use qrcode::QrCode;
 use shared::version::extra_version_metadata::AuthData;
-use std::collections::HashMap;
 use std::io::Cursor;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 use crate::auth::auth::auth; // nice
 use crate::auth::auth::AuthMessageProvider;
-use crate::auth::base::{get_auth_provider, AuthProvider};
-use crate::config::runtime_config::{self, Config, VersionAuthData};
+use crate::auth::base::get_auth_provider;
+use crate::auth::version_auth_data::AuthStorage;
+use crate::auth::version_auth_data::RuntimeAuthStorage;
+use crate::auth::version_auth_data::VersionAuthData;
+use crate::config::runtime_config::Config;
 use crate::lang::{Lang, LangMessage};
 use crate::message_provider::MessageProvider as _;
 
@@ -18,25 +20,37 @@ use super::background_task::{BackgroundTask, BackgroundTaskResult};
 #[derive(Clone, PartialEq)]
 enum AuthStatus {
     NotAuthorized,
-    Authorized(VersionAuthData),
+    Authorized,
     AuthorizeError(String),
     AuthorizeErrorOffline,
     AuthorizeErrorTimeout,
 }
 
-fn authenticate<Callback>(
+struct AuthResult {
+    auth_data: AuthData,
+    status: AuthStatus,
+    version_auth_data: Option<VersionAuthData>,
+}
+
+fn authenticate(
     runtime: &Runtime,
-    auth_data: Option<VersionAuthData>,
-    auth_provider: Arc<dyn AuthProvider + Send + Sync>,
+    version_auth_data: Option<&VersionAuthData>,
+    auth_data: &AuthData,
     auth_message_provider: Arc<AuthMessageProvider>,
-    callback: Callback,
-) -> BackgroundTask<AuthStatus>
-where
-    Callback: FnOnce() + Send + 'static,
-{
+    ctx: &egui::Context,
+) -> BackgroundTask<AuthResult> {
+    let ctx = ctx.clone();
+    let auth_data = auth_data.clone();
+    let auth_provider = get_auth_provider(&auth_data);
+    let version_auth_data = version_auth_data.cloned();
+
     let fut = async move {
-        match auth(auth_data, auth_provider, auth_message_provider).await {
-            Ok(data) => AuthStatus::Authorized(data),
+        match auth(version_auth_data, auth_provider, auth_message_provider).await {
+            Ok(data) => AuthResult {
+                auth_data: auth_data,
+                status: AuthStatus::Authorized,
+                version_auth_data: Some(data),
+            },
 
             Err(e) => {
                 let mut connect_error = false;
@@ -50,25 +64,36 @@ where
                     }
                 }
 
-                if connect_error {
-                    AuthStatus::AuthorizeErrorOffline
-                } else if timeout_error {
-                    AuthStatus::AuthorizeErrorTimeout
-                } else {
-                    AuthStatus::AuthorizeError(e.to_string())
+                AuthResult {
+                    auth_data: auth_data,
+                    status: if connect_error {
+                        AuthStatus::AuthorizeErrorOffline
+                    } else if timeout_error {
+                        AuthStatus::AuthorizeErrorTimeout
+                    } else {
+                        AuthStatus::AuthorizeError(e.to_string())
+                    },
+                    version_auth_data: None,
                 }
             }
         }
     };
 
-    BackgroundTask::with_callback(fut, runtime, Box::new(callback))
+    BackgroundTask::with_callback(
+        fut,
+        runtime,
+        Box::new(move || {
+            ctx.request_repaint();
+        }),
+    )
 }
 
 pub struct AuthState {
     auth_status: AuthStatus,
-    auth_task: Option<BackgroundTask<AuthStatus>>,
+    auth_task: Option<BackgroundTask<AuthResult>>,
     auth_message_provider: Arc<AuthMessageProvider>,
-    runtime_auth: HashMap<String, VersionAuthData>,
+    auth_storage: AuthStorage,
+    runtime_auth_storage: RuntimeAuthStorage,
 }
 
 impl AuthState {
@@ -77,33 +102,32 @@ impl AuthState {
             auth_status: AuthStatus::NotAuthorized,
             auth_task: None,
             auth_message_provider: Arc::new(AuthMessageProvider::new(ctx)),
-            runtime_auth: HashMap::new(),
+            auth_storage: AuthStorage::load(),
+            runtime_auth_storage: RuntimeAuthStorage::new(),
         };
     }
 
-    pub fn update(&mut self, config: &mut runtime_config::Config, auth_data: &AuthData) -> bool {
+    pub fn update(&mut self) -> bool {
         if let Some(task) = self.auth_task.as_ref() {
             if task.has_result() {
                 self.auth_message_provider.clear();
                 let task = self.auth_task.take().unwrap();
                 let result = task.take_result();
                 match result {
-                    BackgroundTaskResult::Finished(auth_status) => match auth_status.clone() {
-                        AuthStatus::Authorized(version_auth_data) => {
-                            config
-                                .versions_auth_data
-                                .insert(auth_data.get_id(), version_auth_data.clone());
-                            self.runtime_auth
-                                .insert(auth_data.get_id(), version_auth_data);
-                            config.save();
-
-                            self.auth_status = auth_status;
+                    BackgroundTaskResult::Finished(result) => {
+                        match &result.status {
+                            AuthStatus::Authorized => {
+                                if let Some(version_auth_data) = result.version_auth_data {
+                                    self.runtime_auth_storage
+                                        .insert(&result.auth_data, version_auth_data.clone());
+                                    let _ = self.auth_storage.insert(&result.auth_data, version_auth_data);
+                                }
+                            }
+                            _ => {}
                         }
 
-                        _ => {
-                            self.auth_status = auth_status;
-                        }
-                    },
+                        self.auth_status = result.status;
+                    }
 
                     BackgroundTaskResult::Cancelled => {
                         self.auth_status = AuthStatus::NotAuthorized;
@@ -117,7 +141,7 @@ impl AuthState {
         false
     }
 
-    fn render_auth_window(auth_message: LangMessage, lang: &Lang, ui: &mut egui::Ui) {
+    fn render_auth_window(auth_message: LangMessage, lang: Lang, ui: &mut egui::Ui) {
         egui::Window::new(LangMessage::Authorization.to_string(lang)).show(ui.ctx(), |ui| {
             ui.label(auth_message.to_string(lang));
             let url = match auth_message {
@@ -143,26 +167,6 @@ impl AuthState {
         });
     }
 
-    fn set_auth_task(
-        &mut self,
-        ctx: &egui::Context,
-        runtime: &Runtime,
-        auth_provider: Arc<dyn AuthProvider + Send + Sync>,
-        auth_data: Option<&VersionAuthData>,
-    ) {
-        let ctx = ctx.clone();
-        self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
-        self.auth_task = Some(authenticate(
-            runtime,
-            auth_data.cloned(),
-            auth_provider,
-            self.auth_message_provider.clone(),
-            move || {
-                ctx.request_repaint();
-            },
-        ));
-    }
-
     pub fn render_ui(
         &mut self,
         ui: &mut egui::Ui,
@@ -171,8 +175,8 @@ impl AuthState {
         ctx: &egui::Context,
         auth_data: &AuthData,
     ) {
-        let lang = &config.lang;
-        let version_auth_data = config.get_version_auth_data(auth_data);
+        let lang = config.lang;
+        let version_auth_data = self.auth_storage.get(auth_data);
         let selected_username = version_auth_data.map(|x| x.user_info.username.clone());
 
         let auth_provider = get_auth_provider(auth_data);
@@ -180,8 +184,15 @@ impl AuthState {
 
         match &self.auth_status {
             AuthStatus::NotAuthorized if self.auth_task.is_none() => {
-                if let Some(version_auth_data) = config.get_version_auth_data(auth_data) {
-                    self.set_auth_task(ctx, runtime, auth_provider.clone(), Some(version_auth_data));
+                if let Some(version_auth_data) = self.auth_storage.get(auth_data) {
+                    self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                    self.auth_task = Some(authenticate(
+                        runtime,
+                        Some(version_auth_data),
+                        auth_data,
+                        self.auth_message_provider.clone(),
+                        ctx,
+                    ));
                 }
             }
             _ => {}
@@ -208,11 +219,15 @@ impl AuthState {
             AuthStatus::AuthorizeErrorTimeout => {
                 ui.label(LangMessage::AuthTimeout.to_string(lang));
             }
-            AuthStatus::Authorized(auth_data) => {
-                ui.label(LangMessage::AuthorizedAs.to_string(lang));
-                let text = egui::RichText::new(&auth_data.user_info.username)
-                    .text_style(egui::TextStyle::Monospace);
-                ui.label(text);
+            AuthStatus::Authorized => {
+                if let Some(version_auth_data) = version_auth_data {
+                    ui.label(LangMessage::AuthorizedAs.to_string(lang));
+                    let text = egui::RichText::new(&version_auth_data.user_info.username)
+                        .text_style(egui::TextStyle::Monospace);
+                    ui.label(text);
+                } else {
+                    ui.label(LangMessage::LogicError.to_string(lang));
+                }
             }
         }
 
@@ -221,32 +236,45 @@ impl AuthState {
         }
 
         match &self.auth_status {
-            AuthStatus::Authorized(_) => {}
+            AuthStatus::Authorized => {}
             AuthStatus::NotAuthorized if self.auth_task.is_some() => {}
             _ => {
                 if ui.button(LangMessage::Authorize.to_string(lang)).clicked() {
-                    self.set_auth_task(ctx, runtime, auth_provider, version_auth_data);
+                    self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                    self.auth_task = Some(authenticate(
+                        runtime,
+                        version_auth_data,
+                        auth_data,
+                        self.auth_message_provider.clone(),
+                        ctx,
+                    ));
                 }
             }
         }
     }
 
+    pub fn get_version_auth_data(&self, auth_data: &AuthData) -> Option<&VersionAuthData> {
+        if let Some(version_auth_data) = self.runtime_auth_storage.get(auth_data) {
+            return Some(version_auth_data);
+        }
+        if self.auth_status == AuthStatus::AuthorizeErrorOffline {
+            if let Some(version_auth_data) = self.auth_storage.get(auth_data) {
+                return Some(version_auth_data);
+            }
+        }
+        None
+    }
+
     pub fn reset_auth_if_needed(&mut self, new_auth_data: &AuthData) {
-        if !self.runtime_auth.contains_key(&new_auth_data.get_id()) {
+        if !self.runtime_auth_storage.contains(new_auth_data) {
             self.auth_status = AuthStatus::NotAuthorized;
             self.auth_task = None;
         }
     }
 
-    pub fn ready_for_launch(&self, auth_data: &AuthData, config: &Config) -> bool {
-        self.runtime_auth.contains_key(&auth_data.get_id())
-            || self.auth_status == AuthStatus::AuthorizeErrorOffline
-                && config.get_version_auth_data(auth_data).is_some()
-    }
-
     pub fn online(&self) -> bool {
         match &self.auth_status {
-            AuthStatus::Authorized(_) => true,
+            AuthStatus::Authorized => true,
             _ => false,
         }
     }

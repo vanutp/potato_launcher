@@ -9,8 +9,8 @@ mod launcher;
 mod message_provider;
 mod update_app;
 mod utils;
-mod version;
 mod vendor;
+mod version;
 
 use config::runtime_config::{get_logs_path, Config};
 use utils::set_sigint_handler;

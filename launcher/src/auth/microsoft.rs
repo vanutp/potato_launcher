@@ -1,15 +1,18 @@
-use async_trait::async_trait;
-use oauth2::reqwest::async_http_client;
-use oauth2::{AuthUrl, ClientId, DeviceAuthorizationUrl, DeviceCodeErrorResponseType, RefreshToken, RequestTokenError, Scope, StandardDeviceAuthorizationResponse, TokenResponse, TokenUrl};
-use reqwest::{Client, Url};
-use serde::Deserialize;
-use shared::utils::{BoxError, BoxResult};
-use std::sync::Arc;
-use std::time::Duration;
-use super::base::{AuthProvider, AuthResultData, AuthState, UserInfo};
+use super::base::{AuthProvider, AuthResultData, AuthState};
+use super::version_auth_data::UserInfo;
 use crate::lang::LangMessage;
 use crate::message_provider::MessageProvider;
 use crate::vendor::minecraft_msa_auth::MinecraftAuthorizationFlow;
+use async_trait::async_trait;
+use oauth2::reqwest::async_http_client;
+use oauth2::{
+    AuthUrl, ClientId, DeviceAuthorizationUrl, DeviceCodeErrorResponseType, RefreshToken,
+    RequestTokenError, Scope, StandardDeviceAuthorizationResponse, TokenResponse, TokenUrl,
+};
+use reqwest::{Client, Url};
+use serde::Deserialize;
+use shared::utils::{BoxError, BoxResult};
+use std::time::Duration;
 
 const MSA_DEVICE_CODE_URL: &str = "https://login.live.com/oauth20_connect.srf";
 const MSA_TOKEN_URL: &str = "https://login.live.com/oauth20_token.srf";
@@ -37,12 +40,12 @@ fn get_oauth_client() -> oauth2::basic::BasicClient {
         AuthUrl::new(MSA_DEVICE_CODE_URL.to_string()).unwrap(),
         Some(TokenUrl::new(MSA_TOKEN_URL.to_string()).unwrap()),
     )
-        .set_device_authorization_url(DeviceAuthorizationUrl::new(MSA_DEVICE_CODE_URL.to_string()).unwrap())
+    .set_device_authorization_url(
+        DeviceAuthorizationUrl::new(MSA_DEVICE_CODE_URL.to_string()).unwrap(),
+    )
 }
 
-async fn get_ms_token(
-    message_provider: &Arc<dyn MessageProvider>
-) -> BoxResult<AuthResultData> {
+async fn get_ms_token(message_provider: &dyn MessageProvider) -> BoxResult<AuthResultData> {
     let client = get_oauth_client();
 
     let details: StandardDeviceAuthorizationResponse = client
@@ -53,24 +56,25 @@ async fn get_ms_token(
         .await?;
 
     let code = details.user_code().secret().to_string();
-    let url = Url::parse_with_params(
-        details.verification_uri(),
-        &[("otc", code.clone())],
-    )?.to_string();
+    let url =
+        Url::parse_with_params(details.verification_uri(), &[("otc", code.clone())])?.to_string();
 
     let _ = open::that(&url);
-    message_provider.set_message(LangMessage::DeviceAuthMessage {
-        url,
-        code,
-    });
+    message_provider.set_message(LangMessage::DeviceAuthMessage { url, code });
 
     let token = client
         .exchange_device_access_token(&details)
-        .request_async(async_http_client, tokio::time::sleep, Some(Duration::from_secs(60 * 5)))
+        .request_async(
+            async_http_client,
+            tokio::time::sleep,
+            Some(Duration::from_secs(60 * 5)),
+        )
         .await
         .map_err(|e| -> BoxError {
             match &e {
-                RequestTokenError::ServerResponse(resp) if *resp.error() == DeviceCodeErrorResponseType::ExpiredToken => {
+                RequestTokenError::ServerResponse(resp)
+                    if *resp.error() == DeviceCodeErrorResponseType::ExpiredToken =>
+                {
                     Box::new(AuthError::AuthTimeout)
                 }
                 _ => Box::new(e),
@@ -91,11 +95,12 @@ impl MicrosoftAuthProvider {
 
 #[async_trait]
 impl AuthProvider for MicrosoftAuthProvider {
-    async fn authenticate(&self, message_provider: Arc<dyn MessageProvider>) -> BoxResult<AuthState> {
-        let ms_token = get_ms_token(&message_provider).await?;
+    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> BoxResult<AuthState> {
+        let ms_token = get_ms_token(message_provider).await?;
         message_provider.clear();
         let mc_flow = MinecraftAuthorizationFlow::new(Client::new());
-        let mc_token = mc_flow.exchange_microsoft_token(ms_token.access_token)
+        let mc_token = mc_flow
+            .exchange_microsoft_token(ms_token.access_token)
             .await?
             .access_token()
             .clone()
@@ -116,7 +121,9 @@ impl AuthProvider for MicrosoftAuthProvider {
 
         Ok(AuthState::UserInfo(AuthResultData {
             access_token: token_response.access_token().secret().to_string(),
-            refresh_token: token_response.refresh_token().map(|t| t.secret().to_string()),
+            refresh_token: token_response
+                .refresh_token()
+                .map(|t| t.secret().to_string()),
         }))
     }
 

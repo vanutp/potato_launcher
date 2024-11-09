@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod base;
 mod elyby;
+mod microsoft;
 mod none;
 mod telegram;
-mod microsoft;
+pub mod version_auth_data;

@@ -36,7 +36,7 @@ pub enum AuthData {
 
 impl Default for AuthData {
     fn default() -> Self {
-        AuthData::None
+        AuthData::Microsoft
     }
 }
 

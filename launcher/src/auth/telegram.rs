@@ -1,12 +1,14 @@
 use crate::lang::LangMessage;
 use crate::message_provider::MessageProvider;
 
-use super::base::{AuthProvider, AuthResultData, AuthState, UserInfo};
+use super::{
+    base::{AuthProvider, AuthResultData, AuthState},
+    version_auth_data::UserInfo,
+};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
 use shared::utils::BoxResult;
-use std::sync::Arc;
 use std::{collections::HashMap, time::Duration};
 
 #[derive(Deserialize)]
@@ -49,7 +51,7 @@ impl TGAuthProvider {
 
 #[async_trait]
 impl AuthProvider for TGAuthProvider {
-    async fn authenticate(&self, message_provider: Arc<dyn MessageProvider>) -> BoxResult<AuthState> {
+    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> BoxResult<AuthState> {
         let bot_name = self.get_bot_name().await?;
         let body = self
             .client

@@ -105,9 +105,7 @@ impl LauncherApp {
                             self.auth_state
                                 .reset_auth_if_needed(version_metadata.get_auth_data());
                         }
-                        need_check |= self
-                            .auth_state
-                            .update(&mut self.config, version_metadata.get_auth_data());
+                        need_check |= self.auth_state.update();
 
                         self.auth_state.render_ui(
                             ui,
@@ -117,10 +115,9 @@ impl LauncherApp {
                             version_metadata.get_auth_data(),
                         );
 
-                        if self
-                            .auth_state
-                            .ready_for_launch(version_metadata.get_auth_data(), &self.config)
-                        {
+                        let version_auth_data = self.auth_state.get_version_auth_data(version_metadata.get_auth_data());
+
+                        if let Some(version_auth_data) = version_auth_data {
                             let manifest_online =
                                 self.manifest_state.online() && self.metadata_state.online();
                             need_check |= self.modpack_sync_state.update(
@@ -161,6 +158,7 @@ impl LauncherApp {
                                     ui,
                                     &mut self.config,
                                     &version_metadata,
+                                    version_auth_data,
                                     self.auth_state.online(),
                                 );
                             } else {
@@ -194,8 +192,12 @@ impl LauncherApp {
                 ui.add_space(5.0);
                 ui.horizontal(|ui| {
                     let selected_metadata_ref = selected_metadata.as_deref();
-                    self.settings_state
-                        .render_ui(ui, &self.runtime, &mut self.config, selected_metadata_ref);
+                    self.settings_state.render_ui(
+                        ui,
+                        &self.runtime,
+                        &mut self.config,
+                        selected_metadata_ref,
+                    );
                 });
                 ui.add_space(5.0);
             });

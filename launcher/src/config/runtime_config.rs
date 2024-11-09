@@ -1,21 +1,13 @@
 use serde::{Deserialize, Serialize};
-use shared::{paths::get_logs_dir, version::extra_version_metadata::AuthData};
+use shared::paths::get_logs_dir;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 use super::build_config;
-use crate::{auth::base::UserInfo, constants, lang::Lang};
-
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
-pub struct VersionAuthData {
-    pub access_token: String,
-    pub refresh_token: Option<String>,
-    pub user_info: UserInfo,
-}
+use crate::{constants, lang::Lang, utils::get_data_dir};
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
-    pub versions_auth_data: HashMap<String, VersionAuthData>,
     pub java_paths: HashMap<String, String>,
     pub assets_dir: Option<String>,
     pub data_dir: Option<String>,
@@ -23,16 +15,6 @@ pub struct Config {
     pub selected_modpack_name: Option<String>,
     pub lang: Lang,
     pub close_launcher_after_launch: bool,
-}
-
-fn get_data_dir() -> PathBuf {
-    let data_dir = dirs::data_dir()
-        .expect("Failed to get data directory")
-        .join(build_config::get_data_launcher_name());
-    if !data_dir.exists() {
-        std::fs::create_dir_all(&data_dir).expect("Failed to create data directory");
-    }
-    data_dir
 }
 
 const CONFIG_FILENAME: &str = "config.json";
@@ -53,7 +35,6 @@ impl Config {
         }
 
         let config = Config {
-            versions_auth_data: HashMap::new(),
             java_paths: HashMap::new(),
             assets_dir: None,
             data_dir: None,
@@ -88,10 +69,6 @@ impl Config {
             std::fs::create_dir_all(&assets_dir).expect("Failed to create assets directory");
         }
         assets_dir
-    }
-
-    pub fn get_version_auth_data(&self, auth_data: &AuthData) -> Option<&VersionAuthData> {
-        self.versions_auth_data.get(&auth_data.get_id())
     }
 
     pub fn save(&self) {

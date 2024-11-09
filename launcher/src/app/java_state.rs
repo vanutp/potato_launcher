@@ -258,9 +258,11 @@ impl JavaState {
         config: &mut runtime_config::Config,
         selected_metadata: &CompleteVersionMetadata,
     ) {
+        let lang = config.lang;
+
         match self.status {
             JavaDownloadStatus::CheckingJava => {
-                ui.label(LangMessage::CheckingJava.to_string(&config.lang));
+                ui.label(LangMessage::CheckingJava.to_string(lang));
             }
             JavaDownloadStatus::NotDownloaded => {
                 if self.java_download_task.is_none() {
@@ -268,29 +270,29 @@ impl JavaState {
                         LangMessage::NeedJava {
                             version: selected_metadata.get_java_version().clone(),
                         }
-                        .to_string(&config.lang),
+                        .to_string(lang),
                     );
                 }
             }
             JavaDownloadStatus::DownloadError(ref e) => {
-                ui.label(LangMessage::ErrorDownloadingJava(e.clone()).to_string(&config.lang));
+                ui.label(LangMessage::ErrorDownloadingJava(e.clone()).to_string(lang));
             }
             JavaDownloadStatus::DownloadErrorOffline => {
-                ui.label(LangMessage::NoConnectionToJavaServer.to_string(&config.lang));
+                ui.label(LangMessage::NoConnectionToJavaServer.to_string(lang));
             }
             JavaDownloadStatus::Downloaded => {
                 ui.label(
                     LangMessage::JavaInstalled {
                         version: selected_metadata.get_java_version().clone(),
                     }
-                    .to_string(&config.lang),
+                    .to_string(lang),
                 );
             }
         }
 
         if self.java_download_task.is_some() {
-            self.java_download_progress_bar.render(ui, &config.lang);
-            self.render_cancel_button(ui, &config.lang);
+            self.java_download_progress_bar.render(ui, lang);
+            self.render_cancel_button(ui, lang);
         }
     }
 
@@ -298,7 +300,7 @@ impl JavaState {
         self.status == JavaDownloadStatus::Downloaded
     }
 
-    fn render_cancel_button(&mut self, ui: &mut egui::Ui, lang: &Lang) {
+    fn render_cancel_button(&mut self, ui: &mut egui::Ui, lang: Lang) {
         if ui
             .button(LangMessage::CancelDownload.to_string(lang))
             .clicked()
