@@ -11,7 +11,6 @@ use oauth2::{
 };
 use reqwest::{Client, Url};
 use serde::Deserialize;
-use shared::utils::{BoxError, BoxResult};
 use std::time::Duration;
 
 const MSA_DEVICE_CODE_URL: &str = "https://login.live.com/oauth20_connect.srf";
@@ -45,7 +44,7 @@ fn get_oauth_client() -> oauth2::basic::BasicClient {
     )
 }
 
-async fn get_ms_token(message_provider: &dyn MessageProvider) -> BoxResult<AuthResultData> {
+async fn get_ms_token(message_provider: &dyn MessageProvider) -> anyhow::Result<AuthResultData> {
     let client = get_oauth_client();
 
     let details: StandardDeviceAuthorizationResponse = client
@@ -70,14 +69,14 @@ async fn get_ms_token(message_provider: &dyn MessageProvider) -> BoxResult<AuthR
             Some(Duration::from_secs(60 * 5)),
         )
         .await
-        .map_err(|e| -> BoxError {
+        .map_err(|e| -> anyhow::Error {
             match &e {
                 RequestTokenError::ServerResponse(resp)
                     if *resp.error() == DeviceCodeErrorResponseType::ExpiredToken =>
                 {
-                    Box::new(AuthError::AuthTimeout)
+                    AuthError::AuthTimeout.into()
                 }
-                _ => Box::new(e),
+                _ => e.into(),
             }
         })?;
 
@@ -95,7 +94,7 @@ impl MicrosoftAuthProvider {
 
 #[async_trait]
 impl AuthProvider for MicrosoftAuthProvider {
-    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> BoxResult<AuthState> {
+    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> anyhow::Result<AuthState> {
         let ms_token = get_ms_token(message_provider).await?;
         message_provider.clear();
         let mc_flow = MinecraftAuthorizationFlow::new(Client::new());
@@ -112,7 +111,7 @@ impl AuthProvider for MicrosoftAuthProvider {
         }))
     }
 
-    async fn refresh(&self, refresh_token: String) -> BoxResult<AuthState> {
+    async fn refresh(&self, refresh_token: String) -> anyhow::Result<AuthState> {
         let oauth_client = get_oauth_client();
         let token_response = oauth_client
             .exchange_refresh_token(&RefreshToken::new(refresh_token))
@@ -127,7 +126,7 @@ impl AuthProvider for MicrosoftAuthProvider {
         }))
     }
 
-    async fn get_user_info(&self, token: &str) -> BoxResult<AuthState> {
+    async fn get_user_info(&self, token: &str) -> anyhow::Result<AuthState> {
         let client = Client::new();
         let resp: MinecraftProfileResponse = client
             .get("https://api.minecraftservices.com/minecraft/profile")

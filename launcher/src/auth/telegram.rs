@@ -8,7 +8,6 @@ use super::{
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
-use shared::utils::BoxResult;
 use std::{collections::HashMap, time::Duration};
 
 #[derive(Deserialize)]
@@ -35,7 +34,7 @@ impl TGAuthProvider {
         }
     }
 
-    async fn get_bot_name(&self) -> BoxResult<String> {
+    async fn get_bot_name(&self) -> anyhow::Result<String> {
         let body = self
             .client
             .get(format!("{}/info", self.base_url))
@@ -51,7 +50,7 @@ impl TGAuthProvider {
 
 #[async_trait]
 impl AuthProvider for TGAuthProvider {
-    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> BoxResult<AuthState> {
+    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> anyhow::Result<AuthState> {
         let bot_name = self.get_bot_name().await?;
         let body = self
             .client
@@ -97,7 +96,7 @@ impl AuthProvider for TGAuthProvider {
                 }
                 Err(e) => {
                     if !e.is_timeout() {
-                        return Err(Box::new(e));
+                        return Err(e.into());
                     }
                 }
             }
@@ -111,11 +110,11 @@ impl AuthProvider for TGAuthProvider {
         }))
     }
 
-    async fn refresh(&self, _: String) -> BoxResult<AuthState> {
+    async fn refresh(&self, _: String) -> anyhow::Result<AuthState> {
         Ok(AuthState::Auth)
     }
 
-    async fn get_user_info(&self, token: &str) -> BoxResult<AuthState> {
+    async fn get_user_info(&self, token: &str) -> anyhow::Result<AuthState> {
         let resp: UserInfo = self
             .client
             .get(format!("{}/login/profile", self.base_url))

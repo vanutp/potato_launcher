@@ -1,8 +1,6 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use shared::utils::BoxResult;
-
 use crate::lang::LangMessage;
 use crate::message_provider::MessageProvider;
 
@@ -63,7 +61,7 @@ pub async fn auth(
     auth_data: Option<VersionAuthData>,
     auth_provider: Box<dyn AuthProvider + Send + Sync>,
     auth_message_provider: Arc<AuthMessageProvider>,
-) -> BoxResult<VersionAuthData> {
+) -> anyhow::Result<VersionAuthData> {
     let mut auth_result_data = auth_data.map_or(None, |data| {
         Some(AuthResultData {
             access_token: data.access_token,
@@ -122,5 +120,5 @@ pub async fn auth(
         }
     }
 
-    Err(Box::new(AuthError::InfiniteAuthLoop))
+    Err(AuthError::InfiniteAuthLoop.into())
 }

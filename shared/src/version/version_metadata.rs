@@ -10,7 +10,6 @@ use crate::{
     files::{self, CheckEntry},
     paths::get_metadata_path,
     progress,
-    utils::BoxResult,
 };
 
 use super::version_manifest::MetadataInfo;
@@ -288,6 +287,15 @@ impl Library {
     pub fn get_full_name(&self) -> String {
         self.name.clone()
     }
+
+    pub fn get_name_without_version(&self) -> String {
+        let mut parts: Vec<&str> = self.name.split(':').collect();
+        if parts.len() != 4 {
+            parts.push("");
+        }
+        parts.remove(2);
+        parts.join(":")
+    }
 }
 
 #[derive(Deserialize, Serialize)]
@@ -352,7 +360,7 @@ lazy_static::lazy_static! {
 }
 
 impl VersionMetadata {
-    pub async fn read_local(versions_dir: &Path, version_id: &str) -> BoxResult<Self> {
+    pub async fn read_local(versions_dir: &Path, version_id: &str) -> anyhow::Result<Self> {
         let version_path = get_metadata_path(versions_dir, version_id);
         let mut file = fs::File::open(version_path).await?;
         let mut content = String::new();
@@ -361,7 +369,7 @@ impl VersionMetadata {
         Ok(metadata)
     }
 
-    pub async fn fetch(url: &str) -> BoxResult<Self> {
+    pub async fn fetch(url: &str) -> anyhow::Result<Self> {
         let client = reqwest::Client::new();
         let response = client.get(url).send().await?.error_for_status()?;
         let metadata = response.json().await?;
@@ -382,7 +390,7 @@ impl VersionMetadata {
     pub async fn read_or_download(
         metadata_info: &MetadataInfo,
         versions_dir: &Path,
-    ) -> BoxResult<Self> {
+    ) -> anyhow::Result<Self> {
         let check_entry = Self::get_check_entry(metadata_info, versions_dir);
         let check_entries = vec![check_entry];
         let download_entries =
@@ -391,7 +399,7 @@ impl VersionMetadata {
         Self::read_local(versions_dir, &metadata_info.id).await
     }
 
-    pub fn get_arguments(&self) -> BoxResult<Arguments> {
+    pub fn get_arguments(&self) -> anyhow::Result<Arguments> {
         match &self.arguments {
             Some(arguments) => Ok(arguments.clone()),
             None => {
@@ -407,7 +415,7 @@ impl VersionMetadata {
         }
     }
 
-    pub async fn save(&self, versions_dir: &Path) -> BoxResult<()> {
+    pub async fn save(&self, versions_dir: &Path) -> anyhow::Result<()> {
         let version_path = get_metadata_path(versions_dir, &self.id);
         let content = serde_json::to_string(self)?;
         fs::write(version_path, content).await?;

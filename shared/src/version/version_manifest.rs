@@ -3,8 +3,6 @@ use std::path::Path;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::BoxResult;
-
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct MetadataInfo {
     pub id: String,
@@ -72,7 +70,7 @@ impl VersionManifest {
         }
     }
 
-    pub async fn fetch(url: &str) -> BoxResult<Self> {
+    pub async fn fetch(url: &str) -> anyhow::Result<Self> {
         let client = Client::new();
         let res = client
             .get(url)
@@ -84,7 +82,7 @@ impl VersionManifest {
         Ok(res)
     }
 
-    pub async fn read_local(manifest_path: &Path) -> BoxResult<Self> {
+    pub async fn read_local(manifest_path: &Path) -> anyhow::Result<Self> {
         let manifest_file = tokio::fs::read(manifest_path).await?;
         let manifest: Self = serde_json::from_slice(&manifest_file)?;
         Ok(manifest)
@@ -99,7 +97,7 @@ impl VersionManifest {
         }
     }
 
-    pub async fn save_to_file(&self, manifest_path: &Path) -> BoxResult<()> {
+    pub async fn save_to_file(&self, manifest_path: &Path) -> anyhow::Result<()> {
         let manifest_str = serde_json::to_string(self)?;
         tokio::fs::write(manifest_path, manifest_str).await?;
         Ok(())
@@ -113,7 +111,7 @@ impl VersionManifest {
         &mut self,
         version_info: VersionInfo,
         manifest_path: &Path,
-    ) -> BoxResult<()> {
+    ) -> anyhow::Result<()> {
         self.versions
             .retain(|i| i.get_name() != version_info.get_name());
         self.versions.push(version_info);

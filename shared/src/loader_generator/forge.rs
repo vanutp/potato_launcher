@@ -11,7 +11,7 @@ use crate::{
     java::{download_java, get_java},
     paths::{get_java_dir, get_libraries_dir, get_metadata_path, get_versions_dir},
     progress::ProgressBar,
-    utils::{exec_custom_command_in_dir, BoxResult},
+    utils::exec_custom_command_in_dir,
     version::{version_manifest::VersionInfo, version_metadata::VersionMetadata},
 };
 use async_trait::async_trait;
@@ -36,7 +36,7 @@ pub struct ForgeMavenMetadata {
 }
 
 impl ForgeMavenMetadata {
-    pub async fn fetch() -> BoxResult<Self> {
+    pub async fn fetch() -> anyhow::Result<Self> {
         let client = Client::new();
         let response = client
             .get(FORGE_MAVEN_METADATA_URL)
@@ -92,7 +92,7 @@ pub struct NeoforgeMavenMetadata {
 }
 
 impl NeoforgeMavenMetadata {
-    pub async fn fetch() -> BoxResult<Self> {
+    pub async fn fetch() -> anyhow::Result<Self> {
         let client = Client::new();
         let response = client
             .get(NEOFORGE_MAVEN_METADATA_URL)
@@ -153,7 +153,7 @@ pub struct ForgePromotions {
 }
 
 impl ForgePromotions {
-    pub async fn fetch() -> BoxResult<Self> {
+    pub async fn fetch() -> anyhow::Result<Self> {
         let client = Client::new();
         let response = client
             .get(FORGE_PROMOTIONS_URL)
@@ -184,7 +184,7 @@ async fn download_forge_installer(
     full_version: &str,
     work_dir: &Path,
     loader: &Loader,
-) -> BoxResult<PathBuf> {
+) -> anyhow::Result<PathBuf> {
     let filename = format!("{:?}-{}-installer.jar", loader, full_version);
     let forge_installer_url = match loader {
         Loader::Forge => format!("{}{}/{}", FORGE_INSTALLER_BASE_URL, full_version, filename),
@@ -271,7 +271,7 @@ pub async fn get_forge_version(
     minecraft_version: &str,
     loader_version: &Option<String>,
     loader: &Loader,
-) -> BoxResult<String> {
+) -> anyhow::Result<String> {
     match loader {
         Loader::Forge => {
             let forge_promotions = ForgePromotions::fetch().await?;
@@ -326,15 +326,15 @@ pub async fn get_forge_version(
         "{} version {} not found for minecraft {}",
         loader, forge_version, minecraft_version
     );
-    Err(Box::new(ForgeError::ForgeVersionNotFound(
+    Err(ForgeError::ForgeVersionNotFound(
         forge_version.to_string(),
         minecraft_version.to_string(),
-    )))
+    ).into())
 }
 
 pub async fn get_vanilla_java_version(
     vanilla_metadata: &VersionMetadata,
-) -> BoxResult<Option<String>> {
+) -> anyhow::Result<Option<String>> {
     Ok(vanilla_metadata
         .java_version
         .as_ref()
@@ -342,7 +342,7 @@ pub async fn get_vanilla_java_version(
 }
 
 // trick forge installer into thinking that the folder is actually a minecraft instance folder
-pub fn trick_forge(forge_work_dir: &Path, minecraft_version: &str) -> BoxResult<()> {
+pub fn trick_forge(forge_work_dir: &Path, minecraft_version: &str) -> anyhow::Result<()> {
     std::fs::create_dir_all(forge_work_dir.join("versions").join(minecraft_version))?;
     let mut file = std::fs::File::create(forge_work_dir.join("launcher_profiles.json"))?;
     file.write(b"{}")?;
@@ -353,7 +353,7 @@ pub fn get_full_version(minecraft_version: &str, forge_version: &str) -> String 
     format!("{}-{}", minecraft_version, forge_version)
 }
 
-fn to_abs_path_str(path: &Path) -> BoxResult<String> {
+fn to_abs_path_str(path: &Path) -> anyhow::Result<String> {
     Ok(path.canonicalize()?.to_string_lossy().to_string())
 }
 
@@ -364,7 +364,7 @@ pub async fn install_forge<M>(
     vanilla_metadata: &VersionMetadata,
     loader: &Loader,
     progress_bar: Arc<dyn ProgressBar<M>>,
-) -> BoxResult<String> {
+) -> anyhow::Result<String> {
     std::fs::create_dir_all(forge_work_dir)?;
 
     let minecraft_version = &vanilla_metadata.id;
@@ -438,7 +438,7 @@ pub async fn install_forge<M>(
 
 #[async_trait]
 impl VersionGenerator for ForgeGenerator {
-    async fn generate(&self, work_dir: &Path) -> BoxResult<GeneratorResult> {
+    async fn generate(&self, work_dir: &Path) -> anyhow::Result<GeneratorResult> {
         let minecraft_version = self.vanilla_version_info.id.clone();
 
         info!(
@@ -534,7 +534,7 @@ impl VersionGenerator for ForgeGenerator {
                 std::fs::copy(&forge_installer_libraries_dir.join(&lib_path), &lib_dest)?;
                 Ok(lib_dest)
             })
-            .collect::<BoxResult<Vec<_>>>()?;
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
         forge_metadata.save(&versions_dir_to).await?;
 

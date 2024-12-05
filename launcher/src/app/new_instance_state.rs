@@ -13,7 +13,7 @@ use shared::loader_generator::generator::VersionGenerator;
 use shared::loader_generator::vanilla::VanillaGenerator;
 use shared::paths::get_instance_dir;
 use shared::progress::{NoProgressBar, ProgressBar};
-use shared::utils::{get_vanilla_version_info, BoxError, BoxResult, VANILLA_MANIFEST_URL};
+use shared::utils::{get_vanilla_version_info, VANILLA_MANIFEST_URL};
 use shared::version::extra_version_metadata::AuthData;
 use shared::version::version_manifest::{VersionInfo, VersionManifest};
 use tokio::runtime::Runtime;
@@ -39,7 +39,7 @@ struct AllVersionsMetadata {
 fn fetch_all_metadata(
     runtime: &Runtime,
     ctx: &egui::Context,
-) -> BackgroundTask<BoxResult<AllVersionsMetadata>> {
+) -> BackgroundTask<anyhow::Result<AllVersionsMetadata>> {
     let fut = async {
         let result = futures::try_join!(
             VersionManifest::fetch(VANILLA_MANIFEST_URL),
@@ -48,7 +48,7 @@ fn fetch_all_metadata(
             NeoforgeMavenMetadata::fetch(),
         );
         let (vanilla_manifest, forge_metadata, forge_promotions, neoforge_metadata) = result?;
-        return BoxResult::Ok(AllVersionsMetadata {
+        return anyhow::Result::Ok(AllVersionsMetadata {
             vanilla_manifest,
             forge_metadata,
             forge_promotions,
@@ -74,10 +74,10 @@ fn fetch_per_version_metadata(
     runtime: &Runtime,
     ctx: &egui::Context,
     version_id: &str,
-) -> BackgroundTask<BoxResult<PerVersionMetadata>> {
+) -> BackgroundTask<anyhow::Result<PerVersionMetadata>> {
     let version_id = version_id.to_string();
     let fut = async move {
-        return BoxResult::Ok(PerVersionMetadata {
+        return anyhow::Result::Ok(PerVersionMetadata {
             fabric_metadata: FabricVersionsMeta::fetch(&version_id).await?,
         });
     };
@@ -103,7 +103,7 @@ impl<MetadataType> NewInstanceMetadataState<MetadataType>
 where
     MetadataType: Send,
 {
-    fn take_from_task(&mut self, task: BackgroundTask<BoxResult<MetadataType>>) {
+    fn take_from_task(&mut self, task: BackgroundTask<anyhow::Result<MetadataType>>) {
         match task.take_result() {
             BackgroundTaskResult::Finished(result) => {
                 *self = match result {
@@ -168,7 +168,7 @@ fn create_new_instance(
     loader_version: &str,
     assets_dir: &Path,
     progress_bar: Arc<dyn ProgressBar<LangMessage>>,
-) -> BackgroundTask<BoxResult<VersionInfo>> {
+) -> BackgroundTask<anyhow::Result<VersionInfo>> {
     let launcher_dir = launcher_dir.to_path_buf();
     let version_manifest = version_manifest.clone();
     let instance_name = instance_name.to_string();
@@ -221,7 +221,7 @@ fn create_new_instance(
             }
 
             _ => {
-                return BoxResult::Err("Unknown loader".into());
+                return Err(anyhow::Error::msg("Unknown loader"));
             }
         }
 
@@ -264,7 +264,7 @@ fn create_new_instance(
         )
         .await?;
 
-        return BoxResult::Ok(version_info);
+        return Ok(version_info);
     };
 
     let ctx = ctx.clone();
@@ -284,13 +284,13 @@ pub struct NewInstanceState {
     instance_loader: String,
     instance_loader_version: String,
 
-    instance_metadata_task: Option<BackgroundTask<BoxResult<AllVersionsMetadata>>>,
+    instance_metadata_task: Option<BackgroundTask<anyhow::Result<AllVersionsMetadata>>>,
     all_metadata_state: NewInstanceMetadataState<AllVersionsMetadata>,
-    current_version_metadata_task: Option<BackgroundTask<BoxResult<PerVersionMetadata>>>,
+    current_version_metadata_task: Option<BackgroundTask<anyhow::Result<PerVersionMetadata>>>,
     curent_metadata_state: NewInstanceMetadataState<PerVersionMetadata>,
 
-    instance_generate_task: Option<BackgroundTask<BoxResult<VersionInfo>>>,
-    instance_generate_error: Option<BoxError>,
+    instance_generate_task: Option<BackgroundTask<anyhow::Result<VersionInfo>>>,
+    instance_generate_error: Option<anyhow::Error>,
     instance_sync_progress_bar: Arc<GuiProgressBar>,
 }
 

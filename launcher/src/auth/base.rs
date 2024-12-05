@@ -5,7 +5,7 @@ use super::{
 use crate::auth::microsoft::MicrosoftAuthProvider;
 use crate::message_provider::MessageProvider;
 use async_trait::async_trait;
-use shared::{utils::BoxResult, version::extra_version_metadata::AuthData};
+use shared::version::extra_version_metadata::AuthData;
 
 #[derive(Clone)]
 pub struct AuthResultData {
@@ -22,11 +22,11 @@ pub enum AuthState {
 
 #[async_trait]
 pub trait AuthProvider {
-    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> BoxResult<AuthState>;
+    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> anyhow::Result<AuthState>;
 
-    async fn refresh(&self, refresh_token: String) -> BoxResult<AuthState>;
+    async fn refresh(&self, refresh_token: String) -> anyhow::Result<AuthState>;
 
-    async fn get_user_info(&self, token: &str) -> BoxResult<AuthState>;
+    async fn get_user_info(&self, token: &str) -> anyhow::Result<AuthState>;
 
     fn get_auth_url(&self) -> Option<String>;
 

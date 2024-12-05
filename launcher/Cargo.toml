@@ -37,6 +37,7 @@ hyper-util = { version = "0.1.9", features = ["full"] }
 http-body-util = "0.1.2"
 serde_urlencoded = "0.7.1"
 oauth2 = "4.4.2"
+anyhow = { version = "1.0.94", features = ["backtrace"] }
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = ["fileapi", "winbase"] }

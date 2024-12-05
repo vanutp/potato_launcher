@@ -3,7 +3,6 @@ use maplit::hashmap;
 use shared::paths::{
     get_client_jar_path, get_instance_dir, get_libraries_dir, get_logs_dir, get_natives_dir,
 };
-use shared::utils::BoxResult;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use tokio::process::{Child, Command as TokioCommand};
@@ -74,7 +73,7 @@ pub async fn launch(
     config: &Config,
     version_auth_data: &VersionAuthData,
     online: bool,
-) -> BoxResult<Child> {
+) -> anyhow::Result<Child> {
     let auth_data = version_metadata.get_auth_data();
     let auth_provider = get_auth_provider(auth_data);
 
@@ -100,7 +99,7 @@ pub async fn launch(
         let path = library.get_path(&libraries_dir);
         if let Some(path) = path {
             if !path.is_file() {
-                return Err(Box::new(LaunchError::MissingLibrary(path.clone())));
+                return Err(LaunchError::MissingLibrary(path.clone()).into());
             }
 
             let path_string = path.to_string_lossy().to_string();
@@ -114,7 +113,7 @@ pub async fn launch(
 
     let client_jar_path = get_client_jar_path(&launcher_dir, version_metadata.get_id());
     if !client_jar_path.exists() {
-        return Err(Box::new(LaunchError::MissingLibrary(client_jar_path)));
+        return Err(LaunchError::MissingLibrary(client_jar_path).into());
     }
 
     classpath.push(client_jar_path.to_string_lossy().to_string());
@@ -173,7 +172,7 @@ pub async fn launch(
                     .path,
             );
             if !authlib_injector_path.exists() {
-                return Err(Box::new(LaunchError::MissingAuthlibInjector));
+                return Err(LaunchError::MissingAuthlibInjector.into());
             }
             java_options.insert(
                 0,

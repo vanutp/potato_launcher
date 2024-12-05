@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{files::CheckEntry, paths::get_extra_metadata_path, utils::BoxResult};
+use crate::{files::CheckEntry, paths::get_extra_metadata_path};
 
 use super::{version_manifest::VersionInfo, version_metadata::Library};
 
@@ -80,7 +80,7 @@ impl ExtraVersionMetadata {
     pub async fn read_local(
         version_info: &VersionInfo,
         versions_extra_dir: &Path,
-    ) -> BoxResult<Option<Self>> {
+    ) -> anyhow::Result<Option<Self>> {
         if version_info.extra_metadata_url.is_none() || version_info.extra_metadata_sha1.is_none() {
             return Ok(None);
         }
@@ -110,7 +110,7 @@ impl ExtraVersionMetadata {
         })
     }
 
-    pub async fn save(&self, version_name: &str, versions_extra_dir: &Path) -> BoxResult<()> {
+    pub async fn save(&self, version_name: &str, versions_extra_dir: &Path) -> anyhow::Result<()> {
         let path = get_extra_metadata_path(versions_extra_dir, version_name);
         let serialized = serde_json::to_string(self)?;
         tokio::fs::write(path, serialized).await?;

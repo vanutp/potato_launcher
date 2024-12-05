@@ -7,7 +7,6 @@ use hyper::{Request, Response};
 use hyper_util::rt::TokioIo;
 use reqwest::Client;
 use serde::Deserialize;
-use shared::utils::{BoxError, BoxResult};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -35,6 +34,8 @@ pub enum AuthError {
     RequestError,
     #[error("Timeout during authentication")]
     AuthTimeout,
+    #[error("Missing query string")]
+    MissingQueryString,
 }
 
 pub struct ElyByAuthProvider {
@@ -65,7 +66,7 @@ async fn exchange_code(
     client_secret: &str,
     code: &str,
     redirect_uri: &str,
-) -> BoxResult<String> {
+) -> anyhow::Result<String> {
     let client = Client::new();
     let resp = client
         .post("https://account.ely.by/api/oauth2/v1/token")
@@ -83,12 +84,12 @@ async fn exchange_code(
     let data: serde_json::Value = resp.json().await?;
     if status != 200 {
         if data.get("error") == Some(&"invalid_request".into()) {
-            return Err(Box::new(AuthError::InvalidCode));
+            return Err(AuthError::InvalidCode.into());
         }
     }
 
     if data.get("token_type") != Some(&"Bearer".into()) {
-        return Err(Box::new(AuthError::InvalidTokenType));
+        return Err(AuthError::InvalidTokenType.into());
     }
 
     if let Some(access_token) = data.get("access_token") {
@@ -97,13 +98,13 @@ async fn exchange_code(
         }
     }
 
-    Err(Box::new(AuthError::MissingAccessToken))
+    Err(AuthError::MissingAccessToken.into())
 }
 
 enum TokenResult {
     Token(String),
     InvalidCode,
-    Error(BoxError),
+    Error(anyhow::Error),
 }
 
 async fn handle_request(
@@ -112,17 +113,17 @@ async fn handle_request(
     redirect_uri: String,
     req: Request<hyper::body::Incoming>,
     token_tx: Box<mpsc::UnboundedSender<TokenResult>>,
-) -> BoxResult<Response<Full<Bytes>>> {
-    let query = req.uri().query().ok_or("Missing query string")?;
+) -> anyhow::Result<Response<Full<Bytes>>> {
+    let query = req.uri().query().ok_or(AuthError::MissingQueryString)?;
     let auth_query: AuthQuery = serde_urlencoded::from_str(query)?;
 
     let token_result =
         match exchange_code(&client_id, &client_secret, &auth_query.code, &redirect_uri).await {
             Ok(token) => TokenResult::Token(token),
             Err(e) => match e.downcast::<AuthError>() {
-                Ok(e) => match *e {
+                Ok(e) => match e {
                     AuthError::InvalidCode => TokenResult::InvalidCode,
-                    _ => TokenResult::Error(e),
+                    _ => TokenResult::Error(e.into()),
                 },
                 Err(e) => TokenResult::Error(e),
             },
@@ -174,7 +175,7 @@ impl ElyByAuthProvider {
 
 #[async_trait]
 impl AuthProvider for ElyByAuthProvider {
-    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> BoxResult<AuthState> {
+    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> anyhow::Result<AuthState> {
         let addr = SocketAddr::from(([127, 0, 0, 1], 0));
         let listener = TcpListener::bind(addr).await?;
 
@@ -188,7 +189,7 @@ impl AuthProvider for ElyByAuthProvider {
             let stream;
             tokio::select! {
                 _ = sleep(Duration::from_secs(120)) => {
-                    return Err(Box::new(AuthError::AuthTimeout));
+                    return Err(AuthError::AuthTimeout.into());
                 }
 
                 st = listener.accept() => {
@@ -228,16 +229,16 @@ impl AuthProvider for ElyByAuthProvider {
                     TokenResult::Error(e) => return Err(e),
                 }
             } else {
-                return Err(Box::new(AuthError::RequestError));
+                return Err(AuthError::RequestError.into());
             }
         }
     }
 
-    async fn refresh(&self, _: String) -> BoxResult<AuthState> {
+    async fn refresh(&self, _: String) -> anyhow::Result<AuthState> {
         Ok(AuthState::Auth)
     }
 
-    async fn get_user_info(&self, token: &str) -> BoxResult<AuthState> {
+    async fn get_user_info(&self, token: &str) -> anyhow::Result<AuthState> {
         let client = Client::new();
         let resp: UserInfo = client
             .get("https://account.ely.by/api/account/v1/info")

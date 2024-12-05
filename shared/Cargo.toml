@@ -4,6 +4,7 @@ version = "1.0.0"
 edition = "2021"
 
 [dependencies]
+anyhow = { version = "1.0.94", features = ["backtrace"] }
 async-trait = "0.1.83"
 dirs = "5.0.1"
 env_logger = "0.11.5"

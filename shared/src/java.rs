@@ -17,7 +17,6 @@ use winreg::enums::*;
 use winreg::RegKey;
 
 use crate::progress::ProgressBar;
-use crate::utils::BoxResult;
 
 #[derive(Debug, Deserialize)]
 pub struct JavaInstallation {
@@ -237,20 +236,28 @@ enum JavaDownloadError {
     NoJavaVersionsAvailable,
     #[error("Invalid downloaded Java")]
     InvalidDownloadedJava,
+    #[error("No versions array")]
+    NoVersionsArray,
+    #[error("No download URL")]
+    NoDownloadURL,
+    #[error("No file name in URL")]
+    NoFileNameInURL,
+    #[error("No file extension in URL")]
+    NoFileExtensionInURL,
 }
 
-fn get_java_download_params(required_version: &str, archive_type: &str) -> BoxResult<String> {
+fn get_java_download_params(required_version: &str, archive_type: &str) -> anyhow::Result<String> {
     let arch = match std::env::consts::ARCH {
         "x86_64" | "amd64" => "x64",
         "aarch64" => "aarch64",
-        _ => return Err(Box::new(JavaDownloadError::UnsupportedArchitecture)),
+        _ => return Err(JavaDownloadError::UnsupportedArchitecture.into()),
     };
 
     let os = match std::env::consts::OS {
         "windows" => "windows",
         "linux" => "linux-glibc",
         "macos" => "macos",
-        _ => return Err(Box::new(JavaDownloadError::UnsupportedOS)),
+        _ => return Err(JavaDownloadError::UnsupportedOS.into()),
     };
 
     let params = format!(
@@ -274,7 +281,7 @@ pub async fn download_java<M>(
     required_version: &str,
     java_dir: &Path,
     progress_bar: Arc<dyn ProgressBar<M> + Send + Sync>,
-) -> BoxResult<JavaInstallation> {
+) -> anyhow::Result<JavaInstallation> {
     let client = Client::new();
 
     for archive_type in ["tar.gz", "zip"] {
@@ -291,7 +298,7 @@ pub async fn download_java<M>(
 
         if versions
             .as_array()
-            .ok_or_else(|| "No versions array")?
+            .ok_or_else(|| JavaDownloadError::NoVersionsArray)?
             .is_empty()
         {
             continue;
@@ -299,7 +306,7 @@ pub async fn download_java<M>(
 
         let version_url = versions[0]["download_url"]
             .as_str()
-            .ok_or_else(|| "No download URL")?;
+            .ok_or_else(|| JavaDownloadError::NoDownloadURL)?;
         let response = client.get(version_url).send().await?;
 
         let java_download_path = get_temp_dir().join(format!("java_download.{}", archive_type));
@@ -335,14 +342,14 @@ pub async fn download_java<M>(
         let filename = url
             .path_segments()
             .and_then(|segments| segments.last())
-            .ok_or_else(|| "No file name in URL")?
+            .ok_or_else(|| JavaDownloadError::NoFileNameInURL)?
             .strip_suffix(&format!(".{}", archive_type))
-            .ok_or_else(|| "No file extension in URL")?;
+            .ok_or_else(|| JavaDownloadError::NoFileExtensionInURL)?;
         fs::rename(java_dir.join(filename), &target_dir)?;
 
         let java_path = target_dir.join("bin").join(JAVA_BINARY_NAME);
         if !check_java(required_version, &java_path).await {
-            return Err(Box::new(JavaDownloadError::InvalidDownloadedJava));
+            return Err(JavaDownloadError::InvalidDownloadedJava.into());
         }
         match get_installation(&java_path).await {
             Some(installation) => return Ok(installation),
@@ -350,7 +357,7 @@ pub async fn download_java<M>(
         }
     }
 
-    Err(Box::new(JavaDownloadError::NoJavaVersionsAvailable))
+    Err(JavaDownloadError::NoJavaVersionsAvailable.into())
 }
 
 pub async fn get_java(required_version: &str, java_dir: &Path) -> Option<JavaInstallation> {

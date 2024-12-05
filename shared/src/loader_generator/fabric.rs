@@ -2,7 +2,6 @@ use std::path::Path;
 
 use crate::{
     paths::get_versions_dir,
-    utils::BoxResult,
     version::{version_manifest::VersionInfo, version_metadata::VersionMetadata},
 };
 use async_trait::async_trait;
@@ -29,7 +28,7 @@ pub struct FabricVersionsMeta {
 }
 
 impl FabricVersionsMeta {
-    pub async fn fetch(game_version: &str) -> BoxResult<Self> {
+    pub async fn fetch(game_version: &str) -> anyhow::Result<Self> {
         let fabric_manifest_url = format!("{}{}", FABRIC_META_BASE_URL, game_version);
         let client = Client::new();
         let response = client
@@ -59,7 +58,7 @@ async fn download_fabric_metadata(
     minecraft_version: &str,
     loader_version: &str,
     output_dir: &Path,
-) -> BoxResult<VersionMetadata> {
+) -> anyhow::Result<VersionMetadata> {
     let fabric_metadata_url = format!(
         "{}{}/{}/profile/json",
         FABRIC_META_BASE_URL, minecraft_version, loader_version
@@ -98,7 +97,7 @@ pub enum FabricGeneratorError {
 
 #[async_trait]
 impl VersionGenerator for FabricGenerator {
-    async fn generate(&self, work_dir: &Path) -> BoxResult<GeneratorResult> {
+    async fn generate(&self, work_dir: &Path) -> anyhow::Result<GeneratorResult> {
         let minecraft_version = self.vanilla_version_info.id.clone();
 
         info!(

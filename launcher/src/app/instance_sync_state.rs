@@ -1,5 +1,4 @@
 use shared::progress::ProgressBar;
-use shared::utils::BoxResult;
 use shared::version::version_manifest::{VersionInfo, VersionManifest};
 use std::path::Path;
 use std::sync::Arc;
@@ -33,7 +32,7 @@ fn sync_instance(
     launcher_dir: &Path,
     assets_dir: &Path,
     progress_bar: Arc<dyn ProgressBar<LangMessage>>,
-) -> BackgroundTask<BoxResult<()>> {
+) -> BackgroundTask<anyhow::Result<()>> {
     let launcher_dir = launcher_dir.to_path_buf();
     let assets_dir = assets_dir.to_path_buf();
 
@@ -62,7 +61,7 @@ fn sync_instance(
 
 pub struct InstanceSyncState {
     status: InstanceSyncStatus,
-    instance_sync_task: Option<BackgroundTask<BoxResult<()>>>,
+    instance_sync_task: Option<BackgroundTask<anyhow::Result<()>>>,
     instance_sync_progress_bar: Arc<GuiProgressBar>,
 
     instance_sync_window_open: bool,

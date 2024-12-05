@@ -8,7 +8,7 @@ use crate::{
     files,
     paths::{get_libraries_dir, get_rel_instance_dir, get_versions_extra_dir},
     progress::{self, NoProgressBar, ProgressBar as _},
-    utils::{url_from_path, url_from_rel_path, BoxResult},
+    utils::{url_from_path, url_from_rel_path},
     version::{
         extra_version_metadata::{AuthData, ExtraVersionMetadata, Object},
         version_metadata::Library,
@@ -21,7 +21,7 @@ async fn get_objects(
     from: &Path,
     download_server_base: &str,
     version_name: &str,
-) -> BoxResult<Vec<Object>> {
+) -> anyhow::Result<Vec<Object>> {
     let files_in_dir = files::get_files_in_dir(from)?;
 
     let rel_paths = files_in_dir
@@ -52,7 +52,7 @@ const AUTHLIB_INJECTOR_FILENAME: &str = "authlib-injector.jar";
 async fn download_authlib_injector(
     work_dir: &Path,
     download_server_base: &str,
-) -> BoxResult<Object> {
+) -> anyhow::Result<Object> {
     let authlib_injector_path = work_dir.join(AUTHLIB_INJECTOR_FILENAME);
     if !authlib_injector_path.exists() {
         info!("Downloading authlib-injector");
@@ -85,7 +85,7 @@ async fn get_extra_forge_libs(
     extra_forge_libs_paths: &Vec<PathBuf>,
     data_dir: &Path,
     download_server_base: &str,
-) -> BoxResult<Vec<Library>> {
+) -> anyhow::Result<Vec<Library>> {
     let libraries_dir = get_libraries_dir(data_dir);
 
     let progress_bar = Arc::new(NoProgressBar);
@@ -130,7 +130,7 @@ async fn get_extra_forge_libs(
 
             Ok(Library::from_download(name, url, hash.clone()))
         })
-        .collect::<BoxResult<_>>()?;
+        .collect::<anyhow::Result<_>>()?;
 
     Ok(libraries)
 }
@@ -178,7 +178,7 @@ impl ExtraMetadataGenerator {
         }
     }
 
-    pub async fn generate(&self, work_dir: &Path) -> BoxResult<GeneratorResult> {
+    pub async fn generate(&self, work_dir: &Path) -> anyhow::Result<GeneratorResult> {
         info!(
             "Generating extra metadata for instance {}",
             self.version_name

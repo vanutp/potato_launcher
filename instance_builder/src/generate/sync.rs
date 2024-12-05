@@ -8,7 +8,6 @@ use shared::{
     files::{download_files, get_download_entries, CheckEntry},
     paths::{get_client_jar_path, get_libraries_dir},
     progress::ProgressBar,
-    utils::BoxResult,
     version::{asset_metadata::AssetsMetadata, version_metadata::VersionMetadata},
 };
 
@@ -48,7 +47,7 @@ pub struct SyncResult {
 pub async fn sync_version(
     version_metadata: &VersionMetadata,
     output_dir: &Path,
-) -> BoxResult<SyncResult> {
+) -> anyhow::Result<SyncResult> {
     let libraries_dir = get_libraries_dir(output_dir);
     let mut check_entries = get_libraries_check_downloads(version_metadata, &libraries_dir);
     info!("Got {} libraries to check", check_entries.len());

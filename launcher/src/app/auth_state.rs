@@ -242,6 +242,7 @@ impl AuthState {
             AuthStatus::NotAuthorized if self.auth_task.is_some() => {}
             _ => {
                 if ui.button(LangMessage::Authorize.to_string(lang)).clicked() {
+                    self.auth_status = AuthStatus::NotAuthorized;
                     self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
                     self.auth_task = Some(authenticate(
                         runtime,

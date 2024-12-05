@@ -1,6 +1,5 @@
 use log::info;
 use serde::Deserialize;
-use shared::utils::BoxError;
 
 use crate::config::build_config;
 use crate::constants;
@@ -24,14 +23,14 @@ pub fn get_temp_dir() -> PathBuf {
     temp_dir
 }
 
-pub fn is_read_only_error(e: &BoxError) -> bool {
+pub fn is_read_only_error(e: &anyhow::Error) -> bool {
     if let Some(e) = e.downcast_ref::<std::io::Error>() {
         return e.kind() == std::io::ErrorKind::PermissionDenied || e.raw_os_error() == Some(18);
     }
     false
 }
 
-pub fn is_connect_error(e: &BoxError) -> bool {
+pub fn is_connect_error(e: &anyhow::Error) -> bool {
     if let Some(e) = e.downcast_ref::<reqwest::Error>() {
         return e.is_connect();
     }

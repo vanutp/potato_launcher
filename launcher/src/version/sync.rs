@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use log::{debug, info};
 use shared::paths::{get_instance_dir, get_libraries_dir, get_natives_dir};
-use shared::utils::BoxResult;
 use shared::version::asset_metadata::AssetsMetadata;
 use std::fs;
 use zip::ZipArchive;
@@ -29,7 +28,7 @@ fn get_objects_entries(
     extra_version_metadata: &ExtraVersionMetadata,
     force_overwrite: bool,
     instance_dir: &Path,
-) -> BoxResult<Vec<CheckEntry>> {
+) -> anyhow::Result<Vec<CheckEntry>> {
     let objects = &extra_version_metadata.objects;
     let include = &extra_version_metadata.include;
     let include_no_overwrite = &extra_version_metadata.include_no_overwrite;
@@ -87,7 +86,7 @@ fn get_objects_entries(
 async fn get_libraries_entries(
     libraries: &Vec<version_metadata::Library>,
     libraries_dir: &Path,
-) -> BoxResult<Vec<CheckEntry>> {
+) -> anyhow::Result<Vec<CheckEntry>> {
     let mut sha1_urls = HashMap::<PathBuf, String>::new();
     let mut check_download_entries: Vec<CheckEntry> = Vec::new();
 
@@ -109,9 +108,9 @@ async fn get_libraries_entries(
                         });
                     }
                     None => {
-                        return Err(Box::new(VersionMetadataError::NoSha1(
+                        return Err(VersionMetadataError::NoSha1(
                             entry.path.to_str().unwrap_or("no path").to_string(),
-                        )));
+                        ).into());
                     }
                 }
             }
@@ -157,7 +156,7 @@ fn extract_natives(
     libraries: &Vec<version_metadata::Library>,
     libraries_dir: &Path,
     natives_dir: &Path,
-) -> BoxResult<()> {
+) -> anyhow::Result<()> {
     for library in libraries {
         if let Some(natives_path) = rules::get_natives_path(library, libraries_dir) {
             let exclude = library.get_extract().map(|x| {
@@ -174,7 +173,7 @@ fn extract_natives(
     Ok(())
 }
 
-fn extract_files(src: &Path, dest: &Path, exclude: Option<HashSet<String>>) -> BoxResult<()> {
+fn extract_files(src: &Path, dest: &Path, exclude: Option<HashSet<String>>) -> anyhow::Result<()> {
     let exclude = exclude.unwrap_or_default();
 
     let file = fs::File::open(src)?;
@@ -231,7 +230,7 @@ pub async fn sync_instance(
     launcher_dir: &Path,
     assets_dir: &Path,
     progress_bar: Arc<dyn ProgressBar<LangMessage> + Send + Sync>,
-) -> BoxResult<()> {
+) -> anyhow::Result<()> {
     let version_name = version_metadata.get_name();
 
     let libraries_dir = get_libraries_dir(launcher_dir);

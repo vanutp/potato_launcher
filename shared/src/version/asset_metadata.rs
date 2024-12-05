@@ -7,7 +7,6 @@ use crate::{
     files::{self, CheckEntry},
     paths::get_asset_index_path,
     progress,
-    utils::BoxResult,
     version::version_metadata::AssetIndex,
 };
 use reqwest::Client;
@@ -24,26 +23,26 @@ pub struct AssetsMetadata {
 }
 
 impl AssetsMetadata {
-    pub async fn fetch(url: &str) -> BoxResult<Self> {
+    pub async fn fetch(url: &str) -> anyhow::Result<Self> {
         let client = Client::new();
         let response = client.get(url).send().await?.json().await?;
         Ok(response)
     }
 
-    pub async fn get_path(assets_dir: &Path, asset_id: &str) -> BoxResult<PathBuf> {
+    pub async fn get_path(assets_dir: &Path, asset_id: &str) -> anyhow::Result<PathBuf> {
         tokio::fs::create_dir_all(assets_dir.join("indexes")).await?;
         Ok(assets_dir
             .join("indexes")
             .join(format!("{}.json", asset_id)))
     }
 
-    pub async fn read_local(asset_id: &str, assets_dir: &Path) -> BoxResult<Self> {
+    pub async fn read_local(asset_id: &str, assets_dir: &Path) -> anyhow::Result<Self> {
         let data = tokio::fs::read(Self::get_path(&assets_dir, asset_id).await?).await?;
         let data: Self = serde_json::from_slice(&data)?;
         Ok(data)
     }
 
-    pub async fn read_or_download(asset_index: &AssetIndex, assets_dir: &Path) -> BoxResult<Self> {
+    pub async fn read_or_download(asset_index: &AssetIndex, assets_dir: &Path) -> anyhow::Result<Self> {
         let asset_index_path = get_asset_index_path(assets_dir, &asset_index.id);
         let check_entry = CheckEntry {
             url: asset_index.url.clone(),
@@ -61,7 +60,7 @@ impl AssetsMetadata {
         &self,
         assets_dir: &Path,
         resources_url_base: &str,
-    ) -> BoxResult<Vec<CheckEntry>> {
+    ) -> anyhow::Result<Vec<CheckEntry>> {
         let mut download_entries = vec![];
 
         download_entries.extend(self.objects.iter().map(|(_, object)| {
@@ -83,7 +82,7 @@ impl AssetsMetadata {
         Ok(download_entries)
     }
 
-    pub async fn save_to_file(&self, asset_id: &str, assets_dir: &Path) -> BoxResult<()> {
+    pub async fn save_to_file(&self, asset_id: &str, assets_dir: &Path) -> anyhow::Result<()> {
         let data = serde_json::to_vec(self)?;
         tokio::fs::write(Self::get_path(&assets_dir, asset_id).await?, data).await?;
         Ok(())

@@ -20,7 +20,7 @@ use shared::{
         get_extra_metadata_path, get_instance_dir, get_manifest_path, get_metadata_path,
         get_versions_dir, get_versions_extra_dir,
     },
-    utils::{exec_custom_command, get_vanilla_version_info, BoxResult, VANILLA_MANIFEST_URL},
+    utils::{exec_custom_command, get_vanilla_version_info, VANILLA_MANIFEST_URL},
     version::{
         asset_metadata::AssetsMetadata, extra_version_metadata::AuthData,
         version_manifest::VersionManifest,
@@ -76,13 +76,13 @@ pub struct VersionsSpec {
 }
 
 impl VersionsSpec {
-    pub async fn from_file(path: &Path) -> BoxResult<VersionsSpec> {
+    pub async fn from_file(path: &Path) -> anyhow::Result<VersionsSpec> {
         let content = fs::read_to_string(path).await?;
         let spec = serde_json::from_str(&content)?;
         Ok(spec)
     }
 
-    pub async fn generate(&self, output_dir: &Path, work_dir: &Path) -> BoxResult<()> {
+    pub async fn generate(&self, output_dir: &Path, work_dir: &Path) -> anyhow::Result<()> {
         if let Some(command) = &self.exec_before_all {
             exec_custom_command(&command).await?;
         }

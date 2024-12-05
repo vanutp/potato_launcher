@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
-use shared::{utils::BoxResult, version::extra_version_metadata::AuthData};
+use shared::version::extra_version_metadata::AuthData;
 
 use crate::utils::get_data_dir;
 
@@ -50,14 +50,14 @@ impl AuthStorage {
         self.auth_data.get(&data.get_id())
     }
 
-    fn save(&self) -> BoxResult<()> {
+    fn save(&self) -> anyhow::Result<()> {
         let auth_data_path = get_auth_data_path();
         let auth_data_str = serde_json::to_string(self).expect("Failed to serialize auth data");
         std::fs::write(&auth_data_path, auth_data_str)?;
         Ok(())
     }
 
-    pub fn insert(&mut self, data: &AuthData, auth_data: VersionAuthData) -> BoxResult<()> {
+    pub fn insert(&mut self, data: &AuthData, auth_data: VersionAuthData) -> anyhow::Result<()> {
         self.auth_data.insert(data.get_id(), auth_data);
         self.save()?;
         Ok(())
