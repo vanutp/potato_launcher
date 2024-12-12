@@ -1,12 +1,11 @@
 use std::path::Path;
 
-use async_trait::async_trait;
-use log::info;
-use shared::{
+use crate::{
     paths::get_versions_dir,
-    utils::BoxResult,
     version::{version_manifest::VersionInfo, version_metadata::VersionMetadata},
 };
+use async_trait::async_trait;
+use log::info;
 
 use super::generator::{GeneratorResult, VersionGenerator};
 
@@ -26,7 +25,7 @@ impl VanillaGenerator {
 
 #[async_trait]
 impl VersionGenerator for VanillaGenerator {
-    async fn generate(&self, work_dir: &Path) -> BoxResult<GeneratorResult> {
+    async fn generate(&self, work_dir: &Path) -> anyhow::Result<GeneratorResult> {
         info!(
             "Generating vanilla version \"{}\", minecraft version {}",
             self.version_name, self.version_info.id

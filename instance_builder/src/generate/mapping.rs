@@ -3,13 +3,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use shared::utils::BoxResult;
-
 pub fn get_mapping(
     output_dir: &Path,
     work_dir: &Path,
     workdir_paths: &Vec<PathBuf>,
-) -> BoxResult<HashMap<PathBuf, PathBuf>> {
+) -> anyhow::Result<HashMap<PathBuf, PathBuf>> {
     let mut mapping = HashMap::new();
 
     for path in workdir_paths {

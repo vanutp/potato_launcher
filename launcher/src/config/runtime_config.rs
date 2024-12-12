@@ -1,3 +1,4 @@
+use log::warn;
 use serde::{Deserialize, Serialize};
 use shared::paths::get_logs_dir;
 use std::collections::HashMap;
@@ -6,15 +7,22 @@ use std::path::PathBuf;
 use super::build_config;
 use crate::{constants, lang::Lang, utils::get_data_dir};
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AuthProfile {
+    pub auth_backend_id: String,
+    pub username: String,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub java_paths: HashMap<String, String>,
     pub assets_dir: Option<String>,
     pub data_dir: Option<String>,
     pub xmx: String,
-    pub selected_modpack_name: Option<String>,
+    pub selected_instance_name: Option<String>,
     pub lang: Lang,
     pub close_launcher_after_launch: bool,
+    pub auth_profiles: HashMap<String, AuthProfile>,
 }
 
 const CONFIG_FILENAME: &str = "config.json";
@@ -39,9 +47,10 @@ impl Config {
             assets_dir: None,
             data_dir: None,
             xmx: String::from(constants::DEFAULT_JAVA_XMX),
-            selected_modpack_name: None,
+            selected_instance_name: None,
             lang: constants::DEFAULT_LANG,
             close_launcher_after_launch: true,
+            auth_profiles: HashMap::new(),
         };
         return config;
     }
@@ -69,6 +78,28 @@ impl Config {
             std::fs::create_dir_all(&assets_dir).expect("Failed to create assets directory");
         }
         assets_dir
+    }
+
+    pub fn get_selected_auth_profile(&self) -> Option<&AuthProfile> {
+        self.auth_profiles
+            .get(self.selected_instance_name.as_ref()?)
+    }
+
+    pub fn set_selected_auth_profile(&mut self, auth_profile: AuthProfile) {
+        if let Some(selected_instance_name) = &self.selected_instance_name {
+            self.auth_profiles
+                .insert(selected_instance_name.clone(), auth_profile);
+        } else {
+            warn!("Failed to set selected auth profile: no selected instance name");
+        }
+    }
+
+    pub fn clear_selected_auth_profile(&mut self) {
+        if let Some(selected_instance_name) = &self.selected_instance_name {
+            self.auth_profiles.remove(selected_instance_name);
+        } else {
+            warn!("Failed to clear selected auth profile: no selected instance name");
+        }
     }
 
     pub fn save(&self) {

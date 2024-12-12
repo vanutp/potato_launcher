@@ -1,13 +1,11 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use shared::utils::BoxResult;
-
 use crate::lang::LangMessage;
 use crate::message_provider::MessageProvider;
 
 use super::base::{AuthProvider, AuthResultData, AuthState};
-use super::version_auth_data::VersionAuthData;
+use super::user_info::AuthData;
 
 struct AuthMessageState {
     auth_message: Option<LangMessage>,
@@ -60,10 +58,10 @@ impl MessageProvider for AuthMessageProvider {
 }
 
 pub async fn auth(
-    auth_data: Option<VersionAuthData>,
+    auth_data: Option<AuthData>,
     auth_provider: Box<dyn AuthProvider + Send + Sync>,
     auth_message_provider: Arc<AuthMessageProvider>,
-) -> BoxResult<VersionAuthData> {
+) -> anyhow::Result<AuthData> {
     let mut auth_result_data = auth_data.map_or(None, |data| {
         Some(AuthResultData {
             access_token: data.access_token,
@@ -113,7 +111,7 @@ pub async fn auth(
 
             AuthState::Success(info) => {
                 let auth_result_data = auth_result_data.unwrap();
-                return Ok(VersionAuthData {
+                return Ok(AuthData {
                     access_token: auth_result_data.access_token,
                     refresh_token: auth_result_data.refresh_token,
                     user_info: info,
@@ -122,5 +120,5 @@ pub async fn auth(
         }
     }
 
-    Err(Box::new(AuthError::InfiniteAuthLoop))
+    Err(AuthError::InfiniteAuthLoop.into())
 }

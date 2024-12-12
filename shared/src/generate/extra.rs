@@ -4,29 +4,24 @@ use std::{
     sync::Arc,
 };
 
-use log::info;
-use shared::{
+use crate::{
     files,
     paths::{get_libraries_dir, get_rel_instance_dir, get_versions_extra_dir},
-    progress::{self, ProgressBar as _},
-    utils::BoxResult,
+    progress::{self, NoProgressBar, ProgressBar as _},
+    utils::{url_from_path, url_from_rel_path},
     version::{
-        extra_version_metadata::{AuthData, ExtraVersionMetadata, Object},
+        extra_version_metadata::{AuthBackend, ExtraVersionMetadata, Object},
         version_metadata::Library,
     },
 };
-
-use crate::{
-    progress::TerminalProgressBar,
-    utils::{url_from_path, url_from_rel_path},
-};
+use log::info;
 
 async fn get_objects(
     copy_from: &Path,
     from: &Path,
     download_server_base: &str,
     version_name: &str,
-) -> BoxResult<Vec<Object>> {
+) -> anyhow::Result<Vec<Object>> {
     let files_in_dir = files::get_files_in_dir(from)?;
 
     let rel_paths = files_in_dir
@@ -57,7 +52,7 @@ const AUTHLIB_INJECTOR_FILENAME: &str = "authlib-injector.jar";
 async fn download_authlib_injector(
     work_dir: &Path,
     download_server_base: &str,
-) -> BoxResult<Object> {
+) -> anyhow::Result<Object> {
     let authlib_injector_path = work_dir.join(AUTHLIB_INJECTOR_FILENAME);
     if !authlib_injector_path.exists() {
         info!("Downloading authlib-injector");
@@ -90,12 +85,12 @@ async fn get_extra_forge_libs(
     extra_forge_libs_paths: &Vec<PathBuf>,
     data_dir: &Path,
     download_server_base: &str,
-) -> BoxResult<Vec<Library>> {
+) -> anyhow::Result<Vec<Library>> {
     let libraries_dir = get_libraries_dir(data_dir);
 
-    let progress_bar = Arc::new(TerminalProgressBar::new());
+    let progress_bar = Arc::new(NoProgressBar);
     progress_bar.set_message("Hashing extra forge libraries");
-    let hashes = files::hash_files(extra_forge_libs_paths.to_vec(), progress_bar).await?;
+    let hashes = files::hash_files::<&str>(extra_forge_libs_paths.to_vec(), progress_bar).await?;
 
     let libraries = extra_forge_libs_paths
         .iter()
@@ -135,7 +130,7 @@ async fn get_extra_forge_libs(
 
             Ok(Library::from_download(name, url, hash.clone()))
         })
-        .collect::<BoxResult<_>>()?;
+        .collect::<anyhow::Result<_>>()?;
 
     Ok(libraries)
 }
@@ -148,7 +143,7 @@ pub struct ExtraMetadataGenerator {
     resources_url_base: Option<String>,
     download_server_base: String,
     extra_forge_libs_paths: Vec<PathBuf>,
-    auth_data: AuthData,
+    auth_backend: AuthBackend,
 }
 
 pub struct GeneratorResult {
@@ -156,6 +151,8 @@ pub struct GeneratorResult {
 
     // relative include path -> absolute source path
     pub include_mapping: HashMap<String, PathBuf>,
+
+    pub extra_metadata: ExtraVersionMetadata,
 }
 
 impl ExtraMetadataGenerator {
@@ -167,7 +164,7 @@ impl ExtraMetadataGenerator {
         resources_url_base: Option<String>,
         download_server_base: String,
         extra_forge_libs_paths: Vec<PathBuf>,
-        auth_data: AuthData,
+        auth_backend: AuthBackend,
     ) -> Self {
         Self {
             version_name,
@@ -177,13 +174,13 @@ impl ExtraMetadataGenerator {
             resources_url_base,
             download_server_base,
             extra_forge_libs_paths,
-            auth_data,
+            auth_backend,
         }
     }
 
-    pub async fn generate(&self, work_dir: &Path) -> BoxResult<GeneratorResult> {
+    pub async fn generate(&self, work_dir: &Path) -> anyhow::Result<GeneratorResult> {
         info!(
-            "Generating extra metadata for modpack {}",
+            "Generating extra metadata for instance {}",
             self.version_name
         );
 
@@ -199,7 +196,7 @@ impl ExtraMetadataGenerator {
             include_no_overwrite: self.include_no_overwrite.clone(),
             objects: vec![],
             resources_url_base: self.resources_url_base.clone(),
-            auth_provider: self.auth_data.clone(),
+            auth_provider: self.auth_backend.clone(),
             extra_forge_libs,
             authlib_injector: None,
         };
@@ -228,8 +225,8 @@ impl ExtraMetadataGenerator {
             extra_metadata.objects = objects;
         }
 
-        match self.auth_data {
-            AuthData::None => {}
+        match self.auth_backend {
+            AuthBackend::None => {}
             _ => {
                 extra_metadata.authlib_injector =
                     Some(download_authlib_injector(work_dir, &self.download_server_base).await?);
@@ -243,11 +240,15 @@ impl ExtraMetadataGenerator {
             .save(&self.version_name, &versions_extra_dir)
             .await?;
 
-        info!("Extra metadata for modpack {} generated", self.version_name);
+        info!(
+            "Extra metadata for instance {} generated",
+            self.version_name
+        );
 
         Ok(GeneratorResult {
             paths_to_copy,
             include_mapping,
+            extra_metadata,
         })
     }
 }

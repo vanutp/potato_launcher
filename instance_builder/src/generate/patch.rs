@@ -3,17 +3,17 @@ use std::path::Path;
 use shared::{
     files::hash_file,
     paths::{get_asset_index_path, get_client_jar_path, get_libraries_dir},
-    utils::BoxResult,
+    utils::url_from_path,
     version::version_metadata::{Download, LibraryDownloads, VersionMetadata},
 };
 
-use crate::utils::{get_assets_dir, url_from_path};
+use crate::utils::get_assets_dir;
 
 pub async fn replace_download_urls(
     version_metadata: &mut VersionMetadata,
     download_server_base: &str,
     data_dir: &Path,
-) -> BoxResult<()> {
+) -> anyhow::Result<()> {
     if let Some(downloads) = &mut version_metadata.downloads {
         if let Some(download) = &mut downloads.client {
             let client_path = get_client_jar_path(data_dir, &version_metadata.id);

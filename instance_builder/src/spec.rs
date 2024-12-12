@@ -2,41 +2,35 @@ use log::{debug, error, info, warn};
 use serde::Deserialize;
 use std::{
     collections::{HashMap, HashSet},
-    path::Path,
+    path::{Path, PathBuf},
+    sync::Arc,
 };
 use tokio::fs;
 
 use shared::{
     files::sync_mapping,
-    paths::{
-        get_extra_metadata_path, get_instance_dir, get_manifest_path, get_metadata_path,
-        get_versions_dir, get_versions_extra_dir,
+    generate::{extra::ExtraMetadataGenerator, manifest::get_version_info},
+    loader_generator::{
+        fabric::FabricGenerator,
+        forge::{ForgeGenerator, Loader},
+        generator::VersionGenerator,
+        vanilla::VanillaGenerator,
     },
-    utils::BoxResult,
+    paths::{
+        get_extra_metadata_path, get_instance_dir, get_metadata_path, get_versions_dir,
+        get_versions_extra_dir,
+    },
+    utils::{exec_custom_command, get_vanilla_version_info, VANILLA_MANIFEST_URL},
     version::{
-        asset_metadata::AssetsMetadata, extra_version_metadata::AuthData,
+        asset_metadata::AssetsMetadata, extra_version_metadata::AuthBackend,
         version_manifest::VersionManifest,
     },
 };
 
 use crate::{
-    generate::{
-        extra::ExtraMetadataGenerator,
-        loaders::{
-            fabric::FabricGenerator,
-            forge::{ForgeGenerator, Loader},
-            generator::VersionGenerator,
-            vanilla::VanillaGenerator,
-        },
-        manifest::get_version_info,
-        mapping::get_mapping,
-        patch::replace_download_urls,
-        sync::sync_version,
-    },
-    utils::{
-        exec_custom_command, get_assets_dir, get_replaced_metadata_dir, get_vanilla_version_info,
-        VANILLA_MANIFEST_URL,
-    },
+    generate::{mapping::get_mapping, patch::replace_download_urls, sync::sync_version},
+    progress::TerminalProgressBar,
+    utils::{get_assets_dir, get_replaced_metadata_dir},
 };
 
 fn vanilla() -> String {
@@ -62,7 +56,7 @@ pub struct Version {
     pub include_from: Option<String>,
 
     #[serde(default)]
-    pub auth_provider: AuthData,
+    pub auth_provider: AuthBackend,
 
     pub exec_before: Option<String>,
     pub exec_after: Option<String>,
@@ -81,14 +75,18 @@ pub struct VersionsSpec {
     pub exec_after_all: Option<String>,
 }
 
+pub fn get_manifest_path(data_dir: &Path) -> PathBuf {
+    data_dir.join("version_manifest.json")
+}
+
 impl VersionsSpec {
-    pub async fn from_file(path: &Path) -> BoxResult<VersionsSpec> {
+    pub async fn from_file(path: &Path) -> anyhow::Result<VersionsSpec> {
         let content = fs::read_to_string(path).await?;
         let spec = serde_json::from_str(&content)?;
         Ok(spec)
     }
 
-    pub async fn generate(&self, output_dir: &Path, work_dir: &Path) -> BoxResult<()> {
+    pub async fn generate(&self, output_dir: &Path, work_dir: &Path) -> anyhow::Result<()> {
         if let Some(command) = &self.exec_before_all {
             exec_custom_command(&command).await?;
         }
@@ -107,6 +105,8 @@ impl VersionsSpec {
 
             let vanilla_version_info =
                 get_vanilla_version_info(&vanilla_manifest, &version.minecraft_version)?;
+
+            let progress_bar = Arc::new(TerminalProgressBar::new());
 
             let generator: Box<dyn VersionGenerator>;
             match version.loader_name.as_str() {
@@ -135,6 +135,7 @@ impl VersionsSpec {
                         vanilla_version_info,
                         Loader::Forge,
                         version.loader_version.clone(),
+                        progress_bar.clone(),
                     ));
                 }
 
@@ -144,6 +145,7 @@ impl VersionsSpec {
                         vanilla_version_info,
                         Loader::Neoforge,
                         version.loader_version.clone(),
+                        progress_bar.clone(),
                     ));
                 }
 

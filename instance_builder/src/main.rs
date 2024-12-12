@@ -4,17 +4,17 @@ mod spec;
 mod utils;
 
 use clap::{Arg, Command};
-use shared::{logs::setup_logger, utils::BoxResult};
+use shared::logs::setup_logger;
 use spec::VersionsSpec;
 use std::path::{Path, PathBuf};
 use tokio::runtime::Runtime;
 
-fn parse_path(v: &str) -> BoxResult<PathBuf> {
+fn parse_path(v: &str) -> anyhow::Result<PathBuf> {
     let path = PathBuf::from(v);
     if path.exists() {
         Ok(path)
     } else {
-        Err("The specified file does not exist".into())
+        Err(anyhow::Error::msg("The specified file does not exist"))
     }
 }
 
@@ -27,9 +27,9 @@ pub fn get_logs_path(logs_dir: &Path) -> PathBuf {
     logs_dir.join(LOGS_FILENAME)
 }
 
-fn main() -> BoxResult<()> {
-    let matches = Command::new("generate-modpack")
-        .about("Generates modpacks based on a specification file")
+fn main() -> anyhow::Result<()> {
+    let matches = Command::new("generate-instance")
+        .about("Generates instances based on a specification file")
         .arg(
             Arg::new("spec_file")
                 .help("Path to the specification file")

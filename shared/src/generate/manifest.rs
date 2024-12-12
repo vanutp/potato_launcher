@@ -1,26 +1,24 @@
 use std::path::Path;
 
-use shared::{
+use crate::{
     files::hash_file,
     paths::{
         get_rel_extra_metadata_path, get_rel_metadata_path, get_rel_versions_dir,
         get_rel_versions_extra_dir,
     },
-    utils::BoxResult,
+    utils::url_from_rel_path,
     version::{
         version_manifest::{MetadataInfo, VersionInfo},
         version_metadata::VersionMetadata,
     },
 };
 
-use crate::utils::url_from_rel_path;
-
 pub async fn get_version_info(
     work_dir: &Path,
     version_metadata: &Vec<VersionMetadata>,
     version_name: &str,
     download_server_base: &str,
-) -> BoxResult<VersionInfo> {
+) -> anyhow::Result<VersionInfo> {
     let rel_versions_dir = get_rel_versions_dir();
     let mut metadata_info = vec![];
     for metadata in version_metadata {
@@ -46,7 +44,9 @@ pub async fn get_version_info(
         extra_metadata_sha1 = Some(hash_file(&extra_metadata_path).await?);
     }
 
-    let child_metadata_info = metadata_info.pop().ok_or("No child metadata")?;
+    let child_metadata_info = metadata_info
+        .pop()
+        .ok_or(anyhow::Error::msg("No child metadata"))?;
     Ok(VersionInfo {
         id: child_metadata_info.id,
         url: child_metadata_info.url,

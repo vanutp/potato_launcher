@@ -8,9 +8,8 @@ use tokio::io::{AsyncReadExt as _, AsyncWriteExt};
 use walkdir::WalkDir;
 
 use crate::progress::{run_tasks_with_progress, ProgressBar};
-use crate::utils::BoxResult;
 
-pub fn get_files_in_dir(path: &Path) -> BoxResult<Vec<PathBuf>> {
+pub fn get_files_in_dir(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
     let mut files = Vec::new();
     if path.is_file() {
         files.push(path.to_path_buf());
@@ -23,7 +22,7 @@ pub fn get_files_in_dir(path: &Path) -> BoxResult<Vec<PathBuf>> {
     Ok(files)
 }
 
-pub async fn hash_file(path: &Path) -> BoxResult<String> {
+pub async fn hash_file(path: &Path) -> anyhow::Result<String> {
     let mut file = fs::File::open(path).await?;
     let mut hasher = Sha1::new();
     let mut buffer = [0; 1024];
@@ -42,7 +41,7 @@ pub async fn hash_file(path: &Path) -> BoxResult<String> {
 pub async fn hash_files<M>(
     files: Vec<PathBuf>,
     progress_bar: Arc<dyn ProgressBar<M> + Send + Sync>,
-) -> BoxResult<Vec<String>> {
+) -> anyhow::Result<Vec<String>> {
     let tasks_count = files.len() as u64;
 
     let tasks = files
@@ -52,7 +51,7 @@ pub async fn hash_files<M>(
     run_tasks_with_progress(tasks, progress_bar, tasks_count, num_cpus::get()).await
 }
 
-pub async fn download_file(client: &Client, url: &str, path: &Path) -> BoxResult<()> {
+pub async fn download_file(client: &Client, url: &str, path: &Path) -> anyhow::Result<()> {
     let response = client
         .get(url)
         .send()
@@ -78,7 +77,7 @@ pub struct DownloadEntry {
 pub async fn download_files<M>(
     download_entries: Vec<DownloadEntry>,
     progress_bar: Arc<dyn ProgressBar<M> + Send + Sync>,
-) -> BoxResult<()> {
+) -> anyhow::Result<()> {
     let max_concurrent_downloads: usize = num_cpus::get() * 4;
     let client = Client::new();
 
@@ -93,7 +92,7 @@ pub async fn download_files<M>(
     Ok(())
 }
 
-pub async fn fetch_file(client: &Client, url: &str) -> BoxResult<Vec<u8>> {
+pub async fn fetch_file(client: &Client, url: &str) -> anyhow::Result<Vec<u8>> {
     Ok(client
         .get(url)
         .send()
@@ -107,7 +106,7 @@ pub async fn fetch_file(client: &Client, url: &str) -> BoxResult<Vec<u8>> {
 pub async fn fetch_files<M>(
     urls: Vec<String>,
     progress_bar: Arc<dyn ProgressBar<M> + Send + Sync>,
-) -> BoxResult<Vec<Vec<u8>>> {
+) -> anyhow::Result<Vec<Vec<u8>>> {
     let max_concurrent_downloads: usize = num_cpus::get() * 4;
     let client = Client::new();
 
@@ -142,7 +141,7 @@ pub enum CheckDownloadError {
 pub async fn get_download_entries<M>(
     check_entries: Vec<CheckEntry>,
     progress_bar: Arc<dyn ProgressBar<M> + Send + Sync>,
-) -> BoxResult<Vec<DownloadEntry>> {
+) -> anyhow::Result<Vec<DownloadEntry>> {
     let to_hash: Vec<_> = check_entries
         .iter()
         .filter_map(|entry| {
@@ -187,7 +186,7 @@ pub async fn get_download_entries<M>(
     Ok(download_entries)
 }
 
-async fn remove_empty_dirs(path: &Path) -> BoxResult<()> {
+async fn remove_empty_dirs(path: &Path) -> anyhow::Result<()> {
     for entry in WalkDir::new(path)
         .contents_first(true)
         .into_iter()
@@ -217,7 +216,10 @@ pub enum CopyFilesError {
 // copy files mapped files and directories
 // and delete all other files and directores in the target directory
 // mapping: target -> source
-pub async fn sync_mapping(target_dir: &Path, mapping: &HashMap<PathBuf, PathBuf>) -> BoxResult<()> {
+pub async fn sync_mapping(
+    target_dir: &Path,
+    mapping: &HashMap<PathBuf, PathBuf>,
+) -> anyhow::Result<()> {
     let mut mappings_files = HashMap::new();
     for (target, source) in mapping {
         if !target.starts_with(target_dir) {
@@ -254,7 +256,7 @@ pub async fn sync_mapping(target_dir: &Path, mapping: &HashMap<PathBuf, PathBuf>
         if !target.exists() || hash_file(&source).await? != hash_file(&target).await? {
             fs::copy(&source, &target).await?;
         }
-        BoxResult::<()>::Ok(())
+        anyhow::Result::<()>::Ok(())
     });
 
     let results = futures::future::join_all(fut).await;
@@ -275,7 +277,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sync_mapping() {
-        let temp_dir = env::temp_dir().join("modpack_builder_test");
+        let temp_dir = env::temp_dir().join("instance_builder_test");
         let source_dir = temp_dir.join("source");
         let target_dir = temp_dir.join("target");
         let file1 = source_dir.join("file1");

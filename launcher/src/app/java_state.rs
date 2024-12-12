@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
-use crate::config::runtime_config;
+use crate::config::runtime_config::Config;
 use crate::lang::{Lang, LangMessage};
 use crate::utils;
 use crate::version::complete_version_metadata::CompleteVersionMetadata;
@@ -133,7 +133,7 @@ impl JavaState {
         &mut self,
         runtime: &Runtime,
         metadata: &CompleteVersionMetadata,
-        config: &mut runtime_config::Config,
+        config: &mut Config,
     ) {
         let launcher_dir = config.get_launcher_dir();
         let java_dir = get_java_dir(&launcher_dir);
@@ -148,33 +148,32 @@ impl JavaState {
         ));
     }
 
-    pub fn update(
+    pub fn set_check_java_task(
         &mut self,
         runtime: &Runtime,
         metadata: &CompleteVersionMetadata,
-        config: &mut runtime_config::Config,
+        config: &Config,
         ctx: &egui::Context,
-        need_java_check: bool,
     ) {
-        if need_java_check {
-            self.status = JavaDownloadStatus::CheckingJava;
-            let launcher_dir = config.get_launcher_dir();
-            let java_dir = get_java_dir(&launcher_dir);
+        self.status = JavaDownloadStatus::CheckingJava;
+        let launcher_dir = config.get_launcher_dir();
+        let java_dir = get_java_dir(&launcher_dir);
 
-            self.check_java_task = Some(check_java(
-                runtime,
-                &metadata.get_java_version(),
-                &java_dir,
-                config
-                    .java_paths
-                    .get(metadata.get_name())
-                    .map(|s| s.as_str()),
-                ctx,
-            ));
+        self.check_java_task = Some(check_java(
+            runtime,
+            &metadata.get_java_version(),
+            &java_dir,
+            config
+                .java_paths
+                .get(metadata.get_name())
+                .map(|s| s.as_str()),
+            ctx,
+        ));
 
-            self.settings_opened = false;
-        }
+        self.settings_opened = false;
+    }
 
+    pub fn update(&mut self, metadata: &CompleteVersionMetadata, config: &mut Config) {
         if let Some(task) = self.check_java_task.as_ref() {
             if task.has_result() {
                 let task = self.check_java_task.take().unwrap();
@@ -245,7 +244,7 @@ impl JavaState {
         &mut self,
         runtime: &Runtime,
         metadata: &CompleteVersionMetadata,
-        config: &mut runtime_config::Config,
+        config: &mut Config,
     ) {
         if self.is_download_needed() {
             self.schedule_download(runtime, metadata, config);
@@ -255,7 +254,7 @@ impl JavaState {
     pub fn render_ui(
         &mut self,
         ui: &mut egui::Ui,
-        config: &mut runtime_config::Config,
+        config: &mut Config,
         selected_metadata: &CompleteVersionMetadata,
     ) {
         let lang = config.lang;
@@ -298,6 +297,10 @@ impl JavaState {
 
     pub fn ready_for_launch(&self) -> bool {
         self.status == JavaDownloadStatus::Downloaded
+    }
+
+    pub fn checking_java(&self) -> bool {
+        self.status == JavaDownloadStatus::CheckingJava
     }
 
     fn render_cancel_button(&mut self, ui: &mut egui::Ui, lang: Lang) {

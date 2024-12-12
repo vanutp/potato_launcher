@@ -3,13 +3,12 @@ use maplit::hashmap;
 use shared::paths::{
     get_client_jar_path, get_instance_dir, get_libraries_dir, get_logs_dir, get_natives_dir,
 };
-use shared::utils::BoxResult;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use tokio::process::{Child, Command as TokioCommand};
 
 use crate::auth::base::get_auth_provider;
-use crate::auth::version_auth_data::VersionAuthData;
+use crate::auth::user_info::AuthData;
 use crate::config::runtime_config::Config;
 use crate::version::complete_version_metadata::CompleteVersionMetadata;
 use crate::version::rules;
@@ -72,11 +71,11 @@ pub enum LaunchError {
 pub async fn launch(
     version_metadata: &CompleteVersionMetadata,
     config: &Config,
-    version_auth_data: &VersionAuthData,
+    auth_data: &AuthData,
     online: bool,
-) -> BoxResult<Child> {
-    let auth_data = version_metadata.get_auth_data();
-    let auth_provider = get_auth_provider(auth_data);
+) -> anyhow::Result<Child> {
+    let auth_backend = version_metadata.get_auth_backend();
+    let auth_provider = get_auth_provider(auth_backend);
 
     let launcher_dir = config.get_launcher_dir();
     let mut minecraft_dir = get_instance_dir(&launcher_dir, version_metadata.get_name());
@@ -100,7 +99,7 @@ pub async fn launch(
         let path = library.get_path(&libraries_dir);
         if let Some(path) = path {
             if !path.is_file() {
-                return Err(Box::new(LaunchError::MissingLibrary(path.clone())));
+                return Err(LaunchError::MissingLibrary(path.clone()).into());
             }
 
             let path_string = path.to_string_lossy().to_string();
@@ -114,7 +113,7 @@ pub async fn launch(
 
     let client_jar_path = get_client_jar_path(&launcher_dir, version_metadata.get_id());
     if !client_jar_path.exists() {
-        return Err(Box::new(LaunchError::MissingLibrary(client_jar_path)));
+        return Err(LaunchError::MissingLibrary(client_jar_path).into());
     }
 
     classpath.push(client_jar_path.to_string_lossy().to_string());
@@ -131,13 +130,13 @@ pub async fn launch(
         "classpath".to_string() => classpath_str,
         "classpath_separator".to_string() => PATHSEP.to_string(),
         "library_directory".to_string() => libraries_dir.to_str().unwrap().to_string(),
-        "auth_player_name".to_string() => version_auth_data.user_info.username.clone(),
+        "auth_player_name".to_string() => auth_data.user_info.username.clone(),
         "version_name".to_string() => version_metadata.get_id().to_string(),
         "game_directory".to_string() => minecraft_dir.to_str().unwrap().to_string(),
         "assets_root".to_string() => config.get_assets_dir().to_str().unwrap().to_string(),
         "assets_index_name".to_string() => version_metadata.get_asset_index()?.id.to_string(),
-        "auth_uuid".to_string() => version_auth_data.user_info.uuid.replace("-", ""),
-        "auth_access_token".to_string() => version_auth_data.access_token.clone(),
+        "auth_uuid".to_string() => auth_data.user_info.uuid.replace("-", ""),
+        "auth_access_token".to_string() => auth_data.access_token.clone(),
         "clientid".to_string() => "".to_string(),
         "auth_xuid".to_string() => "".to_string(),
         "user_type".to_string() => if online { "mojang" } else { "offline" }.to_string(),
@@ -173,7 +172,7 @@ pub async fn launch(
                     .path,
             );
             if !authlib_injector_path.exists() {
-                return Err(Box::new(LaunchError::MissingAuthlibInjector));
+                return Err(LaunchError::MissingAuthlibInjector.into());
             }
             java_options.insert(
                 0,

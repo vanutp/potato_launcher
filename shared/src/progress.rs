@@ -4,8 +4,6 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 
-use crate::utils::BoxResult;
-
 #[derive(Clone)]
 pub struct Unit {
     pub name: String,
@@ -51,9 +49,9 @@ pub async fn run_tasks_with_progress<M, T, Fut>(
     progress_bar: Arc<dyn ProgressBar<M> + Send + Sync>,
     total_size: u64,
     max_concurrent_tasks: usize,
-) -> BoxResult<Vec<T>>
+) -> anyhow::Result<Vec<T>>
 where
-    Fut: Future<Output = BoxResult<T>>,
+    Fut: Future<Output = anyhow::Result<T>>,
 {
     progress_bar.set_length(total_size);
 
@@ -99,7 +97,7 @@ where
                 Err(e)
             } else {
                 let results: Result<Vec<_>, _> = results.into_iter().map(|x| {
-                    x.ok_or_else(|| "Task failed but no error was set".into())
+                    x.ok_or_else(|| anyhow::Error::msg("Task failed but no error was set"))
                 }).collect();
                 results
             }
@@ -110,7 +108,7 @@ where
             if let Some(e) = first_error.take() {
                 Err(e)
             } else {
-                Err("Got cancelled but no error was set".into())
+                Err(anyhow::Error::msg("Got cancelled but no error was set"))
             }
         }
     }

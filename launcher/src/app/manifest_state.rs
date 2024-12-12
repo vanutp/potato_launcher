@@ -1,46 +1,39 @@
-use std::path::Path;
-
 use crate::{
-    config::{build_config, runtime_config},
+    config::{build_config, runtime_config::Config},
     lang::LangMessage,
 };
 
-use shared::{
-    paths::get_manifest_path,
-    version::version_manifest::{VersionInfo, VersionManifest},
-};
+use shared::version::version_manifest::VersionManifest;
+use tokio::runtime::Runtime;
 
 use super::background_task::{BackgroundTask, BackgroundTaskResult};
 
-#[derive(Clone, PartialEq)]
+#[derive(PartialEq)]
 enum FetchStatus {
-    Fetching,
-    FetchedRemote,
-    FetchedLocalRemoteError(String),
-    FetchedLocalOffline,
+    NotFetched,
+    Fetched,
+    FetchErrorOffline,
+    FetchError(String),
 }
 
 struct ManifestFetchResult {
     status: FetchStatus,
-    manifest: VersionManifest,
+    manifest: Option<VersionManifest>,
 }
 
 fn fetch_manifest<Callback>(
     runtime: &tokio::runtime::Runtime,
-    manifest_path: &Path,
     callback: Callback,
 ) -> BackgroundTask<ManifestFetchResult>
 where
     Callback: FnOnce() + Send + 'static,
 {
-    let manifest_path = manifest_path.to_path_buf();
-
     let fut = async move {
         let result = VersionManifest::fetch(&build_config::get_version_manifest_url()).await;
         match result {
             Ok(manifest) => ManifestFetchResult {
-                status: FetchStatus::FetchedRemote,
-                manifest: manifest,
+                status: FetchStatus::Fetched,
+                manifest: Some(manifest),
             },
             Err(e) => {
                 let mut connect_error = false;
@@ -52,11 +45,11 @@ where
 
                 ManifestFetchResult {
                     status: if connect_error {
-                        FetchStatus::FetchedLocalOffline
+                        FetchStatus::FetchErrorOffline
                     } else {
-                        FetchStatus::FetchedLocalRemoteError(e.to_string())
+                        FetchStatus::FetchError(e.to_string())
                     },
-                    manifest: VersionManifest::read_local_safe(&manifest_path).await,
+                    manifest: None,
                 }
             }
         }
@@ -68,117 +61,97 @@ where
 pub struct ManifestState {
     status: FetchStatus,
     fetch_task: Option<BackgroundTask<ManifestFetchResult>>,
-    manifest: Option<VersionManifest>,
 }
 
 impl ManifestState {
-    pub fn new() -> Self {
-        return ManifestState {
-            status: FetchStatus::Fetching,
-            fetch_task: None,
-            manifest: None,
-        };
+    fn set_fetch_task(&mut self, runtime: &Runtime, ctx: &egui::Context) {
+        let ctx = ctx.clone();
+        self.fetch_task = Some(fetch_manifest(runtime, move || {
+            ctx.request_repaint();
+        }));
     }
 
-    pub fn update(
-        &mut self,
-        runtime: &tokio::runtime::Runtime,
-        config: &mut runtime_config::Config,
-        ctx: &egui::Context,
-    ) -> bool {
-        if self.status == FetchStatus::Fetching && self.fetch_task.is_none() {
-            let launcher_dir = config.get_launcher_dir();
-            let manifest_path = get_manifest_path(&launcher_dir);
+    pub fn new(runtime: &Runtime, ctx: &egui::Context) -> ManifestState {
+        let mut result = ManifestState {
+            status: FetchStatus::NotFetched,
+            fetch_task: None,
+        };
+        result.set_fetch_task(runtime, ctx);
 
-            let ctx = ctx.clone();
-            self.fetch_task = Some(fetch_manifest(runtime, &manifest_path, move || {
-                ctx.request_repaint();
-            }));
-        }
+        result
+    }
 
+    pub fn take_manifest(&mut self, config: &mut Config) -> Option<VersionManifest> {
         if let Some(task) = self.fetch_task.as_ref() {
             if task.has_result() {
                 let task = self.fetch_task.take().unwrap();
                 let result = task.take_result();
                 match result {
                     BackgroundTaskResult::Finished(result) => {
-                        self.status = result.status.clone();
-                        if config.selected_modpack_name.is_none()
-                            && result.manifest.versions.len() == 1
-                        {
-                            config.selected_modpack_name =
-                                result.manifest.versions.first().map(|x| x.get_name());
-                            config.save();
+                        if let Some(manifest) = &result.manifest {
+                            if config.selected_instance_name.is_none()
+                                && manifest.versions.len() == 1
+                            {
+                                config.selected_instance_name =
+                                    manifest.versions.first().map(|x| x.get_name());
+                                config.save();
+                            }
                         }
-                        self.manifest = Some(result.manifest);
+                        self.status = result.status;
+
+                        return result.manifest;
                     }
                     BackgroundTaskResult::Cancelled => {
-                        self.status = FetchStatus::Fetching;
+                        self.status = FetchStatus::NotFetched;
                     }
                 }
-
-                return true;
             }
         }
 
-        false
+        None
     }
 
-    pub fn render_ui(&mut self, ui: &mut egui::Ui, config: &mut runtime_config::Config) -> bool {
-        let lang = config.lang;
-
-        let mut selected_modpack_name = config.selected_modpack_name.clone();
+    pub fn render_combo_box(
+        &mut self,
+        ui: &mut egui::Ui,
+        config: &mut Config,
+        local_instance_names: &Vec<String>,
+        remote_instance_names: &Vec<String>,
+    ) -> bool {
+        let mut selected_instance_name = config.selected_instance_name.clone();
 
         ui.horizontal(|ui| {
-            ui.label(LangMessage::SelectModpack.to_string(lang));
-            egui::ComboBox::from_id_source("modpacks")
+            ui.label(LangMessage::SelectInstance.to_string(config.lang));
+            egui::ComboBox::from_id_source("instances")
                 .selected_text(
-                    selected_modpack_name
+                    selected_instance_name
                         .clone()
-                        .unwrap_or_else(|| LangMessage::NotSelected.to_string(lang)),
+                        .unwrap_or_else(|| LangMessage::NotSelected.to_string(config.lang)),
                 )
-                .show_ui(ui, |ui| match self.manifest.as_ref() {
-                    Some(r) => {
-                        let modpack_names: Vec<String> =
-                            r.versions.iter().map(|x| x.get_name()).collect();
-                        for modpack_name in modpack_names {
+                .show_ui(ui, |ui| {
+                    if !local_instance_names.is_empty() || !remote_instance_names.is_empty() {
+                        for instance_name in local_instance_names {
                             ui.selectable_value(
-                                &mut selected_modpack_name,
-                                Some(modpack_name.clone()),
-                                modpack_name,
+                                &mut selected_instance_name,
+                                Some(instance_name.clone()),
+                                instance_name,
                             );
                         }
-                    }
-                    None => {
-                        ui.label(LangMessage::NoModpacks.to_string(lang));
+                        for instance_name in remote_instance_names {
+                            ui.selectable_value(
+                                &mut selected_instance_name,
+                                Some(instance_name.clone()),
+                                egui::WidgetText::from(instance_name).italics(),
+                            );
+                        }
+                    } else {
+                        ui.label(LangMessage::NoInstances.to_string(config.lang));
                     }
                 });
         });
 
-        match self.status {
-            FetchStatus::Fetching => {
-                ui.label(LangMessage::FetchingVersionManifest.to_string(lang));
-            }
-            FetchStatus::FetchedRemote => {}
-            FetchStatus::FetchedLocalOffline => {
-                ui.label(LangMessage::NoConnectionToManifestServer.to_string(lang));
-            }
-            FetchStatus::FetchedLocalRemoteError(ref s) => {
-                ui.label(LangMessage::ErrorFetchingRemoteManifest(s.clone()).to_string(lang));
-            }
-        }
-
-        if self.status != FetchStatus::FetchedRemote && self.status != FetchStatus::Fetching {
-            if ui
-                .button(LangMessage::FetchManifest.to_string(lang))
-                .clicked()
-            {
-                self.status = FetchStatus::Fetching;
-            }
-        }
-
-        if config.selected_modpack_name != selected_modpack_name {
-            config.selected_modpack_name = selected_modpack_name;
+        if config.selected_instance_name != selected_instance_name {
+            config.selected_instance_name = selected_instance_name;
             config.save();
             true
         } else {
@@ -186,16 +159,33 @@ impl ManifestState {
         }
     }
 
-    pub fn get_selected_modpack(&self, config: &runtime_config::Config) -> Option<&VersionInfo> {
-        return self.manifest.as_ref().and_then(|manifest| {
-            manifest
-                .versions
-                .iter()
-                .find(|x| Some(&x.get_name()) == config.selected_modpack_name.as_ref())
-        });
+    pub fn render_status(&mut self, ui: &mut egui::Ui, config: &Config) {
+        let lang = config.lang;
+
+        match self.status {
+            FetchStatus::NotFetched => {
+                ui.label(LangMessage::FetchingVersionManifest.to_string(lang));
+            }
+            FetchStatus::Fetched => {}
+            FetchStatus::FetchErrorOffline => {
+                ui.label(LangMessage::NoConnectionToManifestServer.to_string(lang));
+            }
+            FetchStatus::FetchError(ref s) => {
+                ui.label(LangMessage::ErrorFetchingRemoteManifest(s.clone()).to_string(lang));
+            }
+        }
+
+        if self.status != FetchStatus::Fetched && self.status != FetchStatus::NotFetched {
+            if ui
+                .button(LangMessage::FetchManifest.to_string(lang))
+                .clicked()
+            {
+                self.status = FetchStatus::NotFetched;
+            }
+        }
     }
 
     pub fn online(&self) -> bool {
-        self.status == FetchStatus::FetchedRemote
+        self.status == FetchStatus::Fetched
     }
 }

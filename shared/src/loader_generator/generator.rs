@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use crate::version::version_metadata::VersionMetadata;
 use async_trait::async_trait;
-use shared::{utils::BoxResult, version::version_metadata::VersionMetadata};
 
 pub struct GeneratorResult {
     // ordered from parent to child
@@ -12,5 +12,5 @@ pub struct GeneratorResult {
 
 #[async_trait]
 pub trait VersionGenerator {
-    async fn generate(&self, work_dir: &Path) -> BoxResult<GeneratorResult>;
+    async fn generate(&self, work_dir: &Path) -> anyhow::Result<GeneratorResult>;
 }

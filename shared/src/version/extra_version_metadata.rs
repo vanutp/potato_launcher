@@ -1,8 +1,9 @@
 use std::path::Path;
 
+use log::warn;
 use serde::{Deserialize, Serialize};
 
-use crate::{files::CheckEntry, paths::get_extra_metadata_path, utils::BoxResult};
+use crate::{files::CheckEntry, paths::get_extra_metadata_path};
 
 use super::{version_manifest::VersionInfo, version_metadata::Library};
 
@@ -13,49 +14,78 @@ pub struct Object {
     pub url: String,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
-pub struct TelegramAuthData {
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
+pub struct TelegramAuthBackend {
     pub auth_base_url: String,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
-pub struct ElyByAuthData {
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
+pub struct ElyByAuthBackend {
     pub client_id: String,
     pub client_secret: String,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
-#[serde(tag = "type", rename_all = "lowercase")]
-pub enum AuthData {
-    None,
-    Telegram(TelegramAuthData),
-    #[serde(rename = "ely.by")]
-    ElyBy(ElyByAuthData),
-    Microsoft,
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
+pub struct OfflineAuthBackend {
+    pub nickname: String,
 }
 
-impl Default for AuthData {
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum AuthBackend {
+    None,
+    Telegram(TelegramAuthBackend),
+    #[serde(rename = "ely.by")]
+    ElyBy(ElyByAuthBackend),
+    Microsoft,
+    Offline(OfflineAuthBackend),
+}
+
+impl Default for AuthBackend {
     fn default() -> Self {
-        AuthData::Microsoft
+        AuthBackend::Microsoft
     }
 }
 
-impl AuthData {
+impl AuthBackend {
     pub fn get_id(&self) -> String {
         match self {
-            AuthData::Telegram(auth_data) => format!("telegram_{}", auth_data.auth_base_url),
-            AuthData::ElyBy(auth_data) => {
+            AuthBackend::Telegram(auth_data) => format!("telegram_{}", auth_data.auth_base_url),
+            AuthBackend::ElyBy(auth_data) => {
                 format!("elyby_{}_{}", auth_data.client_id, auth_data.client_secret)
             }
-            AuthData::Microsoft => "microsoft".to_string(),
-            AuthData::None => "none".to_string(),
+            AuthBackend::Microsoft => "microsoft".to_string(),
+            AuthBackend::None => "none".to_string(),
+            AuthBackend::Offline(auth_data) => format!("offline_{}", auth_data.nickname),
+        }
+    }
+
+    pub fn from_id(id: &str) -> Self {
+        let parts: Vec<&str> = id.split('_').collect();
+        match parts[0] {
+            "telegram" => AuthBackend::Telegram(TelegramAuthBackend {
+                auth_base_url: parts[1].to_string(),
+            }),
+            "elyby" => AuthBackend::ElyBy(ElyByAuthBackend {
+                client_id: parts[1].to_string(),
+                client_secret: parts[2].to_string(),
+            }),
+            "microsoft" => AuthBackend::Microsoft,
+            "none" => AuthBackend::None,
+            "offline" => AuthBackend::Offline(OfflineAuthBackend {
+                nickname: parts[1].to_string(),
+            }),
+            _ => {
+                warn!("Unknown auth backend id: {}", id);
+                AuthBackend::Microsoft
+            }
         }
     }
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct ExtraVersionMetadata {
-    pub auth_provider: AuthData,
+    pub auth_provider: AuthBackend,
 
     #[serde(default)]
     pub include: Vec<String>,
@@ -80,7 +110,7 @@ impl ExtraVersionMetadata {
     pub async fn read_local(
         version_info: &VersionInfo,
         versions_extra_dir: &Path,
-    ) -> BoxResult<Option<Self>> {
+    ) -> anyhow::Result<Option<Self>> {
         if version_info.extra_metadata_url.is_none() || version_info.extra_metadata_sha1.is_none() {
             return Ok(None);
         }
@@ -110,7 +140,7 @@ impl ExtraVersionMetadata {
         })
     }
 
-    pub async fn save(&self, version_name: &str, versions_extra_dir: &Path) -> BoxResult<()> {
+    pub async fn save(&self, version_name: &str, versions_extra_dir: &Path) -> anyhow::Result<()> {
         let path = get_extra_metadata_path(versions_extra_dir, version_name);
         let serialized = serde_json::to_string(self)?;
         tokio::fs::write(path, serialized).await?;

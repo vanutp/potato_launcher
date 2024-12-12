@@ -6,23 +6,18 @@ use std::{
     sync::Arc,
 };
 
+use crate::{
+    files,
+    java::{download_java, get_java},
+    paths::{get_java_dir, get_libraries_dir, get_metadata_path, get_versions_dir},
+    progress::ProgressBar,
+    utils::exec_custom_command_in_dir,
+    version::{version_manifest::VersionInfo, version_metadata::VersionMetadata},
+};
 use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use reqwest::Client;
 use serde::Deserialize;
-use shared::{
-    files,
-    java::{download_java, get_java},
-    paths::{get_java_dir, get_libraries_dir, get_metadata_path, get_versions_dir},
-    progress::ProgressBar as _,
-    utils::BoxResult,
-    version::{version_manifest::VersionInfo, version_metadata::VersionMetadata},
-};
-
-use crate::{
-    progress::TerminalProgressBar,
-    utils::{exec_custom_command_in_dir, to_abs_path_str},
-};
 
 use super::generator::{GeneratorResult, VersionGenerator};
 
@@ -36,17 +31,40 @@ const NEOFORGE_MAVEN_METADATA_URL: &str =
     "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
 
 #[derive(Debug, Deserialize)]
-struct ForgeMavenMetadata {
+pub struct ForgeMavenMetadata {
     versions: HashMap<String, Vec<String>>,
 }
 
 impl ForgeMavenMetadata {
-    async fn from_url(url: &str) -> BoxResult<Self> {
+    pub async fn fetch() -> anyhow::Result<Self> {
         let client = Client::new();
-        let response = client.get(url).send().await?.error_for_status()?;
+        let response = client
+            .get(FORGE_MAVEN_METADATA_URL)
+            .send()
+            .await?
+            .error_for_status()?;
         Ok(ForgeMavenMetadata {
             versions: response.json().await?,
         })
+    }
+
+    pub fn get_matching_versions(&self, minecraft_version: &str) -> Vec<String> {
+        self.versions
+            .get(minecraft_version)
+            .cloned()
+            .unwrap_or(vec![])
+            .into_iter()
+            .rev()
+            .filter_map(|version| {
+                if let Some(forge_version) =
+                    version.strip_prefix(&format!("{}-", minecraft_version))
+                {
+                    Some(forge_version.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     fn has_version(&self, minecraft_version: &str, forge_version: &str) -> bool {
@@ -59,8 +77,8 @@ impl ForgeMavenMetadata {
 }
 
 #[derive(Debug, Deserialize)]
-struct NeoforgeMavenMetadata {
-    versioning: Versioning,
+struct Versions {
+    version: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -69,22 +87,26 @@ struct Versioning {
 }
 
 #[derive(Debug, Deserialize)]
-struct Versions {
-    version: Vec<String>,
+pub struct NeoforgeMavenMetadata {
+    versioning: Versioning,
 }
 
 impl NeoforgeMavenMetadata {
-    async fn from_url(url: &str) -> BoxResult<Self> {
+    pub async fn fetch() -> anyhow::Result<Self> {
         let client = Client::new();
-        let response = client.get(url).send().await?.error_for_status()?;
+        let response = client
+            .get(NEOFORGE_MAVEN_METADATA_URL)
+            .send()
+            .await?
+            .error_for_status()?;
         let metadata: NeoforgeMavenMetadata = serde_xml_rs::from_str(&response.text().await?)?;
         Ok(metadata)
     }
 
-    fn get_latest_matching_version(&self, minecraft_version: &str) -> Option<String> {
+    pub fn get_matching_versions(&self, minecraft_version: &str) -> Vec<String> {
         let mut mc_version_parts: Vec<&str> = minecraft_version.split('.').collect();
         if mc_version_parts.len() < 2 {
-            return None;
+            return vec![];
         }
         if mc_version_parts.len() == 2 {
             mc_version_parts.push("0");
@@ -95,7 +117,15 @@ impl NeoforgeMavenMetadata {
             .versions
             .version
             .iter()
+            .rev()
             .filter(|&version| version.starts_with(&mc_version_prefix))
+            .cloned()
+            .collect()
+    }
+
+    pub fn get_latest_matching_version(&self, minecraft_version: &str) -> Option<String> {
+        self.get_matching_versions(minecraft_version)
+            .into_iter()
             .max_by(|a, b| {
                 let a_parts: Vec<u32> = a
                     .split(|c: char| !c.is_digit(10))
@@ -107,10 +137,9 @@ impl NeoforgeMavenMetadata {
                     .collect();
                 a_parts.cmp(&b_parts)
             })
-            .cloned()
     }
 
-    fn has_version(&self, version: &str) -> bool {
+    pub fn has_version(&self, version: &str) -> bool {
         self.versioning
             .versions
             .version
@@ -119,19 +148,27 @@ impl NeoforgeMavenMetadata {
 }
 
 #[derive(Deserialize)]
-struct ForgePromotions {
+pub struct ForgePromotions {
     promos: HashMap<String, String>,
 }
 
 impl ForgePromotions {
-    async fn from_url(url: &str) -> BoxResult<Self> {
+    pub async fn fetch() -> anyhow::Result<Self> {
         let client = Client::new();
-        let response = client.get(url).send().await?.error_for_status()?;
+        let response = client
+            .get(FORGE_PROMOTIONS_URL)
+            .send()
+            .await?
+            .error_for_status()?;
         let promotions: ForgePromotions = response.json().await?;
         Ok(promotions)
     }
 
-    fn get_latest_version(&self, minecraft_version: &str, version_type: &str) -> Option<String> {
+    pub fn get_latest_version(
+        &self,
+        minecraft_version: &str,
+        version_type: &str,
+    ) -> Option<String> {
         self.promos
             .get(&format!("{}-{}", minecraft_version, version_type))
             .cloned()
@@ -147,7 +184,7 @@ async fn download_forge_installer(
     full_version: &str,
     work_dir: &Path,
     loader: &Loader,
-) -> BoxResult<PathBuf> {
+) -> anyhow::Result<PathBuf> {
     let filename = format!("{:?}-{}-installer.jar", loader, full_version);
     let forge_installer_url = match loader {
         Loader::Forge => format!("{}{}/{}", FORGE_INSTALLER_BASE_URL, full_version, filename),
@@ -201,6 +238,7 @@ pub struct ForgeGenerator {
     vanilla_version_info: VersionInfo,
     loader: Loader,
     loader_version: Option<String>,
+    progress_bar: Arc<dyn ProgressBar<&'static str>>,
 }
 
 impl ForgeGenerator {
@@ -209,12 +247,14 @@ impl ForgeGenerator {
         vanilla_version_info: VersionInfo,
         loader: Loader,
         loader_version: Option<String>,
+        progress_bar: Arc<dyn ProgressBar<&'static str>>,
     ) -> Self {
         Self {
             version_name,
             vanilla_version_info,
             loader,
             loader_version,
+            progress_bar,
         }
     }
 }
@@ -231,10 +271,10 @@ pub async fn get_forge_version(
     minecraft_version: &str,
     loader_version: &Option<String>,
     loader: &Loader,
-) -> BoxResult<String> {
+) -> anyhow::Result<String> {
     match loader {
         Loader::Forge => {
-            let forge_promotions = ForgePromotions::from_url(FORGE_PROMOTIONS_URL).await?;
+            let forge_promotions = ForgePromotions::fetch().await?;
 
             let forge_version = match loader_version {
                 Some(version) => version.to_string(),
@@ -252,15 +292,13 @@ pub async fn get_forge_version(
                 }
             };
 
-            let forge_maven_metadata =
-                ForgeMavenMetadata::from_url(FORGE_MAVEN_METADATA_URL).await?;
+            let forge_maven_metadata = ForgeMavenMetadata::fetch().await?;
             if forge_maven_metadata.has_version(minecraft_version, &forge_version) {
                 return Ok(forge_version);
             }
         }
         Loader::Neoforge => {
-            let neoforge_maven_metadata =
-                NeoforgeMavenMetadata::from_url(NEOFORGE_MAVEN_METADATA_URL).await?;
+            let neoforge_maven_metadata = NeoforgeMavenMetadata::fetch().await?;
 
             let neoforge_version = match loader_version {
                 Some(version) => version.to_string(),
@@ -288,23 +326,23 @@ pub async fn get_forge_version(
         "{} version {} not found for minecraft {}",
         loader, forge_version, minecraft_version
     );
-    Err(Box::new(ForgeError::ForgeVersionNotFound(
-        forge_version.to_string(),
-        minecraft_version.to_string(),
-    )))
+    Err(
+        ForgeError::ForgeVersionNotFound(forge_version.to_string(), minecraft_version.to_string())
+            .into(),
+    )
 }
 
 pub async fn get_vanilla_java_version(
     vanilla_metadata: &VersionMetadata,
-) -> BoxResult<Option<String>> {
+) -> anyhow::Result<Option<String>> {
     Ok(vanilla_metadata
         .java_version
         .as_ref()
         .map(|v| v.major_version.to_string()))
 }
 
-// trick forge installer into thinking that the folder is actually a minecraft instance
-pub fn trick_forge(forge_work_dir: &Path, minecraft_version: &str) -> BoxResult<()> {
+// trick forge installer into thinking that the folder is actually a minecraft instance folder
+pub fn trick_forge(forge_work_dir: &Path, minecraft_version: &str) -> anyhow::Result<()> {
     std::fs::create_dir_all(forge_work_dir.join("versions").join(minecraft_version))?;
     let mut file = std::fs::File::create(forge_work_dir.join("launcher_profiles.json"))?;
     file.write(b"{}")?;
@@ -315,13 +353,18 @@ pub fn get_full_version(minecraft_version: &str, forge_version: &str) -> String 
     format!("{}-{}", minecraft_version, forge_version)
 }
 
-pub async fn install_forge(
+fn to_abs_path_str(path: &Path) -> anyhow::Result<String> {
+    Ok(path.canonicalize()?.to_string_lossy().to_string())
+}
+
+pub async fn install_forge<M>(
     forge_work_dir: &Path,
     java_dir: &Path,
     forge_version: &str,
     vanilla_metadata: &VersionMetadata,
     loader: &Loader,
-) -> BoxResult<String> {
+    progress_bar: Arc<dyn ProgressBar<M>>,
+) -> anyhow::Result<String> {
     std::fs::create_dir_all(forge_work_dir)?;
 
     let minecraft_version = &vanilla_metadata.id;
@@ -346,9 +389,6 @@ pub async fn install_forge(
         } else {
             info!("Java installation not found, downloading");
 
-            let progress_bar = Arc::new(TerminalProgressBar::new());
-
-            progress_bar.set_message("Downloading java...");
             java_installation = download_java(&java_version, &java_dir, progress_bar).await?;
         }
 
@@ -363,16 +403,11 @@ pub async fn install_forge(
         trick_forge(forge_work_dir, minecraft_version)?;
 
         info!("Running forge installer");
-        let install_client_flag = match loader {
-            Loader::Forge => "--installClient",
-            Loader::Neoforge => "--install-client",
-        };
         exec_custom_command_in_dir(
             &format!(
-                "{} -jar {} {} .",
+                "\"{}\" -jar \"{}\" --installClient .",
                 to_abs_path_str(&java_installation.path)?,
                 to_abs_path_str(&forge_installer_path)?,
-                install_client_flag,
             ),
             &forge_work_dir,
         )
@@ -403,11 +438,11 @@ pub async fn install_forge(
 
 #[async_trait]
 impl VersionGenerator for ForgeGenerator {
-    async fn generate(&self, work_dir: &Path) -> BoxResult<GeneratorResult> {
+    async fn generate(&self, work_dir: &Path) -> anyhow::Result<GeneratorResult> {
         let minecraft_version = self.vanilla_version_info.id.clone();
 
         info!(
-            "Generating {} modpack \"{}\", minecraft version {}",
+            "Generating {} instance \"{}\", minecraft version {}",
             self.loader, self.version_name, minecraft_version
         );
 
@@ -424,7 +459,7 @@ impl VersionGenerator for ForgeGenerator {
         info!("Using {} version {}", self.loader, &forge_version);
 
         let installer_work_dir = work_dir
-            .join(format!("{:?}", self.loader))
+            .join(format!(".{:?}", self.loader))
             .join(&get_full_version(&minecraft_version, &forge_version));
         let id = install_forge(
             &installer_work_dir,
@@ -432,6 +467,7 @@ impl VersionGenerator for ForgeGenerator {
             &forge_version,
             &vanilla_metadata,
             &self.loader,
+            self.progress_bar.clone(),
         )
         .await?;
 
@@ -498,7 +534,7 @@ impl VersionGenerator for ForgeGenerator {
                 std::fs::copy(&forge_installer_libraries_dir.join(&lib_path), &lib_dest)?;
                 Ok(lib_dest)
             })
-            .collect::<BoxResult<Vec<_>>>()?;
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
         forge_metadata.save(&versions_dir_to).await?;
 

@@ -1,6 +1,5 @@
 use futures::StreamExt as _;
 use reqwest::Client;
-use shared::utils::BoxResult;
 use std::process::Command;
 use std::sync::Arc;
 use std::{env, fs};
@@ -49,18 +48,18 @@ pub enum UpdateError {
     AutoUpdateUrlNotSet,
 }
 
-async fn fetch_new_version() -> BoxResult<String> {
+async fn fetch_new_version() -> anyhow::Result<String> {
     if let Some(version_url) = &*VERSION_URL {
         let client = Client::new();
         let response = client.get(version_url).send().await?.error_for_status()?;
         let text = response.text().await?;
         Ok(text.trim().to_string())
     } else {
-        Err(Box::new(UpdateError::AutoUpdateUrlNotSet))
+        Err(UpdateError::AutoUpdateUrlNotSet.into())
     }
 }
 
-pub async fn need_update() -> BoxResult<bool> {
+pub async fn need_update() -> anyhow::Result<bool> {
     let new_version = fetch_new_version().await?;
     let current_version = build_config::get_version().expect("Version not set");
     Ok(new_version != current_version)
@@ -68,9 +67,9 @@ pub async fn need_update() -> BoxResult<bool> {
 
 pub async fn download_new_launcher(
     progress_bar: Arc<dyn ProgressBar<LangMessage> + Send + Sync>,
-) -> BoxResult<Vec<u8>> {
+) -> anyhow::Result<Vec<u8>> {
     if UPDATE_URL.is_none() {
-        return Err(Box::new(UpdateError::AutoUpdateUrlNotSet));
+        return Err(UpdateError::AutoUpdateUrlNotSet.into());
     }
     let update_url = UPDATE_URL.as_ref().unwrap();
 
@@ -111,7 +110,7 @@ fn unarchive_tar_gz(archive_data: &[u8], dest_dir: &std::path::Path) -> std::io:
 }
 
 #[cfg(not(target_os = "macos"))]
-pub fn replace_launcher_and_start(new_binary: &[u8]) -> BoxResult<()> {
+pub fn replace_launcher_and_start(new_binary: &[u8]) -> anyhow::Result<()> {
     let current_exe = env::current_exe()?;
 
     let new_exe = utils::get_temp_dir().join("new_launcher");
@@ -125,7 +124,7 @@ pub fn replace_launcher_and_start(new_binary: &[u8]) -> BoxResult<()> {
 }
 
 #[cfg(target_os = "macos")]
-pub fn replace_launcher_and_start(new_archive: &[u8]) -> BoxResult<()> {
+pub fn replace_launcher_and_start(new_archive: &[u8]) -> anyhow::Result<()> {
     let current_exe = env::current_exe()?;
     let current_dir = current_exe
         .parent()
@@ -140,7 +139,10 @@ pub fn replace_launcher_and_start(new_archive: &[u8]) -> BoxResult<()> {
     let app_name = bundle_dir.file_name().unwrap().to_str().unwrap();
 
     if !app_name.ends_with(".app") {
-        return Err(format!("Invalid bundle directory: {:?}", bundle_dir).into());
+        return Err(anyhow::Error::msg(format!(
+            "Invalid bundle directory: {:?}",
+            bundle_dir
+        )));
     }
 
     let temp_dir = utils::get_temp_dir().join("launcher_update");

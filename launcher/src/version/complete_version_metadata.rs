@@ -1,12 +1,11 @@
-use std::path::Path;
+use std::{collections::HashSet, path::Path};
 
 use shared::{
     files::{self, CheckEntry},
     paths::{get_client_jar_path, get_versions_dir, get_versions_extra_dir},
     progress,
-    utils::BoxResult,
     version::{
-        extra_version_metadata::{AuthData, ExtraVersionMetadata},
+        extra_version_metadata::{AuthBackend, ExtraVersionMetadata},
         version_manifest::VersionInfo,
         version_metadata::{Arguments, AssetIndex, Library, VersionMetadata},
     },
@@ -23,7 +22,7 @@ pub struct CompleteVersionMetadata {
 
 const DEFAULT_RESOURCES_URL_BASE: &str = "https://resources.download.minecraft.net";
 
-const AUTH_DATA_MICROSOFT: AuthData = AuthData::Microsoft;
+const AUTH_BACKEND_NONE: AuthBackend = AuthBackend::None;
 
 #[derive(thiserror::Error, Debug)]
 pub enum VersionMetadataError {
@@ -34,7 +33,7 @@ pub enum VersionMetadataError {
 }
 
 impl CompleteVersionMetadata {
-    pub async fn read_local(version_info: &VersionInfo, data_dir: &Path) -> BoxResult<Self> {
+    pub async fn read_local(version_info: &VersionInfo, data_dir: &Path) -> anyhow::Result<Self> {
         let versions_dir = get_versions_dir(data_dir);
 
         let mut base = vec![];
@@ -61,7 +60,10 @@ impl CompleteVersionMetadata {
         })
     }
 
-    pub async fn read_or_download(version_info: &VersionInfo, data_dir: &Path) -> BoxResult<Self> {
+    pub async fn read_or_download(
+        version_info: &VersionInfo,
+        data_dir: &Path,
+    ) -> anyhow::Result<Self> {
         let versions_dir = get_versions_dir(data_dir);
         let versions_extra_dir = get_versions_extra_dir(data_dir);
 
@@ -109,7 +111,7 @@ impl CompleteVersionMetadata {
         &self.version_name
     }
 
-    pub fn get_client_check_entry(&self, launcher_dir: &Path) -> BoxResult<CheckEntry> {
+    pub fn get_client_check_entry(&self, launcher_dir: &Path) -> anyhow::Result<CheckEntry> {
         if let Some(downloads) = self.base[0].downloads.as_ref() {
             if let Some(client) = downloads.client.as_ref() {
                 return Ok(CheckEntry {
@@ -123,17 +125,31 @@ impl CompleteVersionMetadata {
         Err(VersionMetadataError::MissingClientDownload.into())
     }
 
-    pub fn get_auth_data(&self) -> &AuthData {
+    pub fn get_auth_backend(&self) -> &AuthBackend {
         match &self.extra {
             Some(extra) => &extra.auth_provider,
-            None => &AUTH_DATA_MICROSOFT,
+            None => &AUTH_BACKEND_NONE,
         }
     }
 
     pub fn get_libraries_with_overrides(&self) -> Vec<Library> {
-        self.base
+        let all_libraries = self
+            .base
             .iter()
-            .flat_map(|metadata| with_overrides(&metadata.libraries, &metadata.id))
+            .rev() // prioritize child libraries
+            .flat_map(|metadata| with_overrides(&metadata.libraries, &metadata.id));
+
+        let mut existing_names = HashSet::new();
+        all_libraries
+            .filter(|library| {
+                let name = library.get_name_without_version();
+                if existing_names.contains(&name) {
+                    false
+                } else {
+                    existing_names.insert(name);
+                    true
+                }
+            })
             .collect()
     }
 
@@ -145,14 +161,14 @@ impl CompleteVersionMetadata {
         &self.base[0].id
     }
 
-    pub fn get_asset_index(&self) -> BoxResult<&AssetIndex> {
+    pub fn get_asset_index(&self) -> anyhow::Result<&AssetIndex> {
         Ok(self.base[0]
             .asset_index
             .as_ref()
             .ok_or(VersionMetadataError::MissingAssetIndex)?)
     }
 
-    pub fn get_arguments(&self) -> BoxResult<Arguments> {
+    pub fn get_arguments(&self) -> anyhow::Result<Arguments> {
         let mut merged_arguments = self.base[0].get_arguments()?;
 
         for metadata in &self.base[1..] {

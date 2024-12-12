@@ -65,7 +65,6 @@ pub fn run_gui(config: &runtime_config::Config) {
     };
 
     let lang = config.lang;
-
     run_native(
         &format!("{} Updater", build_config::get_launcher_name()),
         native_options,
