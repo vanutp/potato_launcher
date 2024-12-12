@@ -44,7 +44,9 @@ pub async fn get_version_info(
         extra_metadata_sha1 = Some(hash_file(&extra_metadata_path).await?);
     }
 
-    let child_metadata_info = metadata_info.pop().ok_or(anyhow::Error::msg("No child metadata"))?;
+    let child_metadata_info = metadata_info
+        .pop()
+        .ok_or(anyhow::Error::msg("No child metadata"))?;
     Ok(VersionInfo {
         id: child_metadata_info.id,
         url: child_metadata_info.url,

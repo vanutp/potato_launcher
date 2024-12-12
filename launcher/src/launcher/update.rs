@@ -139,7 +139,10 @@ pub fn replace_launcher_and_start(new_archive: &[u8]) -> anyhow::Result<()> {
     let app_name = bundle_dir.file_name().unwrap().to_str().unwrap();
 
     if !app_name.ends_with(".app") {
-        return Err(anyhow::Error::msg(format!("Invalid bundle directory: {:?}", bundle_dir)));
+        return Err(anyhow::Error::msg(format!(
+            "Invalid bundle directory: {:?}",
+            bundle_dir
+        )));
     }
 
     let temp_dir = utils::get_temp_dir().join("launcher_update");

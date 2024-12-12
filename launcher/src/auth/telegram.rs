@@ -3,7 +3,7 @@ use crate::message_provider::MessageProvider;
 
 use super::{
     base::{AuthProvider, AuthResultData, AuthState},
-    version_auth_data::UserInfo,
+    user_info::UserInfo,
 };
 use async_trait::async_trait;
 use reqwest::Client;
@@ -50,7 +50,10 @@ impl TGAuthProvider {
 
 #[async_trait]
 impl AuthProvider for TGAuthProvider {
-    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> anyhow::Result<AuthState> {
+    async fn authenticate(
+        &self,
+        message_provider: &dyn MessageProvider,
+    ) -> anyhow::Result<AuthState> {
         let bot_name = self.get_bot_name().await?;
         let body = self
             .client

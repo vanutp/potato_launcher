@@ -10,7 +10,7 @@ use crate::{
     progress::{self, NoProgressBar, ProgressBar as _},
     utils::{url_from_path, url_from_rel_path},
     version::{
-        extra_version_metadata::{AuthData, ExtraVersionMetadata, Object},
+        extra_version_metadata::{AuthBackend, ExtraVersionMetadata, Object},
         version_metadata::Library,
     },
 };
@@ -143,7 +143,7 @@ pub struct ExtraMetadataGenerator {
     resources_url_base: Option<String>,
     download_server_base: String,
     extra_forge_libs_paths: Vec<PathBuf>,
-    auth_data: AuthData,
+    auth_backend: AuthBackend,
 }
 
 pub struct GeneratorResult {
@@ -164,7 +164,7 @@ impl ExtraMetadataGenerator {
         resources_url_base: Option<String>,
         download_server_base: String,
         extra_forge_libs_paths: Vec<PathBuf>,
-        auth_data: AuthData,
+        auth_backend: AuthBackend,
     ) -> Self {
         Self {
             version_name,
@@ -174,7 +174,7 @@ impl ExtraMetadataGenerator {
             resources_url_base,
             download_server_base,
             extra_forge_libs_paths,
-            auth_data,
+            auth_backend,
         }
     }
 
@@ -196,7 +196,7 @@ impl ExtraMetadataGenerator {
             include_no_overwrite: self.include_no_overwrite.clone(),
             objects: vec![],
             resources_url_base: self.resources_url_base.clone(),
-            auth_provider: self.auth_data.clone(),
+            auth_provider: self.auth_backend.clone(),
             extra_forge_libs,
             authlib_injector: None,
         };
@@ -225,8 +225,8 @@ impl ExtraMetadataGenerator {
             extra_metadata.objects = objects;
         }
 
-        match self.auth_data {
-            AuthData::None => {}
+        match self.auth_backend {
+            AuthBackend::None => {}
             _ => {
                 extra_metadata.authlib_injector =
                     Some(download_authlib_injector(work_dir, &self.download_server_base).await?);

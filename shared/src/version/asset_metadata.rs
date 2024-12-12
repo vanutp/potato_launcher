@@ -42,7 +42,10 @@ impl AssetsMetadata {
         Ok(data)
     }
 
-    pub async fn read_or_download(asset_index: &AssetIndex, assets_dir: &Path) -> anyhow::Result<Self> {
+    pub async fn read_or_download(
+        asset_index: &AssetIndex,
+        assets_dir: &Path,
+    ) -> anyhow::Result<Self> {
         let asset_index_path = get_asset_index_path(assets_dir, &asset_index.id);
         let check_entry = CheckEntry {
             url: asset_index.url.clone(),

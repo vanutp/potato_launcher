@@ -110,7 +110,8 @@ async fn get_libraries_entries(
                     None => {
                         return Err(VersionMetadataError::NoSha1(
                             entry.path.to_str().unwrap_or("no path").to_string(),
-                        ).into());
+                        )
+                        .into());
                     }
                 }
             }

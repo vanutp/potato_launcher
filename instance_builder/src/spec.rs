@@ -2,7 +2,7 @@ use log::{debug, error, info, warn};
 use serde::Deserialize;
 use std::{
     collections::{HashMap, HashSet},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 use tokio::fs;
@@ -17,12 +17,12 @@ use shared::{
         vanilla::VanillaGenerator,
     },
     paths::{
-        get_extra_metadata_path, get_instance_dir, get_manifest_path, get_metadata_path,
-        get_versions_dir, get_versions_extra_dir,
+        get_extra_metadata_path, get_instance_dir, get_metadata_path, get_versions_dir,
+        get_versions_extra_dir,
     },
     utils::{exec_custom_command, get_vanilla_version_info, VANILLA_MANIFEST_URL},
     version::{
-        asset_metadata::AssetsMetadata, extra_version_metadata::AuthData,
+        asset_metadata::AssetsMetadata, extra_version_metadata::AuthBackend,
         version_manifest::VersionManifest,
     },
 };
@@ -56,7 +56,7 @@ pub struct Version {
     pub include_from: Option<String>,
 
     #[serde(default)]
-    pub auth_provider: AuthData,
+    pub auth_provider: AuthBackend,
 
     pub exec_before: Option<String>,
     pub exec_after: Option<String>,
@@ -73,6 +73,10 @@ pub struct VersionsSpec {
     pub versions: Vec<Version>,
     pub exec_before_all: Option<String>,
     pub exec_after_all: Option<String>,
+}
+
+pub fn get_manifest_path(data_dir: &Path) -> PathBuf {
+    data_dir.join("version_manifest.json")
 }
 
 impl VersionsSpec {

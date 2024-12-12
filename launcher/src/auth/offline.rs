@@ -5,17 +5,22 @@ use super::{
     user_info::UserInfo,
 };
 use async_trait::async_trait;
+use uuid::Uuid;
 
-pub struct NoneAuthProvider {}
+pub struct OfflineAuthProvider {
+    nickname: String,
+}
 
-impl NoneAuthProvider {
-    pub fn new() -> Self {
-        NoneAuthProvider {}
+impl OfflineAuthProvider {
+    pub fn new(nickname: &str) -> Self {
+        OfflineAuthProvider {
+            nickname: nickname.to_string(),
+        }
     }
 }
 
 #[async_trait]
-impl AuthProvider for NoneAuthProvider {
+impl AuthProvider for OfflineAuthProvider {
     async fn authenticate(&self, _: &dyn MessageProvider) -> anyhow::Result<AuthState> {
         Ok(AuthState::UserInfo(AuthResultData {
             access_token: "".to_string(),
@@ -28,9 +33,13 @@ impl AuthProvider for NoneAuthProvider {
     }
 
     async fn get_user_info(&self, _: &str) -> anyhow::Result<AuthState> {
+        let namespace = Uuid::NAMESPACE_DNS;
+        let name = format!("{}", self.nickname);
+        let generated_uuid = Uuid::new_v3(&namespace, name.as_bytes());
+
         Ok(AuthState::Success(UserInfo {
-            uuid: "00000000-0000-0000-0000-000000000000".to_string(),
-            username: "demo".to_string(),
+            uuid: generated_uuid.to_string(),
+            username: self.nickname.clone(),
         }))
     }
 
@@ -39,6 +48,6 @@ impl AuthProvider for NoneAuthProvider {
     }
 
     fn get_name(&self) -> String {
-        "No auth provider".to_string()
+        "Offline".to_string()
     }
 }

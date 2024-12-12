@@ -18,7 +18,7 @@ use crate::lang::LangMessage;
 use crate::message_provider::MessageProvider;
 
 use super::base::{AuthProvider, AuthResultData, AuthState};
-use super::version_auth_data::UserInfo;
+use super::user_info::UserInfo;
 
 const ELY_BY_BASE: &str = "https://ely.by/";
 
@@ -175,7 +175,10 @@ impl ElyByAuthProvider {
 
 #[async_trait]
 impl AuthProvider for ElyByAuthProvider {
-    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> anyhow::Result<AuthState> {
+    async fn authenticate(
+        &self,
+        message_provider: &dyn MessageProvider,
+    ) -> anyhow::Result<AuthState> {
         let addr = SocketAddr::from(([127, 0, 0, 1], 0));
         let listener = TcpListener::bind(addr).await?;
 

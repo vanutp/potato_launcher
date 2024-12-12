@@ -11,10 +11,7 @@ pub async fn exec_custom_command_in_dir(command: &str, dir: &Path) -> anyhow::Re
     cmd.args(vec!["-c", command]).current_dir(dir);
     let status = cmd.status().await?;
     if !status.success() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "Command failed",
-        ).into());
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, "Command failed").into());
     }
     Ok(())
 }

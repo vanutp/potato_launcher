@@ -326,10 +326,10 @@ pub async fn get_forge_version(
         "{} version {} not found for minecraft {}",
         loader, forge_version, minecraft_version
     );
-    Err(ForgeError::ForgeVersionNotFound(
-        forge_version.to_string(),
-        minecraft_version.to_string(),
-    ).into())
+    Err(
+        ForgeError::ForgeVersionNotFound(forge_version.to_string(), minecraft_version.to_string())
+            .into(),
+    )
 }
 
 pub async fn get_vanilla_java_version(

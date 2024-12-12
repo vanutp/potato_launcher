@@ -1,5 +1,5 @@
 use super::base::{AuthProvider, AuthResultData, AuthState};
-use super::version_auth_data::UserInfo;
+use super::user_info::UserInfo;
 use crate::lang::LangMessage;
 use crate::message_provider::MessageProvider;
 use crate::vendor::minecraft_msa_auth::MinecraftAuthorizationFlow;
@@ -94,7 +94,10 @@ impl MicrosoftAuthProvider {
 
 #[async_trait]
 impl AuthProvider for MicrosoftAuthProvider {
-    async fn authenticate(&self, message_provider: &dyn MessageProvider) -> anyhow::Result<AuthState> {
+    async fn authenticate(
+        &self,
+        message_provider: &dyn MessageProvider,
+    ) -> anyhow::Result<AuthState> {
         let ms_token = get_ms_token(message_provider).await?;
         message_provider.clear();
         let mc_flow = MinecraftAuthorizationFlow::new(Client::new());

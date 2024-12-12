@@ -13,7 +13,6 @@ pub enum LangMessage {
     NoConnectionToAuthServer { offline_username: Option<String> },
     AuthTimeout,
     AuthError(String),
-    AuthorizedAs,
     AuthorizeUsing(String),
     Authorizing,
     Authorize,
@@ -69,7 +68,6 @@ pub enum LangMessage {
     CancelDownload,
     Retry,
     OpenLogs,
-    LogicError,
     LoadingMetadata,
     MetadataErrorOffline,
     MetadataFetchError(String),
@@ -84,6 +82,16 @@ pub enum LangMessage {
     Cancel,
     InstanceGenerateErrorOffline,
     InstanceGenerateError(String),
+    LongTimeWarning,
+    DeleteInstance,
+    SelectInstanceToDelete,
+    ConfirmDelete,
+    Delete,
+    AddAccount,
+    SelectAccount,
+    AddAndAuthenticate,
+    Offline,
+    Nickname,
 }
 
 impl LangMessage {
@@ -125,10 +133,6 @@ impl LangMessage {
             LangMessage::AuthError(e) => match lang {
                 Lang::English => format!("Authorization error: {}", e),
                 Lang::Russian => format!("Ошибка авторизации: {}", e),
-            },
-            LangMessage::AuthorizedAs => match lang {
-                Lang::English => "Authorized as".to_string(),
-                Lang::Russian => "Авторизован как".to_string(),
             },
             LangMessage::AuthorizeUsing(app_name) => match lang {
                 Lang::English => format!("Authorize using {}", app_name),
@@ -363,10 +367,6 @@ impl LangMessage {
                 Lang::English => "Open logs folder".to_string(),
                 Lang::Russian => "Открыть папку с логами".to_string(),
             },
-            LangMessage::LogicError => match lang {
-                Lang::English => "Logic error".to_string(),
-                Lang::Russian => "Логическая ошибка".to_string(),
-            },
             LangMessage::LoadingMetadata => match lang {
                 Lang::English => "Loading metadata...".to_string(),
                 Lang::Russian => "Загрузка метаданных...".to_string(),
@@ -422,6 +422,46 @@ impl LangMessage {
             LangMessage::InstanceGenerateError(e) => match lang {
                 Lang::English => format!("Error generating instance: {}", e),
                 Lang::Russian => format!("Ошибка создания версии: {}", e),
+            },
+            LangMessage::LongTimeWarning => match lang {
+                Lang::English => "This may take a couple of minutes".to_string(),
+                Lang::Russian => "Это может занять несколько минут".to_string(),
+            },
+            LangMessage::DeleteInstance => match lang {
+                Lang::English => "Delete instance".to_string(),
+                Lang::Russian => "Удалить версию".to_string(),
+            },
+            LangMessage::SelectInstanceToDelete => match lang {
+                Lang::English => "Select instance to delete".to_string(),
+                Lang::Russian => "Выберите версию для удаления".to_string(),
+            },
+            LangMessage::ConfirmDelete => match lang {
+                Lang::English => "I understand that this action is irreversible".to_string(),
+                Lang::Russian => "Я понимаю, что назад пути нет".to_string(),
+            },
+            LangMessage::Delete => match lang {
+                Lang::English => "Delete".to_string(),
+                Lang::Russian => "Удалить".to_string(),
+            },
+            LangMessage::AddAccount => match lang {
+                Lang::English => "Add account".to_string(),
+                Lang::Russian => "Добавить аккаунт".to_string(),
+            },
+            LangMessage::SelectAccount => match lang {
+                Lang::English => "Select account".to_string(),
+                Lang::Russian => "Выберите аккаунт".to_string(),
+            },
+            LangMessage::AddAndAuthenticate => match lang {
+                Lang::English => "Add and authenticate".to_string(),
+                Lang::Russian => "Добавить и авторизоваться".to_string(),
+            },
+            LangMessage::Offline => match lang {
+                Lang::English => "Offline".to_string(),
+                Lang::Russian => "Офлайн".to_string(),
+            },
+            LangMessage::Nickname => match lang {
+                Lang::English => "Nickname".to_string(),
+                Lang::Russian => "Никнейм".to_string(),
             },
         }
     }

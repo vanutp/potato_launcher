@@ -39,8 +39,12 @@ pub fn get_instance_dir(data_dir: &Path, version_name: &str) -> PathBuf {
     created(data_dir.join(get_rel_instance_dir(version_name)))
 }
 
-pub fn get_manifest_path(data_dir: &Path) -> PathBuf {
-    parent_created(data_dir.join("version_manifest.json"))
+pub fn get_local_instances_path(data_dir: &Path) -> PathBuf {
+    parent_created(data_dir.join("local_instances.json"))
+}
+
+pub fn get_auth_data_path(data_dir: &Path) -> PathBuf {
+    parent_created(data_dir.join("auth_data.json"))
 }
 
 pub fn get_java_dir(data_dir: &Path) -> PathBuf {

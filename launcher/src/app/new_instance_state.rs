@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -12,14 +12,12 @@ use shared::loader_generator::forge::{
 use shared::loader_generator::generator::VersionGenerator;
 use shared::loader_generator::vanilla::VanillaGenerator;
 use shared::paths::get_instance_dir;
-use shared::progress::{NoProgressBar, ProgressBar};
+use shared::progress::NoProgressBar;
 use shared::utils::{get_vanilla_version_info, VANILLA_MANIFEST_URL};
-use shared::version::extra_version_metadata::AuthData;
+use shared::version::extra_version_metadata::AuthBackend;
 use shared::version::version_manifest::{VersionInfo, VersionManifest};
 use tokio::runtime::Runtime;
 
-use crate::version::complete_version_metadata::CompleteVersionMetadata;
-use crate::version::sync::sync_instance;
 use crate::{
     config::runtime_config::Config,
     lang::{Lang, LangMessage},
@@ -27,7 +25,6 @@ use crate::{
 };
 
 use super::background_task::{BackgroundTask, BackgroundTaskResult};
-use super::progress_bar::GuiProgressBar;
 
 struct AllVersionsMetadata {
     vanilla_manifest: VersionManifest,
@@ -152,6 +149,10 @@ where
     }
 }
 
+pub struct RenderUIResult {
+    pub instance_to_delete: Option<String>,
+}
+
 const VANILLA_LOADER: &str = "Vanilla";
 const FABRIC_LOADER: &str = "Fabric";
 const FORGE_LOADER: &str = "Forge";
@@ -166,8 +167,6 @@ fn create_new_instance(
     minecraft_version: &str,
     loader: &str,
     loader_version: &str,
-    assets_dir: &Path,
-    progress_bar: Arc<dyn ProgressBar<LangMessage>>,
 ) -> BackgroundTask<anyhow::Result<VersionInfo>> {
     let launcher_dir = launcher_dir.to_path_buf();
     let version_manifest = version_manifest.clone();
@@ -175,7 +174,6 @@ fn create_new_instance(
     let minecraft_version = minecraft_version.to_string();
     let loader = loader.to_string();
     let loader_version = loader_version.to_string();
-    let assets_dir = assets_dir.to_path_buf();
     let fut = async move {
         let vanilla_info = get_vanilla_version_info(&version_manifest, &minecraft_version)?;
 
@@ -237,30 +235,15 @@ fn create_new_instance(
             None,
             DOWNLOAD_SERVER_BASE.to_string(),
             generator_result.extra_libs_paths,
-            AuthData::None,
+            AuthBackend::None,
         );
-        let extra_generator_result = extra_generator.generate(&launcher_dir).await?;
+        let _ = extra_generator.generate(&launcher_dir).await?;
 
         let version_info = get_version_info(
             &launcher_dir,
             &generator_result.metadata,
             &instance_name,
             DOWNLOAD_SERVER_BASE,
-        )
-        .await?;
-
-        let complete_metadata = CompleteVersionMetadata::from_parts(
-            instance_name.clone(),
-            generator_result.metadata,
-            Some(extra_generator_result.extra_metadata),
-        );
-
-        sync_instance(
-            &complete_metadata,
-            false,
-            &launcher_dir,
-            &assets_dir,
-            progress_bar,
         )
         .await?;
 
@@ -291,13 +274,13 @@ pub struct NewInstanceState {
 
     instance_generate_task: Option<BackgroundTask<anyhow::Result<VersionInfo>>>,
     instance_generate_error: Option<anyhow::Error>,
-    instance_sync_progress_bar: Arc<GuiProgressBar>,
+    delete_window_open: bool,
+    selected_instance_to_delete: String,
+    confirm_delete: bool,
 }
 
 impl NewInstanceState {
     pub fn new(runtime: &Runtime, ctx: &egui::Context) -> Self {
-        let instance_sync_progress_bar = Arc::new(GuiProgressBar::new(ctx));
-
         Self {
             window_open: false,
             new_instance_name: String::new(),
@@ -312,7 +295,10 @@ impl NewInstanceState {
 
             instance_generate_task: None,
             instance_generate_error: None,
-            instance_sync_progress_bar,
+            // instance_sync_progress_bar,
+            delete_window_open: false,
+            selected_instance_to_delete: String::new(),
+            confirm_delete: false,
         }
     }
 
@@ -345,8 +331,9 @@ impl NewInstanceState {
         runtime: &Runtime,
         ui: &mut egui::Ui,
         config: &mut Config,
-        existing_names: &Vec<String>,
-    ) {
+        existing_names: &HashSet<String>,
+        local_instance_names: &Vec<String>,
+    ) -> RenderUIResult {
         let lang = config.lang;
 
         if let Some(task) = self.instance_metadata_task.as_ref() {
@@ -372,6 +359,9 @@ impl NewInstanceState {
 
         if ui.button("+").clicked() {
             self.window_open = true;
+        }
+        if ui.button("-").clicked() {
+            self.delete_window_open = true;
         }
 
         let mut new_instance_window_open = self.window_open;
@@ -516,7 +506,6 @@ impl NewInstanceState {
                         ui.horizontal(|ui| {
                             if self.instance_generate_task.is_none() {
                                 if ui.button(LangMessage::CreateInstance.to_string(lang)).clicked() {
-                                    self.instance_sync_progress_bar.reset();
                                     let task = create_new_instance(
                                         &runtime,
                                         ui.ctx(),
@@ -526,8 +515,6 @@ impl NewInstanceState {
                                         &self.instance_version,
                                         &self.instance_loader,
                                         &self.instance_loader_version,
-                                        &config.get_assets_dir(),
-                                        self.instance_sync_progress_bar.clone(),
                                     );
                                     self.instance_generate_task = Some(task);
                                 }
@@ -549,12 +536,65 @@ impl NewInstanceState {
                                 }
                             }
                         });
-                        if self.instance_generate_task.is_some() && self.instance_sync_progress_bar.get_state().total > 0 {
-                            self.instance_sync_progress_bar.render(ui, lang);
+                        if self.instance_generate_task.is_some() && [FORGE_LOADER, NEOFORGE_LOADER].contains(&self.instance_loader.as_str()) {
+                            ui.label(LangMessage::LongTimeWarning.to_string(lang));
                         }
                     }
                 }
             });
         self.window_open = new_instance_window_open;
+
+        let mut delete_window_open = self.delete_window_open;
+        let mut close_delete_window = false;
+        let mut instance_to_delete = None;
+        egui::Window::new(LangMessage::DeleteInstance.to_string(lang))
+            .open(&mut delete_window_open)
+            .show(ui.ctx(), |ui| {
+                ui.label(LangMessage::SelectInstanceToDelete.to_string(lang));
+                egui::ComboBox::from_id_source("delete_instances")
+                    .selected_text(if self.selected_instance_to_delete.is_empty() {
+                        LangMessage::NotSelected.to_string(lang)
+                    } else {
+                        self.selected_instance_to_delete.clone()
+                    })
+                    .show_ui(ui, |ui| {
+                        for instance_name in local_instance_names {
+                            ui.selectable_value(
+                                &mut self.selected_instance_to_delete,
+                                instance_name.clone(),
+                                instance_name,
+                            );
+                        }
+                    });
+
+                ui.checkbox(
+                    &mut self.confirm_delete,
+                    LangMessage::ConfirmDelete.to_string(lang),
+                );
+
+                ui.horizontal(|ui| {
+                    let delete_enabled =
+                        !self.selected_instance_to_delete.is_empty() && self.confirm_delete;
+                    if ui
+                        .add_enabled(
+                            delete_enabled,
+                            egui::Button::new(LangMessage::Delete.to_string(lang)),
+                        )
+                        .clicked()
+                    {
+                        instance_to_delete = Some(self.selected_instance_to_delete.clone());
+                        self.selected_instance_to_delete.clear();
+                        self.confirm_delete = false;
+                        close_delete_window = true;
+                    }
+                });
+            });
+        if close_delete_window {
+            self.delete_window_open = false;
+        } else {
+            self.delete_window_open = delete_window_open;
+        }
+
+        RenderUIResult { instance_to_delete }
     }
 }

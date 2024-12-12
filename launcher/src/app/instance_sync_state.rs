@@ -1,5 +1,4 @@
 use shared::progress::ProgressBar;
-use shared::version::version_manifest::{VersionInfo, VersionManifest};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -89,14 +88,13 @@ impl InstanceSyncState {
     pub fn update(
         &mut self,
         runtime: &Runtime,
-        local_version_manifest: &VersionManifest,
-        selected_version_info: &VersionInfo,
         selected_version_metadata: Arc<CompleteVersionMetadata>,
         config: &runtime_config::Config,
-        online_manifest: bool,
+        instance_up_to_date: bool,
+        manifest_online: bool,
     ) -> bool {
         if self.status == InstanceSyncStatus::NotSynced {
-            if local_version_manifest.is_up_to_date(selected_version_info) && online_manifest {
+            if instance_up_to_date && manifest_online {
                 self.status = InstanceSyncStatus::Synced;
             }
         }
@@ -108,7 +106,7 @@ impl InstanceSyncState {
         {
             if self.instance_sync_task.is_none() {
                 if !ignore_version {
-                    if local_version_manifest.is_up_to_date(selected_version_info) {
+                    if instance_up_to_date {
                         self.status = InstanceSyncStatus::Synced;
                     }
                 }
@@ -265,10 +263,6 @@ impl InstanceSyncState {
                 });
             });
         self.instance_sync_window_open = instance_sync_window_open;
-    }
-
-    pub fn ready_for_launch(&self) -> bool {
-        self.status == InstanceSyncStatus::Synced
     }
 
     fn render_cancel_button(&mut self, ui: &mut egui::Ui, lang: Lang) {

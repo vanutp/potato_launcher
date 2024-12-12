@@ -216,7 +216,10 @@ pub enum CopyFilesError {
 // copy files mapped files and directories
 // and delete all other files and directores in the target directory
 // mapping: target -> source
-pub async fn sync_mapping(target_dir: &Path, mapping: &HashMap<PathBuf, PathBuf>) -> anyhow::Result<()> {
+pub async fn sync_mapping(
+    target_dir: &Path,
+    mapping: &HashMap<PathBuf, PathBuf>,
+) -> anyhow::Result<()> {
     let mut mappings_files = HashMap::new();
     for (target, source) in mapping {
         if !target.starts_with(target_dir) {

@@ -5,7 +5,7 @@ use shared::{
     paths::{get_client_jar_path, get_versions_dir, get_versions_extra_dir},
     progress,
     version::{
-        extra_version_metadata::{AuthData, ExtraVersionMetadata},
+        extra_version_metadata::{AuthBackend, ExtraVersionMetadata},
         version_manifest::VersionInfo,
         version_metadata::{Arguments, AssetIndex, Library, VersionMetadata},
     },
@@ -22,7 +22,7 @@ pub struct CompleteVersionMetadata {
 
 const DEFAULT_RESOURCES_URL_BASE: &str = "https://resources.download.minecraft.net";
 
-const AUTH_DATA_MICROSOFT: AuthData = AuthData::Microsoft;
+const AUTH_BACKEND_NONE: AuthBackend = AuthBackend::None;
 
 #[derive(thiserror::Error, Debug)]
 pub enum VersionMetadataError {
@@ -33,18 +33,6 @@ pub enum VersionMetadataError {
 }
 
 impl CompleteVersionMetadata {
-    pub fn from_parts(
-        version_name: String,
-        base: Vec<VersionMetadata>,
-        extra: Option<ExtraVersionMetadata>,
-    ) -> Self {
-        Self {
-            version_name,
-            base,
-            extra,
-        }
-    }
-
     pub async fn read_local(version_info: &VersionInfo, data_dir: &Path) -> anyhow::Result<Self> {
         let versions_dir = get_versions_dir(data_dir);
 
@@ -72,7 +60,10 @@ impl CompleteVersionMetadata {
         })
     }
 
-    pub async fn read_or_download(version_info: &VersionInfo, data_dir: &Path) -> anyhow::Result<Self> {
+    pub async fn read_or_download(
+        version_info: &VersionInfo,
+        data_dir: &Path,
+    ) -> anyhow::Result<Self> {
         let versions_dir = get_versions_dir(data_dir);
         let versions_extra_dir = get_versions_extra_dir(data_dir);
 
@@ -134,10 +125,10 @@ impl CompleteVersionMetadata {
         Err(VersionMetadataError::MissingClientDownload.into())
     }
 
-    pub fn get_auth_data(&self) -> &AuthData {
+    pub fn get_auth_backend(&self) -> &AuthBackend {
         match &self.extra {
             Some(extra) => &extra.auth_provider,
-            None => &AUTH_DATA_MICROSOFT,
+            None => &AUTH_BACKEND_NONE,
         }
     }
 

@@ -299,6 +299,10 @@ impl JavaState {
         self.status == JavaDownloadStatus::Downloaded
     }
 
+    pub fn checking_java(&self) -> bool {
+        self.status == JavaDownloadStatus::CheckingJava
+    }
+
     fn render_cancel_button(&mut self, ui: &mut egui::Ui, lang: Lang) {
         if ui
             .button(LangMessage::CancelDownload.to_string(lang))
