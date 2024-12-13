@@ -159,7 +159,7 @@ impl ManifestState {
         }
     }
 
-    pub fn render_status(&mut self, ui: &mut egui::Ui, config: &Config) {
+    pub fn render_status(&mut self, runtime: &Runtime, ui: &mut egui::Ui, config: &Config) {
         let lang = config.lang;
 
         match self.status {
@@ -181,6 +181,7 @@ impl ManifestState {
                 .clicked()
             {
                 self.status = FetchStatus::NotFetched;
+                self.set_fetch_task(&runtime, ui.ctx());
             }
         }
     }

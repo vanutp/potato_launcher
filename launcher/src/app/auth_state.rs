@@ -17,6 +17,7 @@ use crate::auth::auth::auth; // nice
 use crate::auth::auth::AuthMessageProvider;
 use crate::auth::auth_storage::AuthDataSource;
 use crate::auth::auth_storage::AuthStorage;
+use crate::auth::auth_storage::StorageEntry;
 use crate::auth::base::get_auth_provider;
 use crate::auth::user_info::AuthData;
 use crate::config::runtime_config::AuthProfile;
@@ -120,6 +121,8 @@ pub struct AuthState {
     telegram_auth_base_url: String,
 
     offline_nickname: String,
+
+    last_auth_profile: Option<AuthProfile>,
 }
 
 impl AuthState {
@@ -140,6 +143,8 @@ impl AuthState {
             telegram_auth_base_url: String::new(),
 
             offline_nickname: String::new(),
+
+            last_auth_profile: None,
         };
     }
 
@@ -310,9 +315,51 @@ impl AuthState {
                         self.auth_message_provider.clone(),
                         ctx,
                     ));
+
+                    self.show_add_account = false;
                 }
             });
         self.show_add_account = show_add_account;
+    }
+
+    fn get_selected_storage_entry(&self, config: &Config) -> Option<StorageEntry> {
+        let auth_profile = config.get_selected_auth_profile()?;
+        self.auth_storage
+            .get_by_id(&auth_profile.auth_backend_id, &auth_profile.username)
+    }
+
+    fn on_instance_changed(&mut self, config: &mut Config, runtime: &Runtime, ctx: &egui::Context) {
+        self.auth_status = AuthStatus::NotAuthorized;
+
+        let mut auth_profile = config.get_selected_auth_profile().cloned();
+
+        if let Some(profile) = &auth_profile {
+            if self
+                .auth_storage
+                .get_by_id(&profile.auth_backend_id, &profile.username)
+                .is_none()
+            {
+                config.clear_selected_auth_profile();
+                auth_profile = None;
+            }
+        }
+
+        let storage_entry = self.get_selected_storage_entry(config);
+        if let Some(storage_entry) = &storage_entry {
+            if storage_entry.source == AuthDataSource::Persistent && self.auth_task.is_none() {
+                self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                self.auth_task = Some(authenticate(
+                    runtime,
+                    Some(storage_entry.auth_data.clone()),
+                    &AuthBackend::from_id(&auth_profile.as_ref().unwrap().auth_backend_id),
+                    self.auth_message_provider.clone(),
+                    ctx,
+                ));
+            }
+            if storage_entry.source == AuthDataSource::Runtime {
+                self.auth_status = AuthStatus::Authorized;
+            }
+        }
     }
 
     pub fn render_ui(
@@ -325,7 +372,7 @@ impl AuthState {
     ) {
         let lang = config.lang;
 
-        let mut auth_profile = config.get_selected_auth_profile().cloned();
+        let auth_profile = config.get_selected_auth_profile().cloned();
         if auth_profile.is_none() {
             let entries = self
                 .auth_storage
@@ -336,22 +383,15 @@ impl AuthState {
                     username: nickname.clone(),
                 };
                 config.set_selected_auth_profile(auth_profile_value.clone());
-                auth_profile = Some(auth_profile_value);
             }
         }
 
-        if let Some(auth_profile) = &auth_profile {
-            if self
-                .auth_storage
-                .get_by_id(&auth_profile.auth_backend_id, &auth_profile.username)
-                .is_none()
-            {
-                config.clear_selected_auth_profile();
-                self.auth_status = AuthStatus::NotAuthorized;
-            }
-        } else {
-            self.auth_status = AuthStatus::NotAuthorized;
+        if self.last_auth_profile != auth_profile {
+            self.on_instance_changed(config, runtime, ctx);
+            self.last_auth_profile = auth_profile.clone();
         }
+
+        let mut auth_profile = config.get_selected_auth_profile().cloned();
 
         ui.horizontal(|ui| {
             ui.label(LangMessage::SelectAccount.to_string(lang));
@@ -452,24 +492,7 @@ impl AuthState {
             }
         });
 
-        let storage_entry = auth_profile
-            .as_ref()
-            .map(|x| self.auth_storage.get_by_id(&x.auth_backend_id, &x.username))
-            .flatten();
-
-        if let Some(storage_entry) = &storage_entry {
-            if storage_entry.source == AuthDataSource::Persistent && self.auth_task.is_none() {
-                self.auth_status = AuthStatus::NotAuthorized;
-                self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
-                self.auth_task = Some(authenticate(
-                    runtime,
-                    Some(storage_entry.auth_data.clone()),
-                    &AuthBackend::from_id(&auth_profile.as_ref().unwrap().auth_backend_id),
-                    self.auth_message_provider.clone(),
-                    ctx,
-                ));
-            }
-        }
+        let storage_entry = self.get_selected_storage_entry(config);
 
         match &self.auth_status {
             AuthStatus::NotAuthorized if self.auth_task.is_none() => {
@@ -477,18 +500,6 @@ impl AuthState {
                     let auth_provider = get_auth_provider(instance_auth_backend);
                     let auth_provider_name = auth_provider.get_name();
                     ui.label(LangMessage::AuthorizeUsing(auth_provider_name).to_string(lang));
-
-                    if ui.button(LangMessage::Authorize.to_string(lang)).clicked() {
-                        self.auth_status = AuthStatus::NotAuthorized;
-                        self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
-                        self.auth_task = Some(authenticate(
-                            runtime,
-                            storage_entry.as_ref().map(|x| x.auth_data.clone()),
-                            instance_auth_backend,
-                            self.auth_message_provider.clone(),
-                            ctx,
-                        ));
-                    }
                 }
             }
             AuthStatus::NotAuthorized => {
@@ -498,19 +509,37 @@ impl AuthState {
                 ui.label(LangMessage::AuthError(e.clone()).to_string(lang));
             }
             AuthStatus::AuthorizeErrorOffline => {
-                ui.label(
-                    LangMessage::NoConnectionToAuthServer {
-                        offline_username: storage_entry
-                            .as_ref()
-                            .map(|x| x.auth_data.user_info.username.clone()),
-                    }
-                    .to_string(lang),
-                );
+                ui.label(LangMessage::Offline.to_string(lang));
             }
             AuthStatus::AuthorizeErrorTimeout => {
                 ui.label(LangMessage::AuthTimeout.to_string(lang));
             }
             AuthStatus::Authorized => {}
+        }
+
+        if self.auth_task.is_none() {
+            if self.auth_status != AuthStatus::Authorized
+                && instance_auth_backend != &AuthBackend::None
+            {
+                if ui.button(LangMessage::Authorize.to_string(lang)).clicked() {
+                    self.auth_status = AuthStatus::NotAuthorized;
+                    self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                    self.auth_task = Some(authenticate(
+                        runtime,
+                        storage_entry.as_ref().map(|x| x.auth_data.clone()),
+                        instance_auth_backend,
+                        self.auth_message_provider.clone(),
+                        ctx,
+                    ));
+                }
+            }
+        } else {
+            if ui.button(LangMessage::Cancel.to_string(lang)).clicked() {
+                self.auth_status = AuthStatus::NotAuthorized;
+                self.auth_task.take().unwrap().cancel();
+                self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                self.on_instance_changed(config, runtime, ctx);
+            }
         }
 
         self.render_new_account_window(ui, ctx, runtime, lang);

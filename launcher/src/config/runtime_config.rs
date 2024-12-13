@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use super::build_config;
 use crate::{constants, lang::Lang, utils::get_data_dir};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct AuthProfile {
     pub auth_backend_id: String,
     pub username: String,

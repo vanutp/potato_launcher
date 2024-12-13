@@ -164,7 +164,8 @@ impl LauncherApp {
                             self.instance_sync_state.reset_status();
                         }
                     });
-                    self.manifest_state.render_status(ui, &self.config);
+                    self.manifest_state
+                        .render_status(&self.runtime, ui, &self.config);
                     ui.separator();
 
                     if let Some(selected_instance) = self.get_selected_instance(&self.config) {
@@ -227,7 +228,12 @@ impl LauncherApp {
                                         ctx,
                                     );
                                 }
-                                self.java_state.update(&version_metadata, &mut self.config);
+                                self.java_state.update(
+                                    &self.runtime,
+                                    &version_metadata,
+                                    &mut self.config,
+                                    ctx,
+                                );
 
                                 ui.separator();
                                 self.instance_sync_state.render_ui(

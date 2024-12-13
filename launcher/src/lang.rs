@@ -10,7 +10,6 @@ pub enum Lang {
 pub enum LangMessage {
     AuthMessage { url: String },
     DeviceAuthMessage { url: String, code: String },
-    NoConnectionToAuthServer { offline_username: Option<String> },
     AuthTimeout,
     AuthError(String),
     AuthorizeUsing(String),
@@ -113,18 +112,6 @@ impl LangMessage {
                 Lang::Russian => {
                     format!("Авторизуйтесь в открывшемся окне браузера.\nИли откройте ссылку вручную и введите код: {}", code)
                 }
-            },
-            LangMessage::NoConnectionToAuthServer {
-                offline_username: username,
-            } => match lang {
-                Lang::English => format!(
-                    "Error: no connection to the authorization server.\nOffline username: {}",
-                    username.as_ref().unwrap_or(&"None".to_string())
-                ),
-                Lang::Russian => format!(
-                    "Ошибка: нет подключения к серверу авторизации.\nОфлайн имя пользователя: {}",
-                    username.as_ref().unwrap_or(&"Отсутствует".to_string())
-                ),
             },
             LangMessage::AuthTimeout => match lang {
                 Lang::English => "Authorization timeout".to_string(),

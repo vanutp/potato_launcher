@@ -173,7 +173,17 @@ impl JavaState {
         self.settings_opened = false;
     }
 
-    pub fn update(&mut self, metadata: &CompleteVersionMetadata, config: &mut Config) {
+    pub fn update(
+        &mut self,
+        runtime: &Runtime,
+        metadata: &CompleteVersionMetadata,
+        config: &mut Config,
+        ctx: &egui::Context,
+    ) {
+        if self.check_java_task.is_none() && self.status == JavaDownloadStatus::CheckingJava {
+            self.set_check_java_task(runtime, metadata, config, ctx);
+        }
+
         if let Some(task) = self.check_java_task.as_ref() {
             if task.has_result() {
                 let task = self.check_java_task.take().unwrap();
