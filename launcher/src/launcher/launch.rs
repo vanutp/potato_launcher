@@ -92,10 +92,6 @@ pub async fn launch(
     let mut used_library_paths = HashSet::new();
     let mut classpath = vec![];
     for library in version_metadata.get_libraries_with_overrides() {
-        if !rules::library_matches_os(&library) {
-            continue;
-        }
-
         let path = library.get_path(&libraries_dir);
         if let Some(path) = path {
             if !path.is_file() {

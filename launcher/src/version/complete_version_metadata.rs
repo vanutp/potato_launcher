@@ -11,7 +11,7 @@ use shared::{
     },
 };
 
-use super::overrides::with_overrides;
+use super::{overrides::with_overrides, rules};
 
 pub struct CompleteVersionMetadata {
     version_name: String,
@@ -141,6 +141,7 @@ impl CompleteVersionMetadata {
 
         let mut existing_names = HashSet::new();
         all_libraries
+            .filter(|library| rules::library_matches_os(library))
             .filter(|library| {
                 let name = library.get_name_without_version();
                 if existing_names.contains(&name) {
