@@ -402,16 +402,13 @@ pub async fn install_forge<M>(
 
         trick_forge(forge_work_dir, minecraft_version)?;
 
-        info!("Running forge installer");
-        exec_custom_command_in_dir(
-            &format!(
-                "\"{}\" -jar \"{}\" --installClient .",
-                to_abs_path_str(&java_installation.path)?,
-                to_abs_path_str(&forge_installer_path)?,
-            ),
-            &forge_work_dir,
-        )
-        .await?;
+        let command = format!(
+            "\"{}\" -jar \"{}\" --installClient .",
+            to_abs_path_str(&java_installation.path)?,
+            to_abs_path_str(&forge_installer_path)?
+        );
+        info!("Running forge installer: {}", command);
+        exec_custom_command_in_dir(&command, &forge_work_dir).await?;
 
         std::fs::File::create(lock_file)?;
     } else {
