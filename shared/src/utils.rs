@@ -7,8 +7,12 @@ pub async fn exec_custom_command(command: &str) -> anyhow::Result<()> {
 }
 
 pub async fn exec_custom_command_in_dir(command: &str, dir: &Path) -> anyhow::Result<()> {
-    let mut cmd = tokio::process::Command::new("bash");
-    cmd.args(vec!["-c", command]).current_dir(dir);
+    let parts = shell_words::split(command)?;
+    let mut cmd = tokio::process::Command::new(&parts[0]);
+    if parts.len() > 1 {
+        cmd.args(&parts[1..]);
+    }
+    cmd.current_dir(dir);
     let status = cmd.status().await?;
     if !status.success() {
         return Err(std::io::Error::new(std::io::ErrorKind::Other, "Command failed").into());
