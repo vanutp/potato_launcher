@@ -354,7 +354,23 @@ pub fn get_full_version(minecraft_version: &str, forge_version: &str) -> String 
 }
 
 fn to_abs_path_str(path: &Path) -> anyhow::Result<String> {
-    Ok(path.canonicalize()?.to_string_lossy().to_string())
+    let canonical = path.canonicalize()?;
+    let path_str = canonical.to_string_lossy();
+
+    #[cfg(windows)]
+    {
+        const VERBATIM_PREFIX: &str = r"\\?\";
+        if path_str.starts_with(VERBATIM_PREFIX) {
+            Ok(path_str[VERBATIM_PREFIX.len()..].to_string())
+        } else {
+            Ok(path_str.to_string())
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        Ok(path_str.to_string())
+    }
 }
 
 pub async fn install_forge<M>(
