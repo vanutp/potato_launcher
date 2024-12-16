@@ -212,7 +212,6 @@ impl VersionsSpec {
                 version.auth_provider.clone(),
             );
             let extra_generator_result = extra_generator.generate(work_dir).await?;
-            workdir_paths_to_copy.extend(extra_generator_result.paths_to_copy);
             mapping.extend(extra_generator_result.include_mapping.into_iter().map(
                 |(include_entry, source_path)| {
                     let instance_dir = get_instance_dir(output_dir, &version.name);

@@ -100,9 +100,6 @@ pub struct ExtraVersionMetadata {
     pub resources_url_base: Option<String>,
 
     #[serde(default)]
-    pub authlib_injector: Option<Object>,
-
-    #[serde(default)]
     pub extra_forge_libs: Vec<Library>,
 }
 

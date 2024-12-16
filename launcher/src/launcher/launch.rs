@@ -1,8 +1,9 @@
 use log::debug;
 use maplit::hashmap;
 use shared::paths::{
-    get_client_jar_path, get_instance_dir, get_libraries_dir, get_logs_dir, get_natives_dir,
+    get_authlib_injector_path, get_client_jar_path, get_instance_dir, get_libraries_dir, get_logs_dir, get_natives_dir
 };
+use shared::version::extra_version_metadata::AuthBackend;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use tokio::process::{Child, Command as TokioCommand};
@@ -74,7 +75,10 @@ pub async fn launch(
     auth_data: &AuthData,
     online: bool,
 ) -> anyhow::Result<Child> {
-    let auth_backend = version_metadata.get_auth_backend();
+    let auth_backend = &config
+        .get_selected_auth_profile()
+        .map(|p| AuthBackend::from_id(&p.auth_backend_id))
+        .unwrap_or(AuthBackend::None);
     let auth_provider = get_auth_provider(auth_backend);
 
     let launcher_dir = config.get_launcher_dir();
@@ -158,15 +162,7 @@ pub async fn launch(
 
     if online {
         if let Some(auth_url) = auth_provider.get_auth_url() {
-            let authlib_injector_path = launcher_dir.join(
-                &version_metadata
-                    .get_extra()
-                    .ok_or(LaunchError::MissingAuthlibInjector)?
-                    .authlib_injector
-                    .as_ref()
-                    .ok_or(LaunchError::MissingAuthlibInjector)?
-                    .path,
-            );
+            let authlib_injector_path = get_authlib_injector_path(&launcher_dir);
             if !authlib_injector_path.exists() {
                 return Err(LaunchError::MissingAuthlibInjector.into());
             }

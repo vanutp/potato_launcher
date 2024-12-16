@@ -114,3 +114,9 @@ pub fn get_asset_index_path(assets_dir: &Path, asset_index: &str) -> PathBuf {
 pub fn get_assets_object_path(assets_dir: &Path) -> PathBuf {
     created(assets_dir.join("objects"))
 }
+
+const AUTHLIB_INJECTOR_NAME: &str = "authlib-injector.jar";
+
+pub fn get_authlib_injector_path(data_dir: &Path) -> PathBuf {
+    parent_created(get_libraries_dir(data_dir).join(AUTHLIB_INJECTOR_NAME))
+}

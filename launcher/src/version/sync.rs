@@ -3,14 +3,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use log::{debug, info};
-use shared::paths::{get_instance_dir, get_libraries_dir, get_natives_dir};
+use shared::paths::{get_authlib_injector_path, get_instance_dir, get_libraries_dir, get_natives_dir};
 use shared::version::asset_metadata::AssetsMetadata;
 use std::fs;
 use zip::ZipArchive;
 
 use shared::files::{self, CheckEntry};
 use shared::progress::{self, ProgressBar};
-use shared::version::extra_version_metadata::ExtraVersionMetadata;
+use shared::version::extra_version_metadata::{AuthBackend, ExtraVersionMetadata};
 use shared::version::version_metadata;
 
 use crate::lang::LangMessage;
@@ -208,16 +208,19 @@ fn extract_files(src: &Path, dest: &Path, exclude: Option<HashSet<String>>) -> a
     Ok(())
 }
 
+pub const AUTHLIB_INJECTOR_URL: &str = "https://github.com/yushijinhun/authlib-injector/releases/download/v1.2.5/authlib-injector-1.2.5.jar";
+pub const AUTHLIB_INJECTOR_SHA1: &str = "1eca6aa7faf7ac6e3211862afa6e43fe2eedd07b";
+
 fn get_authlib_injector_entry(
     version_metadata: &CompleteVersionMetadata,
     launcher_dir: &Path,
 ) -> Option<CheckEntry> {
     if let Some(extra) = version_metadata.get_extra() {
-        if let Some(authlib_injector) = &extra.authlib_injector {
+        if extra.auth_provider != AuthBackend::Microsoft {
             return Some(CheckEntry {
-                url: authlib_injector.url.clone(),
-                remote_sha1: Some(authlib_injector.sha1.clone()),
-                path: launcher_dir.join(&authlib_injector.path),
+                url: AUTHLIB_INJECTOR_URL.to_string(),
+                remote_sha1: Some(AUTHLIB_INJECTOR_SHA1.to_string()),
+                path: get_authlib_injector_path(launcher_dir),
             });
         }
     }

@@ -46,35 +46,6 @@ async fn get_objects(
     Ok(objects)
 }
 
-const AUTHLIB_INJECTOR_URL: &str = "https://github.com/yushijinhun/authlib-injector/releases/download/v1.2.5/authlib-injector-1.2.5.jar";
-const AUTHLIB_INJECTOR_FILENAME: &str = "authlib-injector.jar";
-
-async fn download_authlib_injector(
-    work_dir: &Path,
-    download_server_base: &str,
-) -> anyhow::Result<Object> {
-    let authlib_injector_path = work_dir.join(AUTHLIB_INJECTOR_FILENAME);
-    if !authlib_injector_path.exists() {
-        info!("Downloading authlib-injector");
-        let client = reqwest::Client::new();
-        files::download_file(&client, AUTHLIB_INJECTOR_URL, &authlib_injector_path).await?;
-    }
-
-    info!("Adding authlib-injector to extra metadata");
-
-    let hash = files::hash_file(&authlib_injector_path).await?;
-    let url = url_from_rel_path(
-        &PathBuf::from(AUTHLIB_INJECTOR_FILENAME),
-        download_server_base,
-    )?;
-
-    Ok(Object {
-        path: AUTHLIB_INJECTOR_FILENAME.to_string(),
-        sha1: hash,
-        url,
-    })
-}
-
 #[derive(thiserror::Error, Debug)]
 pub enum ExtraForgeLibsError {
     #[error("Bad library name: {0}")]
@@ -147,8 +118,6 @@ pub struct ExtraMetadataGenerator {
 }
 
 pub struct GeneratorResult {
-    pub paths_to_copy: Vec<PathBuf>,
-
     // relative include path -> absolute source path
     pub include_mapping: HashMap<String, PathBuf>,
 
@@ -198,9 +167,7 @@ impl ExtraMetadataGenerator {
             resources_url_base: self.resources_url_base.clone(),
             auth_provider: self.auth_backend.clone(),
             extra_forge_libs,
-            authlib_injector: None,
         };
-        let mut paths_to_copy = vec![];
         let mut include_mapping = HashMap::new();
 
         if let Some(include_from) = &self.include_from {
@@ -225,16 +192,6 @@ impl ExtraMetadataGenerator {
             extra_metadata.objects = objects;
         }
 
-        match self.auth_backend {
-            AuthBackend::None => {}
-            _ => {
-                extra_metadata.authlib_injector =
-                    Some(download_authlib_injector(work_dir, &self.download_server_base).await?);
-
-                paths_to_copy.push(work_dir.join(AUTHLIB_INJECTOR_FILENAME));
-            }
-        }
-
         let versions_extra_dir = get_versions_extra_dir(work_dir);
         extra_metadata
             .save(&self.version_name, &versions_extra_dir)
@@ -246,7 +203,6 @@ impl ExtraMetadataGenerator {
         );
 
         Ok(GeneratorResult {
-            paths_to_copy,
             include_mapping,
             extra_metadata,
         })
