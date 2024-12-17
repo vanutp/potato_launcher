@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use log::{debug, info};
-use shared::paths::{get_authlib_injector_path, get_instance_dir, get_libraries_dir, get_natives_dir};
+use shared::paths::{
+    get_authlib_injector_path, get_instance_dir, get_libraries_dir, get_natives_dir,
+};
 use shared::version::asset_metadata::AssetsMetadata;
 use std::fs;
 use zip::ZipArchive;

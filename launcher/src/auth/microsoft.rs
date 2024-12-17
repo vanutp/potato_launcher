@@ -118,11 +118,20 @@ impl AuthProvider for MicrosoftAuthProvider {
         let oauth_client = get_oauth_client();
         let token_response = oauth_client
             .exchange_refresh_token(&RefreshToken::new(refresh_token))
+            .add_scope(Scope::new(MSA_SCOPE.to_string()))
             .request_async(async_http_client)
             .await?;
 
+        let mc_flow = MinecraftAuthorizationFlow::new(Client::new());
+        let mc_token = mc_flow
+            .exchange_microsoft_token(token_response.access_token().secret().to_string())
+            .await?
+            .access_token()
+            .clone()
+            .0;
+
         Ok(AuthState::UserInfo(AuthResultData {
-            access_token: token_response.access_token().secret().to_string(),
+            access_token: mc_token,
             refresh_token: token_response
                 .refresh_token()
                 .map(|t| t.secret().to_string()),

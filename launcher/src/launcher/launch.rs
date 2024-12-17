@@ -1,7 +1,8 @@
 use log::debug;
 use maplit::hashmap;
 use shared::paths::{
-    get_authlib_injector_path, get_client_jar_path, get_instance_dir, get_libraries_dir, get_logs_dir, get_natives_dir
+    get_authlib_injector_path, get_client_jar_path, get_instance_dir, get_libraries_dir,
+    get_logs_dir, get_natives_dir,
 };
 use shared::version::extra_version_metadata::AuthBackend;
 use std::collections::{HashMap, HashSet};
