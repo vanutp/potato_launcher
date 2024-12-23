@@ -82,6 +82,7 @@ impl AuthBackend {
 
 #[derive(Deserialize, Serialize)]
 pub struct ExtraVersionMetadata {
+    #[serde(default)]
     pub auth_backend: Option<AuthBackend>,
 
     #[serde(default)]

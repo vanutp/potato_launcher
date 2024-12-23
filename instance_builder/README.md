@@ -18,7 +18,7 @@ The `spec.json` file is used to define the specifications for generating instanc
       "include_no_overwrite": ["string"],
       "include_from": "string",
       "replace_download_urls": "boolean",
-      "auth_provider": {
+      "auth_backend": {
         "type": "string",
         "data_field1": "data_value1",
         "other_data_fields": "other_data_values"
@@ -52,7 +52,7 @@ The `spec.json` file is used to define the specifications for generating instanc
 - **include**: A list of additional files or directories to include in the instance (optional; e.g., mods).
 - **include_no_overwrite**: A list of files or directories to include without overwriting existing files (optional; e.g., configs).
 - **include_from**: A directory from which to include files (optional).
-- **auth_provider**: Authentication data for accessing protected resources (optional).
+- **auth_backend**: Authentication data for accessing protected resources (optional).
   - **type**: The authentication provider name (e.g., "telegram" for [this telegram format](https://foxlab.dev/minecraft/tgauth-backend)).
   - Any additional fields for the selected authentication provider.
 - **exec_before**: A command to execute before processing this version (optional).

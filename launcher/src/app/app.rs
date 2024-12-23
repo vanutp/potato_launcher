@@ -39,7 +39,7 @@ pub struct LauncherApp {
 pub fn run_gui(config: Config) {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size((650.0, 500.0))
+            .with_inner_size((650.0, 450.0))
             .with_icon(utils::get_icon_data())
             .with_resizable(false),
         ..Default::default()
@@ -295,9 +295,12 @@ impl LauncherApp {
                 let force_launch_result = self.launch_state.render_download_ui(
                     ui,
                     &mut self.config,
-                    !self.java_state.checking_java()
-                        && some_version_selected
-                        && have_some_auth_data,
+                    self.instance_sync_state.is_syncing()
+                        || self.manifest_state.is_fetching()
+                        || self.metadata_state.is_getting()
+                        || self.java_state.checking_java()
+                        || !some_version_selected
+                        || !have_some_auth_data,
                 );
                 match force_launch_result {
                     ForceLaunchResult::ForceLaunchSelected => {

@@ -1,6 +1,6 @@
 use std::{path::Path, sync::Arc};
 
-use log::error;
+use log::{error, info};
 use shared::version::version_manifest::VersionInfo;
 use tokio::runtime::Runtime;
 
@@ -52,6 +52,7 @@ fn get_metadata(
                     CompleteVersionMetadata::read_local(&version_info, &data_dir).await;
                 MetadataFetchResult {
                     status: if connect_error {
+                        info!("Metadata offline mode");
                         GetStatus::ReadLocalOffline
                     } else if let Some(local_error) = local_metadata.as_ref().err() {
                         error!(

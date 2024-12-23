@@ -154,13 +154,13 @@ impl LaunchState {
         &mut self,
         ui: &mut egui::Ui,
         config: &mut Config,
-        enabled: bool,
+        disabled: bool,
     ) -> ForceLaunchResult {
         let lang = config.lang;
 
         if !self.force_launch {
             let mut button_clicked = false;
-            ui.add_enabled_ui(enabled, |ui| {
+            ui.add_enabled_ui(!disabled, |ui| {
                 if LaunchState::big_button_clicked(
                     ui,
                     &LangMessage::DownloadAndLaunch.to_string(lang),
@@ -174,7 +174,7 @@ impl LaunchState {
             }
         } else {
             let mut cancel_clicked = false;
-            ui.add_enabled_ui(enabled, |ui| {
+            ui.add_enabled_ui(!disabled, |ui| {
                 if LaunchState::big_button_clicked(ui, &LangMessage::CancelLaunch.to_string(lang)) {
                     self.force_launch = false;
                     cancel_clicked = true;

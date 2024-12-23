@@ -106,15 +106,17 @@ impl InstanceStorage {
                 status: InstanceStatus::Missing,
             });
 
-        if let Some(mut instance) = local_instance {
-            if let Some(remote_instance) = remote_instance {
+        if let Some(mut remote_instance) = remote_instance {
+            if let Some(instance) = local_instance {
                 if remote_instance.version_info != instance.version_info {
-                    instance.status = InstanceStatus::Outdated;
+                    remote_instance.status = InstanceStatus::Outdated;
+                } else {
+                    remote_instance.status = InstanceStatus::UpToDate;
                 }
             }
-            Some(instance)
+            Some(remote_instance)
         } else {
-            remote_instance
+            local_instance
         }
     }
 

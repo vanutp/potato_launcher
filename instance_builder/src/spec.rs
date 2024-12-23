@@ -55,7 +55,7 @@ pub struct Version {
 
     pub include_from: Option<String>,
 
-    pub auth_provider: Option<AuthBackend>,
+    pub auth_backend: Option<AuthBackend>,
 
     pub exec_before: Option<String>,
     pub exec_after: Option<String>,
@@ -208,7 +208,7 @@ impl VersionsSpec {
                 resources_url_base,
                 self.download_server_base.clone(),
                 result.extra_libs_paths,
-                version.auth_provider.clone(),
+                version.auth_backend.clone(),
             );
             let extra_generator_result = extra_generator.generate(work_dir).await?;
             mapping.extend(extra_generator_result.include_mapping.into_iter().map(
