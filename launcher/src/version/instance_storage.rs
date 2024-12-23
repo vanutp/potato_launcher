@@ -83,19 +83,10 @@ impl InstanceStorage {
         (local_names, remote_names)
     }
 
-    pub async fn add_instance(
-        &mut self,
-        config: &Config,
-        version_info: VersionInfo,
-        downloaded: bool,
-    ) {
+    pub async fn add_instance(&mut self, config: &Config, version_info: VersionInfo) {
         self.instances.push(LocalInstance {
             version_info,
-            status: if downloaded {
-                InstanceStatus::UpToDate
-            } else {
-                InstanceStatus::Missing
-            },
+            status: InstanceStatus::Outdated,
         });
         self.safe_save(config).await;
     }

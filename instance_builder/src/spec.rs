@@ -55,8 +55,7 @@ pub struct Version {
 
     pub include_from: Option<String>,
 
-    #[serde(default)]
-    pub auth_provider: AuthBackend,
+    pub auth_provider: Option<AuthBackend>,
 
     pub exec_before: Option<String>,
     pub exec_after: Option<String>,
@@ -189,7 +188,7 @@ impl VersionsSpec {
                     );
                 }
             } else {
-                let versions_dir = get_versions_dir(output_dir);
+                let versions_dir = get_versions_dir(work_dir);
                 for metadata in result.metadata.iter_mut() {
                     workdir_paths_to_copy.push(get_metadata_path(&versions_dir, &metadata.id));
                 }

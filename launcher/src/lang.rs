@@ -14,18 +14,9 @@ pub enum LangMessage {
     AuthError(String),
     AuthorizeUsing(String),
     Authorizing,
-    Authorize,
-    FetchingVersionManifest,
-    NoConnectionToManifestServer,
-    ErrorFetchingRemoteManifest(String),
-    FetchManifest,
     SelectInstance,
     NotSelected,
     NoInstances,
-    GettingVersionMetadata,
-    NoConnectionToMetadataServer,
-    ErrorGettingRemoteMetadata(String),
-    ErrorGettingMetadata(String),
     CheckingFiles,
     DownloadingFiles,
     SyncInstance,
@@ -39,6 +30,7 @@ pub enum LangMessage {
     NeedJava { version: String },
     ErrorDownloadingJava(String),
     NoConnectionToJavaServer,
+    UnknownJavaVersion,
     Settings,
     SelectedJavaPath,
     NoJavaPath,
@@ -91,6 +83,9 @@ pub enum LangMessage {
     AddAndAuthenticate,
     Offline,
     Nickname,
+    FetchingRemote,
+    ErrorFetchingRemote,
+    InstanceSyncProgress,
 }
 
 impl LangMessage {
@@ -129,26 +124,6 @@ impl LangMessage {
                 Lang::English => "Authorizing...".to_string(),
                 Lang::Russian => "Авторизация...".to_string(),
             },
-            LangMessage::Authorize => match lang {
-                Lang::English => "Authorize".to_string(),
-                Lang::Russian => "Авторизоваться".to_string(),
-            },
-            LangMessage::FetchingVersionManifest => match lang {
-                Lang::English => "Fetching instance list...".to_string(),
-                Lang::Russian => "Получение списка версий...".to_string(),
-            },
-            LangMessage::NoConnectionToManifestServer => match lang {
-                Lang::English => "Error: no connection to the instance server".to_string(),
-                Lang::Russian => "Ошибка: нет подключения к серверу версий".to_string(),
-            },
-            LangMessage::ErrorFetchingRemoteManifest(s) => match lang {
-                Lang::English => format!("Error fetching remote instance list: {}", s),
-                Lang::Russian => format!("Ошибка получения списка версий с сервера: {}", s),
-            },
-            LangMessage::FetchManifest => match lang {
-                Lang::English => "Fetch version list".to_string(),
-                Lang::Russian => "Получить список версий".to_string(),
-            },
             LangMessage::SelectInstance => match lang {
                 Lang::English => "Select instance:".to_string(),
                 Lang::Russian => "Выберите версию:".to_string(),
@@ -160,22 +135,6 @@ impl LangMessage {
             LangMessage::NoInstances => match lang {
                 Lang::English => "No instances fetched".to_string(),
                 Lang::Russian => "Список версий пуст".to_string(),
-            },
-            LangMessage::GettingVersionMetadata => match lang {
-                Lang::English => "Getting version metadata...".to_string(),
-                Lang::Russian => "Получение метаданных версии...".to_string(),
-            }
-            LangMessage::NoConnectionToMetadataServer => match lang {
-                Lang::English => "Error: no connection to the version metadata server".to_string(),
-                Lang::Russian => "Ошибка: нет подключения к серверу метаданных версии".to_string(),
-            },
-            LangMessage::ErrorGettingRemoteMetadata(s) => match lang {
-                Lang::English => format!("Error getting remote version metadata: {}", s),
-                Lang::Russian => format!("Ошибка получения метаданных версии с сервера: {}", s),
-            },
-            LangMessage::ErrorGettingMetadata(s) => match lang {
-                Lang::English => format!("Error getting version metadata: {}", s),
-                Lang::Russian => format!("Ошибка получения метаданных версии: {}", s),
             },
             LangMessage::CheckingFiles => match lang {
                 Lang::English => "Checking files...".to_string(),
@@ -228,6 +187,10 @@ impl LangMessage {
             LangMessage::NoConnectionToJavaServer => match lang {
                 Lang::English => "Error: no connection to the Java download server".to_string(),
                 Lang::Russian => "Ошибка: нет подключения к серверу загрузки Java".to_string(),
+            },
+            LangMessage::UnknownJavaVersion => match lang {
+                Lang::English => "Unknown Java version".to_string(),
+                Lang::Russian => "Неизвестная версия Java".to_string(),
             },
             LangMessage::Settings => match lang {
                 Lang::English => "Settings".to_string(),
@@ -449,6 +412,18 @@ impl LangMessage {
             LangMessage::Nickname => match lang {
                 Lang::English => "Nickname".to_string(),
                 Lang::Russian => "Никнейм".to_string(),
+            },
+            LangMessage::FetchingRemote => match lang {
+                Lang::English => "Fetching...".to_string(),
+                Lang::Russian => "Загрузка...".to_string(),
+            },
+            LangMessage::ErrorFetchingRemote => match lang {
+                Lang::English => "Error fetching".to_string(),
+                Lang::Russian => "Ошибка загрузки".to_string(),
+            },
+            LangMessage::InstanceSyncProgress => match lang {
+                Lang::English => "Instance sync progress".to_string(),
+                Lang::Russian => "Прогресс синхронизации версии".to_string(),
             },
         }
     }

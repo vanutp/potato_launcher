@@ -33,7 +33,6 @@ pub struct OfflineAuthBackend {
 #[derive(Deserialize, Serialize, Clone, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum AuthBackend {
-    None,
     Telegram(TelegramAuthBackend),
     #[serde(rename = "ely.by")]
     ElyBy(ElyByAuthBackend),
@@ -55,7 +54,6 @@ impl AuthBackend {
                 format!("elyby_{}_{}", auth_data.client_id, auth_data.client_secret)
             }
             AuthBackend::Microsoft => "microsoft".to_string(),
-            AuthBackend::None => "none".to_string(),
             AuthBackend::Offline(auth_data) => format!("offline_{}", auth_data.nickname),
         }
     }
@@ -71,7 +69,6 @@ impl AuthBackend {
                 client_secret: parts[2].to_string(),
             }),
             "microsoft" => AuthBackend::Microsoft,
-            "none" => AuthBackend::None,
             "offline" => AuthBackend::Offline(OfflineAuthBackend {
                 nickname: parts[1].to_string(),
             }),
@@ -85,7 +82,7 @@ impl AuthBackend {
 
 #[derive(Deserialize, Serialize)]
 pub struct ExtraVersionMetadata {
-    pub auth_provider: AuthBackend,
+    pub auth_backend: Option<AuthBackend>,
 
     #[serde(default)]
     pub include: Vec<String>,

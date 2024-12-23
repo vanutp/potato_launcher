@@ -217,8 +217,8 @@ fn get_authlib_injector_entry(
     version_metadata: &CompleteVersionMetadata,
     launcher_dir: &Path,
 ) -> Option<CheckEntry> {
-    if let Some(extra) = version_metadata.get_extra() {
-        if extra.auth_provider != AuthBackend::Microsoft {
+    if let Some(auth_backend) = version_metadata.get_auth_backend() {
+        if auth_backend != &AuthBackend::Microsoft {
             return Some(CheckEntry {
                 url: AUTHLIB_INJECTOR_URL.to_string(),
                 remote_sha1: Some(AUTHLIB_INJECTOR_SHA1.to_string()),
