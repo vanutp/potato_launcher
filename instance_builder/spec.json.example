@@ -15,7 +15,7 @@
                 "config"
             ],
             "include_from": "<...>/PrismLauncher/instances/Monifactory/minecraft",
-            "auth_provider": {
+            "auth_backend": {
                 "type": "telegram",
                 "auth_base_url": "https://mc-auth.vanutp.dev"
             }

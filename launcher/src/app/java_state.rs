@@ -1,3 +1,4 @@
+use log::error;
 use shared::paths::get_java_dir;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -89,6 +90,7 @@ fn download_java(
                 status: if utils::is_connect_error(&e) {
                     JavaDownloadStatus::DownloadErrorOffline
                 } else {
+                    error!("Error downloading Java:\n{:#}", e);
                     JavaDownloadStatus::DownloadError(e.to_string())
                 },
                 java_installation: None,
@@ -241,13 +243,12 @@ impl JavaState {
         if self.java_download_task.is_some() {
             return false;
         }
-        match self.status {
-            JavaDownloadStatus::CheckingJava => false,
-            JavaDownloadStatus::NotDownloaded => true,
-            JavaDownloadStatus::DownloadError(_) => true,
-            JavaDownloadStatus::DownloadErrorOffline => true,
-            JavaDownloadStatus::Downloaded => false,
-        }
+        matches!(
+            self.status,
+            JavaDownloadStatus::NotDownloaded
+                | JavaDownloadStatus::DownloadError(_)
+                | JavaDownloadStatus::DownloadErrorOffline
+        )
     }
 
     pub fn schedule_download_if_needed(
@@ -265,43 +266,50 @@ impl JavaState {
         &mut self,
         ui: &mut egui::Ui,
         config: &mut Config,
-        selected_metadata: &CompleteVersionMetadata,
+        selected_metadata: Option<&CompleteVersionMetadata>,
     ) {
         let lang = config.lang;
 
-        match self.status {
-            JavaDownloadStatus::CheckingJava => {
-                ui.label(LangMessage::CheckingJava.to_string(lang));
-            }
-            JavaDownloadStatus::NotDownloaded => {
-                if self.java_download_task.is_none() {
-                    ui.label(
-                        LangMessage::NeedJava {
-                            version: selected_metadata.get_java_version().clone(),
+        ui.label(
+            if let Some(selected_metadata) = selected_metadata {
+                match self.status {
+                    JavaDownloadStatus::CheckingJava => LangMessage::CheckingJava,
+                    JavaDownloadStatus::NotDownloaded => {
+                        if self.java_download_task.is_none() {
+                            LangMessage::NeedJava {
+                                version: selected_metadata.get_java_version().clone(),
+                            }
+                        } else {
+                            LangMessage::DownloadingJava
                         }
-                        .to_string(lang),
-                    );
-                }
-            }
-            JavaDownloadStatus::DownloadError(ref e) => {
-                ui.label(LangMessage::ErrorDownloadingJava(e.clone()).to_string(lang));
-            }
-            JavaDownloadStatus::DownloadErrorOffline => {
-                ui.label(LangMessage::NoConnectionToJavaServer.to_string(lang));
-            }
-            JavaDownloadStatus::Downloaded => {
-                ui.label(
-                    LangMessage::JavaInstalled {
-                        version: selected_metadata.get_java_version().clone(),
                     }
-                    .to_string(lang),
-                );
+                    JavaDownloadStatus::DownloadError(ref e) => {
+                        LangMessage::ErrorDownloadingJava(e.clone())
+                    }
+                    JavaDownloadStatus::DownloadErrorOffline => {
+                        LangMessage::NoConnectionToJavaServer
+                    }
+                    JavaDownloadStatus::Downloaded => LangMessage::JavaInstalled {
+                        version: selected_metadata.get_java_version().clone(),
+                    },
+                }
+            } else {
+                LangMessage::UnknownJavaVersion
             }
-        }
+            .to_string(lang),
+        );
 
+        self.render_progress_bar_window(ui, lang);
+    }
+
+    fn render_progress_bar_window(&mut self, ui: &mut egui::Ui, lang: Lang) {
         if self.java_download_task.is_some() {
-            self.java_download_progress_bar.render(ui, lang);
-            self.render_cancel_button(ui, lang);
+            egui::Window::new(LangMessage::DownloadingJava.to_string(lang)).show(ui.ctx(), |ui| {
+                ui.vertical_centered(|ui| {
+                    self.java_download_progress_bar.render(ui, lang);
+                    self.render_cancel_button(ui, lang);
+                });
+            });
         }
     }
 

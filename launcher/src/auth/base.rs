@@ -1,7 +1,5 @@
 use super::offline::OfflineAuthProvider;
-use super::{
-    elyby::ElyByAuthProvider, none::NoneAuthProvider, telegram::TGAuthProvider, user_info::UserInfo,
-};
+use super::{elyby::ElyByAuthProvider, telegram::TGAuthProvider, user_info::UserInfo};
 use crate::auth::microsoft::MicrosoftAuthProvider;
 use crate::message_provider::MessageProvider;
 use async_trait::async_trait;
@@ -46,8 +44,6 @@ pub fn get_auth_provider(auth_backend: &AuthBackend) -> Box<dyn AuthProvider + S
         )),
 
         AuthBackend::Telegram(auth_data) => Box::new(TGAuthProvider::new(&auth_data.auth_base_url)),
-
-        AuthBackend::None => Box::new(NoneAuthProvider::new()),
 
         AuthBackend::Offline(auth_data) => Box::new(OfflineAuthProvider::new(&auth_data.nickname)),
     }

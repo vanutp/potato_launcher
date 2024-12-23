@@ -14,7 +14,6 @@ use shared::loader_generator::vanilla::VanillaGenerator;
 use shared::paths::get_instance_dir;
 use shared::progress::NoProgressBar;
 use shared::utils::{get_vanilla_version_info, VANILLA_MANIFEST_URL};
-use shared::version::extra_version_metadata::AuthBackend;
 use shared::version::version_manifest::{VersionInfo, VersionManifest};
 use tokio::runtime::Runtime;
 
@@ -235,7 +234,7 @@ fn create_new_instance(
             None,
             DOWNLOAD_SERVER_BASE.to_string(),
             generator_result.extra_libs_paths,
-            AuthBackend::None,
+            None,
         );
         let _ = extra_generator.generate(&launcher_dir).await?;
 
@@ -295,7 +294,6 @@ impl NewInstanceState {
 
             instance_generate_task: None,
             instance_generate_error: None,
-            // instance_sync_progress_bar,
             delete_window_open: false,
             selected_instance_to_delete: String::new(),
             confirm_delete: false,
@@ -357,11 +355,11 @@ impl NewInstanceState {
             }
         }
 
-        if ui.button("+").clicked() {
-            self.window_open = true;
-        }
         if ui.button("-").clicked() {
             self.delete_window_open = true;
+        }
+        if ui.button("+").clicked() {
+            self.window_open = true;
         }
 
         let mut new_instance_window_open = self.window_open;
@@ -586,6 +584,7 @@ impl NewInstanceState {
                         self.selected_instance_to_delete.clear();
                         self.confirm_delete = false;
                         close_delete_window = true;
+                        config.selected_instance_name = None;
                     }
                 });
             });

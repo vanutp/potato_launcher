@@ -78,9 +78,8 @@ pub async fn launch(
 ) -> anyhow::Result<Child> {
     let auth_backend = &config
         .get_selected_auth_profile()
-        .map(|p| AuthBackend::from_id(&p.auth_backend_id))
-        .unwrap_or(AuthBackend::None);
-    let auth_provider = get_auth_provider(auth_backend);
+        .map(|p| AuthBackend::from_id(&p.auth_backend_id));
+    let auth_provider = auth_backend.as_ref().map(|x| get_auth_provider(x));
 
     let launcher_dir = config.get_launcher_dir();
     let mut minecraft_dir = get_instance_dir(&launcher_dir, version_metadata.get_name());
@@ -162,7 +161,7 @@ pub async fn launch(
     .concat();
 
     if online {
-        if let Some(auth_url) = auth_provider.get_auth_url() {
+        if let Some(auth_url) = auth_provider.and_then(|x| x.get_auth_url()) {
             let authlib_injector_path = get_authlib_injector_path(&launcher_dir);
             if !authlib_injector_path.exists() {
                 return Err(LaunchError::MissingAuthlibInjector.into());

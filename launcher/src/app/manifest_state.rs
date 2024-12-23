@@ -3,6 +3,7 @@ use crate::{
     lang::LangMessage,
 };
 
+use log::error;
 use shared::version::version_manifest::VersionManifest;
 use tokio::runtime::Runtime;
 
@@ -47,6 +48,7 @@ where
                     status: if connect_error {
                         FetchStatus::FetchErrorOffline
                     } else {
+                        error!("Error fetching version manifest:\n{:#}", e);
                         FetchStatus::FetchError(e.to_string())
                     },
                     manifest: None,
@@ -81,7 +83,7 @@ impl ManifestState {
         result
     }
 
-    pub fn take_manifest(&mut self, config: &mut Config) -> Option<VersionManifest> {
+    pub fn take_manifest(&mut self, config: &mut Config) -> (Option<VersionManifest>, bool) {
         if let Some(task) = self.fetch_task.as_ref() {
             if task.has_result() {
                 let task = self.fetch_task.take().unwrap();
@@ -99,7 +101,7 @@ impl ManifestState {
                         }
                         self.status = result.status;
 
-                        return result.manifest;
+                        return (result.manifest, true);
                     }
                     BackgroundTaskResult::Cancelled => {
                         self.status = FetchStatus::NotFetched;
@@ -108,7 +110,7 @@ impl ManifestState {
             }
         }
 
-        None
+        (None, false)
     }
 
     pub fn render_combo_box(
@@ -121,13 +123,37 @@ impl ManifestState {
         let mut selected_instance_name = config.selected_instance_name.clone();
 
         ui.horizontal(|ui| {
-            ui.label(LangMessage::SelectInstance.to_string(config.lang));
+            let mut selected_text = selected_instance_name
+                .clone()
+                .unwrap_or_else(|| LangMessage::SelectInstance.to_string(config.lang));
+            match self.status {
+                FetchStatus::NotFetched => {
+                    selected_text = format!(
+                        "{} ({})",
+                        selected_text,
+                        LangMessage::FetchingRemote.to_string(config.lang)
+                    );
+                }
+                FetchStatus::Fetched => {}
+                FetchStatus::FetchErrorOffline => {
+                    selected_text = format!(
+                        "{} ({})",
+                        selected_text,
+                        LangMessage::Offline.to_string(config.lang)
+                    );
+                }
+                FetchStatus::FetchError(_) => {
+                    selected_text = format!(
+                        "{} ({})",
+                        selected_text,
+                        LangMessage::ErrorFetchingRemote.to_string(config.lang)
+                    );
+                }
+            }
+
             egui::ComboBox::from_id_source("instances")
-                .selected_text(
-                    selected_instance_name
-                        .clone()
-                        .unwrap_or_else(|| LangMessage::NotSelected.to_string(config.lang)),
-                )
+                .width(ui.available_width())
+                .selected_text(selected_text)
                 .show_ui(ui, |ui| {
                     if !local_instance_names.is_empty() || !remote_instance_names.is_empty() {
                         for instance_name in local_instance_names {
@@ -159,34 +185,16 @@ impl ManifestState {
         }
     }
 
-    pub fn render_status(&mut self, runtime: &Runtime, ui: &mut egui::Ui, config: &Config) {
-        let lang = config.lang;
-
-        match self.status {
-            FetchStatus::NotFetched => {
-                ui.label(LangMessage::FetchingVersionManifest.to_string(lang));
-            }
-            FetchStatus::Fetched => {}
-            FetchStatus::FetchErrorOffline => {
-                ui.label(LangMessage::NoConnectionToManifestServer.to_string(lang));
-            }
-            FetchStatus::FetchError(ref s) => {
-                ui.label(LangMessage::ErrorFetchingRemoteManifest(s.clone()).to_string(lang));
-            }
-        }
-
-        if self.status != FetchStatus::Fetched && self.status != FetchStatus::NotFetched {
-            if ui
-                .button(LangMessage::FetchManifest.to_string(lang))
-                .clicked()
-            {
-                self.status = FetchStatus::NotFetched;
-                self.set_fetch_task(&runtime, ui.ctx());
-            }
-        }
+    pub fn retry_fetch(&mut self, runtime: &Runtime, ctx: &egui::Context) {
+        self.status = FetchStatus::NotFetched;
+        self.set_fetch_task(runtime, ctx);
     }
 
     pub fn online(&self) -> bool {
         self.status == FetchStatus::Fetched
+    }
+
+    pub fn is_fetching(&self) -> bool {
+        self.fetch_task.is_some()
     }
 }

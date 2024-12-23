@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
-use crate::config::runtime_config;
+use crate::config::runtime_config::Config;
 use crate::lang::{Lang, LangMessage};
 use crate::utils;
 use crate::version::complete_version_metadata::CompleteVersionMetadata;
@@ -15,10 +15,6 @@ use super::progress_bar::GuiProgressBar;
 #[derive(Clone, PartialEq)]
 enum InstanceSyncStatus {
     NotSynced,
-    Syncing {
-        ignore_version: bool,
-        force_overwrite: bool,
-    },
     Synced,
     SyncError(String),
     SyncErrorOffline,
@@ -81,50 +77,7 @@ impl InstanceSyncState {
         };
     }
 
-    pub fn reset_status(&mut self) {
-        self.status = InstanceSyncStatus::NotSynced;
-    }
-
-    pub fn update(
-        &mut self,
-        runtime: &Runtime,
-        selected_version_metadata: Arc<CompleteVersionMetadata>,
-        config: &runtime_config::Config,
-        instance_up_to_date: bool,
-        manifest_online: bool,
-    ) -> bool {
-        if self.status == InstanceSyncStatus::NotSynced {
-            if instance_up_to_date && manifest_online {
-                self.status = InstanceSyncStatus::Synced;
-            }
-        }
-
-        if let InstanceSyncStatus::Syncing {
-            ignore_version,
-            force_overwrite,
-        } = self.status.clone()
-        {
-            if self.instance_sync_task.is_none() {
-                if !ignore_version {
-                    if instance_up_to_date {
-                        self.status = InstanceSyncStatus::Synced;
-                    }
-                }
-
-                if self.status != InstanceSyncStatus::Synced {
-                    self.instance_sync_progress_bar.reset();
-                    self.instance_sync_task = Some(sync_instance(
-                        runtime,
-                        selected_version_metadata,
-                        force_overwrite,
-                        &config.get_launcher_dir(),
-                        &config.get_assets_dir(),
-                        self.instance_sync_progress_bar.clone(),
-                    ));
-                }
-            }
-        }
-
+    pub fn update(&mut self) -> bool {
         if let Some(task) = self.instance_sync_task.as_ref() {
             if task.has_result() {
                 self.instance_sync_window_open = false;
@@ -156,42 +109,72 @@ impl InstanceSyncState {
         false
     }
 
-    pub fn schedule_sync_if_needed(&mut self) {
-        let need_sync = match &self.status {
-            InstanceSyncStatus::NotSynced => true,
-            InstanceSyncStatus::SyncError(_) => true,
-            InstanceSyncStatus::SyncErrorOffline => true,
-            InstanceSyncStatus::Syncing {
-                ignore_version: _,
-                force_overwrite: _,
-            } => false,
-            InstanceSyncStatus::Synced => false,
-        };
-        if need_sync {
-            self.status = InstanceSyncStatus::Syncing {
-                ignore_version: false,
-                force_overwrite: false,
-            };
+    pub fn reset_status(&mut self) {
+        self.status = InstanceSyncStatus::NotSynced;
+    }
+
+    pub fn set_up_to_date(&mut self) {
+        self.status = InstanceSyncStatus::Synced;
+    }
+
+    fn schedule_sync(
+        &mut self,
+        runtime: &Runtime,
+        selected_version_metadata: Arc<CompleteVersionMetadata>,
+        force_overwrite: bool,
+        config: &Config,
+        ctx: &egui::Context,
+    ) {
+        self.instance_sync_progress_bar = Arc::new(GuiProgressBar::new(ctx));
+        if let Some(task) = self.instance_sync_task.take() {
+            task.cancel();
         }
+        self.instance_sync_task = Some(sync_instance(
+            runtime,
+            selected_version_metadata,
+            force_overwrite,
+            &config.get_launcher_dir(),
+            &config.get_assets_dir(),
+            self.instance_sync_progress_bar.clone(),
+        ));
+    }
+
+    pub fn schedule_sync_if_needed(
+        &mut self,
+        runtime: &Runtime,
+        selected_version_metadata: Arc<CompleteVersionMetadata>,
+        force_overwrite: bool,
+        config: &Config,
+        ctx: &egui::Context,
+    ) {
+        match &self.status {
+            InstanceSyncStatus::NotSynced
+            | InstanceSyncStatus::SyncError(_)
+            | InstanceSyncStatus::SyncErrorOffline => {
+                self.schedule_sync(
+                    runtime,
+                    selected_version_metadata,
+                    force_overwrite,
+                    config,
+                    ctx,
+                );
+            }
+            InstanceSyncStatus::Synced => {}
+        };
     }
 
     pub fn render_ui(
         &mut self,
         ui: &mut egui::Ui,
-        config: &mut runtime_config::Config,
-        manifest_online: bool,
+        runtime: &Runtime,
+        config: &Config,
+        selected_version_metadata: Option<Arc<CompleteVersionMetadata>>,
     ) {
         let lang = config.lang;
 
         match &self.status {
             InstanceSyncStatus::NotSynced => {
                 ui.label(LangMessage::InstanceNotSynced.to_string(lang));
-            }
-            InstanceSyncStatus::Syncing {
-                ignore_version: _,
-                force_overwrite: _,
-            } => {
-                // should be shown in the progress bar
             }
             InstanceSyncStatus::Synced => {
                 ui.label(LangMessage::InstanceSynced.to_string(lang));
@@ -204,38 +187,57 @@ impl InstanceSyncState {
             }
         }
 
-        if manifest_online {
-            if self.instance_sync_task.is_some() && !self.instance_sync_window_open {
-                self.instance_sync_progress_bar.render(ui, lang);
-                self.render_cancel_button(ui, lang);
-            } else {
-                if ui
-                    .button(LangMessage::SyncInstance.to_string(lang))
-                    .clicked()
-                {
-                    match &self.status {
-                        InstanceSyncStatus::NotSynced
-                        | InstanceSyncStatus::SyncError(_)
-                        | InstanceSyncStatus::SyncErrorOffline => {
-                            self.status = InstanceSyncStatus::Syncing {
-                                ignore_version: false,
-                                force_overwrite: false,
-                            };
-                        }
+        self.render_sync_window(ui, runtime, config, selected_version_metadata);
+        self.render_progress_bar_window(ui, lang);
+    }
 
-                        _ => {
-                            self.instance_sync_window_open = true;
-                        }
-                    }
+    pub fn render_sync_button(
+        &mut self,
+        ui: &mut egui::Ui,
+        runtime: &Runtime,
+        config: &Config,
+        selected_version_metadata: Option<Arc<CompleteVersionMetadata>>,
+    ) {
+        let lang = config.lang;
+
+        if ui
+            .add_enabled(
+                self.instance_sync_task.is_none()
+                    && !self.instance_sync_window_open
+                    && selected_version_metadata.is_some(),
+                egui::Button::new(LangMessage::SyncInstance.to_string(lang)),
+            )
+            .clicked()
+        {
+            match &self.status {
+                InstanceSyncStatus::NotSynced
+                | InstanceSyncStatus::SyncError(_)
+                | InstanceSyncStatus::SyncErrorOffline => {
+                    self.schedule_sync(
+                        runtime,
+                        selected_version_metadata.clone().unwrap(),
+                        false,
+                        config,
+                        ui.ctx(),
+                    );
                 }
-
-                self.render_sync_window(ui, lang);
+                _ => {
+                    self.instance_sync_window_open = true;
+                }
             }
         }
     }
 
-    pub fn render_sync_window(&mut self, ui: &mut egui::Ui, lang: Lang) {
+    fn render_sync_window(
+        &mut self,
+        ui: &mut egui::Ui,
+        runtime: &Runtime,
+        config: &Config,
+        selected_version_metadata: Option<Arc<CompleteVersionMetadata>>,
+    ) {
+        let lang = config.lang;
         let mut instance_sync_window_open = self.instance_sync_window_open.clone();
+        let mut close_sync_window = false;
         egui::Window::new(LangMessage::SyncInstance.to_string(lang))
             .open(&mut instance_sync_window_open)
             .show(ui.ctx(), |ui| {
@@ -247,22 +249,41 @@ impl InstanceSyncState {
                     ui.label(LangMessage::ForceOverwriteWarning.to_string(lang));
 
                     if ui
-                        .button(LangMessage::SyncInstance.to_string(lang))
+                        .add_enabled(
+                            selected_version_metadata.is_some(),
+                            egui::Button::new(LangMessage::SyncInstance.to_string(lang)),
+                        )
                         .clicked()
                     {
-                        self.status = InstanceSyncStatus::Syncing {
-                            ignore_version: true,
-                            force_overwrite: self.force_overwrite_checked,
-                        };
-                    }
-
-                    if self.instance_sync_task.is_some() {
-                        self.instance_sync_progress_bar.render(ui, lang);
-                        self.render_cancel_button(ui, lang);
+                        self.schedule_sync(
+                            runtime,
+                            selected_version_metadata.unwrap(),
+                            self.force_overwrite_checked,
+                            config,
+                            ui.ctx(),
+                        );
+                        close_sync_window = true;
                     }
                 });
             });
         self.instance_sync_window_open = instance_sync_window_open;
+        if close_sync_window {
+            self.instance_sync_window_open = false;
+        }
+    }
+
+    fn render_progress_bar_window(&mut self, ui: &mut egui::Ui, lang: Lang) {
+        if self.instance_sync_task.is_some() {
+            egui::Window::new(LangMessage::InstanceSyncProgress.to_string(lang)).show(
+                ui.ctx(),
+                |ui| {
+                    ui.vertical_centered(|ui| {
+                        self.instance_sync_progress_bar.render(ui, lang);
+                        self.render_cancel_button(ui, lang);
+                    });
+                },
+            );
+        }
     }
 
     fn render_cancel_button(&mut self, ui: &mut egui::Ui, lang: Lang) {
@@ -278,5 +299,9 @@ impl InstanceSyncState {
         if let Some(task) = self.instance_sync_task.as_ref() {
             task.cancel();
         }
+    }
+
+    pub fn is_syncing(&self) -> bool {
+        self.instance_sync_task.is_some()
     }
 }

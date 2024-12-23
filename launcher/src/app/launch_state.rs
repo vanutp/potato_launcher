@@ -1,9 +1,10 @@
-use egui::WidgetText;
+use std::sync::Arc;
+
 use shared::paths::get_logs_dir;
 use tokio::{process::Child, runtime::Runtime};
 
 use crate::{
-    auth::user_info::AuthData, config::runtime_config, lang::LangMessage, launcher::launch,
+    auth::user_info::AuthData, config::runtime_config::Config, lang::LangMessage, launcher::launch,
     version::complete_version_metadata::CompleteVersionMetadata,
 };
 
@@ -36,7 +37,7 @@ impl LaunchState {
     fn launch(
         &mut self,
         runtime: &Runtime,
-        config: &runtime_config::Config,
+        config: &Config,
         selected_instance: &CompleteVersionMetadata,
         auth_data: &AuthData,
         online: bool,
@@ -78,19 +79,22 @@ impl LaunchState {
     }
 
     fn big_button_clicked(ui: &mut egui::Ui, text: &str) -> bool {
-        let widget_text = WidgetText::from(text).text_style(egui::TextStyle::Button);
-        let button = egui::Button::new(widget_text);
-        ui.add_sized([150.0, 35.0], button).clicked()
+        let button_text = egui::RichText::new(text)
+            .size(20.0)
+            .text_style(egui::TextStyle::Button);
+        let button = egui::Button::new(button_text);
+        ui.add_sized([ui.available_width(), 50.0], button).clicked()
     }
 
     pub fn render_ui(
         &mut self,
         runtime: &Runtime,
         ui: &mut egui::Ui,
-        config: &mut runtime_config::Config,
-        selected_instance: &CompleteVersionMetadata,
-        auth_data: &AuthData,
+        config: &mut Config,
+        selected_instance: Option<Arc<CompleteVersionMetadata>>,
+        auth_data: Option<AuthData>,
         online: bool,
+        disabled: bool,
     ) {
         let lang = config.lang;
 
@@ -105,12 +109,30 @@ impl LaunchState {
                 }
             }
             _ => {
-                if self.force_launch
-                    || LaunchState::big_button_clicked(ui, &LangMessage::Launch.to_string(lang))
-                {
-                    self.force_launch = false;
-                    self.launch(runtime, config, selected_instance, auth_data, online);
-                }
+                let button_text = if online {
+                    LangMessage::Launch.to_string(lang)
+                } else {
+                    format!(
+                        "{} ({})",
+                        LangMessage::Launch.to_string(lang),
+                        LangMessage::Offline.to_string(lang)
+                    )
+                };
+                ui.add_enabled_ui(
+                    selected_instance.is_some() && auth_data.is_some() && !disabled,
+                    |ui| {
+                        if Self::big_button_clicked(ui, &button_text) || self.force_launch {
+                            self.force_launch = false;
+                            self.launch(
+                                runtime,
+                                config,
+                                &selected_instance.unwrap(),
+                                &auth_data.unwrap(),
+                                online,
+                            );
+                        }
+                    },
+                );
             }
         }
 
@@ -131,22 +153,33 @@ impl LaunchState {
     pub fn render_download_ui(
         &mut self,
         ui: &mut egui::Ui,
-        config: &mut runtime_config::Config,
+        config: &mut Config,
+        disabled: bool,
     ) -> ForceLaunchResult {
         let lang = config.lang;
 
         if !self.force_launch {
-            if LaunchState::big_button_clicked(ui, &LangMessage::DownloadAndLaunch.to_string(lang))
-            {
+            let mut button_clicked = false;
+            ui.add_enabled_ui(!disabled, |ui| {
+                if LaunchState::big_button_clicked(
+                    ui,
+                    &LangMessage::DownloadAndLaunch.to_string(lang),
+                ) {
+                    button_clicked = true;
+                }
+            });
+            if button_clicked {
                 self.force_launch = true;
                 return ForceLaunchResult::ForceLaunchSelected;
             }
         } else {
             let mut cancel_clicked = false;
-            if LaunchState::big_button_clicked(ui, &LangMessage::CancelLaunch.to_string(lang)) {
-                self.force_launch = false;
-                cancel_clicked = true;
-            }
+            ui.add_enabled_ui(!disabled, |ui| {
+                if LaunchState::big_button_clicked(ui, &LangMessage::CancelLaunch.to_string(lang)) {
+                    self.force_launch = false;
+                    cancel_clicked = true;
+                }
+            });
             if cancel_clicked {
                 return ForceLaunchResult::CancelSelected;
             }

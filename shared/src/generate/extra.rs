@@ -114,7 +114,7 @@ pub struct ExtraMetadataGenerator {
     resources_url_base: Option<String>,
     download_server_base: String,
     extra_forge_libs_paths: Vec<PathBuf>,
-    auth_backend: AuthBackend,
+    auth_backend: Option<AuthBackend>,
 }
 
 pub struct GeneratorResult {
@@ -133,7 +133,7 @@ impl ExtraMetadataGenerator {
         resources_url_base: Option<String>,
         download_server_base: String,
         extra_forge_libs_paths: Vec<PathBuf>,
-        auth_backend: AuthBackend,
+        auth_backend: Option<AuthBackend>,
     ) -> Self {
         Self {
             version_name,
@@ -165,7 +165,7 @@ impl ExtraMetadataGenerator {
             include_no_overwrite: self.include_no_overwrite.clone(),
             objects: vec![],
             resources_url_base: self.resources_url_base.clone(),
-            auth_provider: self.auth_backend.clone(),
+            auth_backend: self.auth_backend.clone(),
             extra_forge_libs,
         };
         let mut include_mapping = HashMap::new();

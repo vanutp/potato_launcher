@@ -1,10 +1,11 @@
 use std::{path::Path, sync::Arc};
 
+use log::{error, info};
 use shared::version::version_manifest::VersionInfo;
+use tokio::runtime::Runtime;
 
 use crate::{
-    config::runtime_config, lang::LangMessage,
-    version::complete_version_metadata::CompleteVersionMetadata,
+    config::runtime_config::Config, version::complete_version_metadata::CompleteVersionMetadata,
 };
 
 use super::background_task::{BackgroundTask, BackgroundTaskResult};
@@ -23,15 +24,12 @@ struct MetadataFetchResult {
     metadata: Option<CompleteVersionMetadata>,
 }
 
-fn get_metadata<Callback>(
+fn get_metadata(
     runtime: &tokio::runtime::Runtime,
     version_info: &VersionInfo,
     data_dir: &Path,
-    callback: Callback,
-) -> BackgroundTask<MetadataFetchResult>
-where
-    Callback: FnOnce() + Send + 'static,
-{
+    ctx: &egui::Context,
+) -> BackgroundTask<MetadataFetchResult> {
     let version_info = version_info.clone();
     let data_dir = data_dir.to_path_buf();
 
@@ -54,10 +52,16 @@ where
                     CompleteVersionMetadata::read_local(&version_info, &data_dir).await;
                 MetadataFetchResult {
                     status: if connect_error {
+                        info!("Metadata offline mode");
                         GetStatus::ReadLocalOffline
-                    } else if local_metadata.is_err() {
+                    } else if let Some(local_error) = local_metadata.as_ref().err() {
+                        error!(
+                            "Error getting metadata:\n{:#}\nlocal metadata error:\n{:#}",
+                            e, local_error
+                        );
                         GetStatus::ErrorGetting(e.to_string())
                     } else {
+                        error!("Error getting metadata:\n{:#}\n(read local)", e);
                         GetStatus::ReadLocalRemoteError(e.to_string())
                     },
                     metadata: local_metadata.ok(),
@@ -66,7 +70,8 @@ where
         }
     };
 
-    BackgroundTask::with_callback(fut, runtime, Box::new(callback))
+    let ctx = ctx.clone();
+    BackgroundTask::with_callback(fut, runtime, Box::new(move || ctx.request_repaint()))
 }
 
 pub struct MetadataState {
@@ -84,33 +89,18 @@ impl MetadataState {
         };
     }
 
-    pub fn reset(&mut self) {
-        self.status = GetStatus::Getting;
-        self.get_task = None;
-        self.metadata = None;
-    }
-
-    pub fn update(
+    pub fn set_metadata_task(
         &mut self,
-        runtime: &tokio::runtime::Runtime,
-        config: &mut runtime_config::Config,
+        runtime: &Runtime,
+        config: &Config,
         version_info: &VersionInfo,
         ctx: &egui::Context,
-    ) -> bool {
-        if self.status == GetStatus::Getting && self.get_task.is_none() {
-            let launcher_dir = config.get_launcher_dir();
+    ) {
+        let launcher_dir = config.get_launcher_dir();
+        self.get_task = Some(get_metadata(runtime, version_info, &launcher_dir, ctx));
+    }
 
-            let ctx = ctx.clone();
-            self.get_task = Some(get_metadata(
-                runtime,
-                version_info,
-                &launcher_dir,
-                move || {
-                    ctx.request_repaint();
-                },
-            ));
-        }
-
+    pub fn update(&mut self) -> bool {
         if let Some(task) = self.get_task.as_ref() {
             if task.has_result() {
                 let task = self.get_task.take().unwrap();
@@ -132,47 +122,15 @@ impl MetadataState {
         false
     }
 
-    pub fn render_ui(&mut self, ui: &mut egui::Ui, config: &runtime_config::Config) -> bool {
-        let lang = config.lang;
-
-        match self.status {
-            GetStatus::Getting => {
-                ui.label(LangMessage::GettingVersionMetadata.to_string(lang));
-            }
-            GetStatus::ReadLocalOffline => {
-                ui.label(LangMessage::NoConnectionToMetadataServer.to_string(lang));
-                self.render_retry_button(ui, config);
-            }
-            GetStatus::ReadLocalRemoteError(ref s) => {
-                ui.label(LangMessage::ErrorGettingRemoteMetadata(s.clone()).to_string(lang));
-                self.render_retry_button(ui, config);
-            }
-            GetStatus::ErrorGetting(ref s) => {
-                ui.label(LangMessage::ErrorGettingMetadata(s.clone()).to_string(lang));
-                self.render_retry_button(ui, config);
-            }
-            GetStatus::UpToDate => {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    fn render_retry_button(&mut self, ui: &mut egui::Ui, config: &runtime_config::Config) {
-        if ui
-            .button(LangMessage::Retry.to_string(config.lang))
-            .clicked()
-        {
-            self.reset();
-        }
-    }
-
     pub fn get_version_metadata(&self) -> Option<Arc<CompleteVersionMetadata>> {
         self.metadata.clone()
     }
 
     pub fn online(&self) -> bool {
         self.status == GetStatus::UpToDate
+    }
+
+    pub fn is_getting(&self) -> bool {
+        self.get_task.is_some()
     }
 }

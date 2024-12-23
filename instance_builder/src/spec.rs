@@ -55,8 +55,7 @@ pub struct Version {
 
     pub include_from: Option<String>,
 
-    #[serde(default)]
-    pub auth_provider: AuthBackend,
+    pub auth_backend: Option<AuthBackend>,
 
     pub exec_before: Option<String>,
     pub exec_after: Option<String>,
@@ -189,7 +188,7 @@ impl VersionsSpec {
                     );
                 }
             } else {
-                let versions_dir = get_versions_dir(output_dir);
+                let versions_dir = get_versions_dir(work_dir);
                 for metadata in result.metadata.iter_mut() {
                     workdir_paths_to_copy.push(get_metadata_path(&versions_dir, &metadata.id));
                 }
@@ -209,7 +208,7 @@ impl VersionsSpec {
                 resources_url_base,
                 self.download_server_base.clone(),
                 result.extra_libs_paths,
-                version.auth_provider.clone(),
+                version.auth_backend.clone(),
             );
             let extra_generator_result = extra_generator.generate(work_dir).await?;
             mapping.extend(extra_generator_result.include_mapping.into_iter().map(

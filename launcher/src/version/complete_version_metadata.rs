@@ -22,8 +22,6 @@ pub struct CompleteVersionMetadata {
 
 const DEFAULT_RESOURCES_URL_BASE: &str = "https://resources.download.minecraft.net";
 
-const AUTH_BACKEND_NONE: AuthBackend = AuthBackend::None;
-
 #[derive(thiserror::Error, Debug)]
 pub enum VersionMetadataError {
     #[error("Missing asset index")]
@@ -125,11 +123,8 @@ impl CompleteVersionMetadata {
         Err(VersionMetadataError::MissingClientDownload.into())
     }
 
-    pub fn get_auth_backend(&self) -> &AuthBackend {
-        match &self.extra {
-            Some(extra) => &extra.auth_provider,
-            None => &AUTH_BACKEND_NONE,
-        }
+    pub fn get_auth_backend(&self) -> Option<&AuthBackend> {
+        self.extra.as_ref()?.auth_backend.as_ref()
     }
 
     pub fn get_libraries_with_overrides(&self) -> Vec<Library> {

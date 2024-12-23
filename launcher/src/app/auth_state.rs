@@ -1,6 +1,7 @@
 use egui::ComboBox;
 use egui::Window;
 use image::Luma;
+use log::error;
 use qrcode::QrCode;
 use shared::version::extra_version_metadata::AuthBackend;
 use shared::version::extra_version_metadata::ElyByAuthBackend;
@@ -80,6 +81,7 @@ fn authenticate(
                     } else if timeout_error {
                         AuthStatus::AuthorizeErrorTimeout
                     } else {
+                        error!("Auth error:\n{:#}", e);
                         AuthStatus::AuthorizeError(e.to_string())
                     },
                     auth_data: None,
@@ -159,6 +161,11 @@ impl AuthState {
                         match &result.status {
                             AuthStatus::Authorized => {
                                 if let Some(auth_data) = result.auth_data {
+                                    config.set_selected_auth_profile(AuthProfile {
+                                        auth_backend_id: result.auth_backend.get_id(),
+                                        username: auth_data.user_info.username.clone(),
+                                    });
+
                                     self.auth_storage.insert(
                                         config,
                                         &result.auth_backend,
@@ -185,30 +192,42 @@ impl AuthState {
         false
     }
 
-    fn render_auth_window(auth_message: LangMessage, lang: Lang, ui: &mut egui::Ui) {
-        egui::Window::new(LangMessage::Authorization.to_string(lang)).show(ui.ctx(), |ui| {
-            ui.label(auth_message.to_string(lang));
-            let url = match auth_message {
-                LangMessage::AuthMessage { url } => Some(url),
-                LangMessage::DeviceAuthMessage { url, .. } => Some(url),
-                _ => None,
-            }
-            .unwrap();
+    fn render_auth_window(&mut self, config: &mut Config, runtime: &Runtime, ui: &mut egui::Ui) {
+        if let Some(message) = self.auth_message_provider.get_message() {
+            let lang = config.lang;
+            let ctx = ui.ctx();
 
-            ui.hyperlink(&url);
-            let code = QrCode::new(url).unwrap();
-            let image = code.render::<Luma<u8>>().build();
-
-            let mut png_bytes: Vec<u8> = Vec::new();
-            let mut cursor = Cursor::new(&mut png_bytes);
-            image::DynamicImage::ImageLuma8(image)
-                .write_to(&mut cursor, image::ImageFormat::Png)
+            egui::Window::new(LangMessage::Authorization.to_string(lang)).show(ctx, |ui| {
+                ui.label(message.to_string(lang));
+                let url = match message {
+                    LangMessage::AuthMessage { url } => Some(url),
+                    LangMessage::DeviceAuthMessage { url, .. } => Some(url),
+                    _ => None,
+                }
                 .unwrap();
 
-            let uri = "bytes://auth_qr.png";
-            ui.ctx().include_bytes(uri, png_bytes.clone());
-            ui.add(egui::Image::from_bytes(uri.to_string(), png_bytes));
-        });
+                ui.hyperlink(&url);
+                let code = QrCode::new(url).unwrap();
+                let image = code.render::<Luma<u8>>().build();
+
+                let mut png_bytes: Vec<u8> = Vec::new();
+                let mut cursor = Cursor::new(&mut png_bytes);
+                image::DynamicImage::ImageLuma8(image)
+                    .write_to(&mut cursor, image::ImageFormat::Png)
+                    .unwrap();
+
+                let uri = "bytes://auth_qr.png";
+                ctx.include_bytes(uri, png_bytes.clone());
+                ui.add(egui::Image::from_bytes(uri.to_string(), png_bytes));
+
+                if ui.button(LangMessage::Cancel.to_string(lang)).clicked() {
+                    self.auth_status = AuthStatus::NotAuthorized;
+                    self.auth_task = None;
+                    self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                    self.on_instance_changed(config, runtime, ctx);
+                }
+            });
+        }
     }
 
     fn get_type_display_name(lang: Lang, new_account_type: NewAccountType) -> String {
@@ -218,19 +237,6 @@ impl AuthState {
             NewAccountType::Telegram => "Telegram".to_string(),
             NewAccountType::Offline => LangMessage::Offline.to_string(lang),
         }
-    }
-
-    fn get_account_display_name((id, username): &(String, String)) -> String {
-        let backend = AuthBackend::from_id(id);
-        let provider = get_auth_provider(&backend);
-        let provider_name = provider.get_name();
-
-        let mut hasher = DefaultHasher::new();
-        id.hash(&mut hasher);
-        let hash = hasher.finish();
-
-        let hex = format!("{:X}", hash);
-        format!("{} ({} #{})", username, provider_name, &hex[0..4])
     }
 
     pub fn render_new_account_window(
@@ -362,27 +368,97 @@ impl AuthState {
         }
     }
 
+    fn render_buttons(&mut self, ui: &mut egui::Ui, config: &mut Config) {
+        let mut auth_profile = config.get_selected_auth_profile().cloned();
+
+        if ui
+            .add_enabled(auth_profile.is_some(), egui::Button::new("-"))
+            .clicked()
+        {
+            if let Some(auth_profile) = auth_profile.take() {
+                self.auth_storage.delete_by_id(
+                    config,
+                    &auth_profile.auth_backend_id,
+                    &auth_profile.username,
+                );
+                config.clear_selected_auth_profile();
+            }
+        }
+
+        if ui.button("+").clicked() {
+            self.show_add_account = true;
+
+            self.new_account_type = NewAccountType::Microsoft;
+
+            self.ely_by_client_id = String::new();
+            self.ely_by_client_secret = String::new();
+
+            self.telegram_auth_base_url = String::new();
+
+            self.offline_nickname = String::new();
+        }
+    }
+
+    fn get_account_display_name((id, username): &(String, String)) -> String {
+        let backend = AuthBackend::from_id(id);
+        let provider = get_auth_provider(&backend);
+        let provider_name = provider.get_name();
+
+        let mut hasher = DefaultHasher::new();
+        id.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        let hex = format!("{:X}", hash);
+        format!("{} ({} #{})", username, provider_name, &hex[0..4])
+    }
+
+    fn get_combobox_text(nickname: &str, status: &AuthStatus, lang: Lang) -> String {
+        match status {
+            AuthStatus::Authorized => nickname.to_string(),
+            AuthStatus::NotAuthorized => format!(
+                "{} ({})",
+                nickname,
+                LangMessage::Authorizing.to_string(lang)
+            ),
+            AuthStatus::AuthorizeError(e) => format!(
+                "{} ({})",
+                nickname,
+                LangMessage::AuthError(e.clone()).to_string(lang)
+            ),
+            AuthStatus::AuthorizeErrorOffline => {
+                format!("{} ({})", nickname, LangMessage::Offline.to_string(lang))
+            }
+            AuthStatus::AuthorizeErrorTimeout => format!(
+                "{} ({})",
+                nickname,
+                LangMessage::AuthTimeout.to_string(lang)
+            ),
+        }
+    }
+
     pub fn render_ui(
         &mut self,
         ui: &mut egui::Ui,
         config: &mut Config,
         runtime: &Runtime,
         ctx: &egui::Context,
-        instance_auth_backend: &AuthBackend,
+        instance_auth_backend: Option<&AuthBackend>,
     ) {
         let lang = config.lang;
 
         let auth_profile = config.get_selected_auth_profile().cloned();
         if auth_profile.is_none() {
-            let entries = self
-                .auth_storage
-                .get_id_nicknames(&instance_auth_backend.get_id());
-            if let Some(nickname) = entries.first() {
-                let auth_profile_value = AuthProfile {
-                    auth_backend_id: instance_auth_backend.get_id(),
-                    username: nickname.clone(),
-                };
-                config.set_selected_auth_profile(auth_profile_value.clone());
+            if let Some(instance_auth_backend) = instance_auth_backend {
+                let entries = self
+                    .auth_storage
+                    .get_id_nicknames(&instance_auth_backend.get_id());
+                if let Some(nickname) = entries.first() {
+                    let auth_profile_value = AuthProfile {
+                        auth_backend_id: instance_auth_backend.get_id(),
+                        username: nickname.clone(),
+                    };
+                    config.set_selected_auth_profile(auth_profile_value.clone());
+                }
             }
         }
 
@@ -391,24 +467,29 @@ impl AuthState {
             self.last_auth_profile = auth_profile.clone();
         }
 
-        let mut auth_profile = config.get_selected_auth_profile().cloned();
+        let auth_profile = config.get_selected_auth_profile().cloned();
+        if let Some(instance_auth_backend) = instance_auth_backend {
+            let entries = self
+                .auth_storage
+                .get_id_nicknames(&instance_auth_backend.get_id());
 
-        ui.horizontal(|ui| {
-            ui.label(LangMessage::SelectAccount.to_string(lang));
-
-            if instance_auth_backend != &AuthBackend::None {
-                let entries = self
-                    .auth_storage
-                    .get_id_nicknames(&instance_auth_backend.get_id());
+            if entries.len() != 0 {
+                self.render_buttons(ui, config);
 
                 let mut selected_username = auth_profile.as_ref().map(|x| x.username.to_string());
                 ComboBox::from_id_source("select_account")
-                    .selected_text(
-                        selected_username
-                            .clone()
-                            .unwrap_or_else(|| LangMessage::NotSelected.to_string(lang)),
-                    )
+                    .selected_text(match &selected_username {
+                        Some(username) => {
+                            Self::get_combobox_text(username, &self.auth_status, lang)
+                        }
+                        None => LangMessage::SelectAccount.to_string(lang),
+                    })
+                    .width(ui.available_width())
                     .show_ui(ui, |ui| {
+                        if config.selected_instance_name.is_none() {
+                            ui.disable();
+                            return;
+                        }
                         for username in entries {
                             ui.selectable_value(
                                 &mut selected_username,
@@ -424,129 +505,80 @@ impl AuthState {
                             username: selected_username.clone(),
                         };
                         config.set_selected_auth_profile(auth_profile_value.clone());
-                        auth_profile = Some(auth_profile_value);
                     }
                 }
             } else {
-                let all_entries = self.auth_storage.get_all_entries();
-
-                let mut selected_account = auth_profile
-                    .as_ref()
-                    .map(|x| (x.auth_backend_id.clone(), x.username.clone()));
-                ComboBox::from_id_source("select_account")
-                    .selected_text(
-                        selected_account
-                            .as_ref()
-                            .map(|x| x.1.clone())
-                            .unwrap_or_else(|| LangMessage::NotSelected.to_string(lang)),
+                let auth_provider = get_auth_provider(instance_auth_backend);
+                ui.add_enabled_ui(self.auth_task.is_none(), |ui| {
+                    let button_text = egui::RichText::new(
+                        LangMessage::AuthorizeUsing(auth_provider.get_name()).to_string(lang),
                     )
-                    .show_ui(ui, |ui| {
-                        for (id, username) in all_entries {
-                            ui.selectable_value(
-                                &mut selected_account,
-                                Some((id.clone(), username.clone())),
-                                Self::get_account_display_name(&(id, username)),
-                            );
-                        }
-                    });
-                if let Some(selected_account) = selected_account {
-                    if auth_profile
-                        .as_ref()
-                        .map(|x| (&x.auth_backend_id, &x.username))
-                        != Some((&selected_account.0, &selected_account.1))
+                    .size(20.0);
+
+                    if ui
+                        .add_sized([ui.available_width(), 50.0], egui::Button::new(button_text))
+                        .clicked()
                     {
-                        let auth_profile_value = AuthProfile {
-                            auth_backend_id: selected_account.0,
-                            username: selected_account.1,
-                        };
-                        config.set_selected_auth_profile(auth_profile_value.clone());
-                        auth_profile = Some(auth_profile_value);
+                        let storage_entry = self.get_selected_storage_entry(config);
+
+                        self.auth_status = AuthStatus::NotAuthorized;
+                        self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                        self.auth_task = Some(authenticate(
+                            runtime,
+                            storage_entry.as_ref().map(|x| x.auth_data.clone()),
+                            instance_auth_backend,
+                            self.auth_message_provider.clone(),
+                            ctx,
+                        ));
                     }
-                }
-            }
-
-            if ui.button("+").clicked() {
-                self.show_add_account = true;
-
-                self.new_account_type = NewAccountType::Microsoft;
-
-                self.ely_by_client_id = String::new();
-                self.ely_by_client_secret = String::new();
-
-                self.telegram_auth_base_url = String::new();
-
-                self.offline_nickname = String::new();
-            }
-
-            if auth_profile.is_some() {
-                if ui.button("-").clicked() {
-                    if let Some(auth_profile) = auth_profile.take() {
-                        self.auth_storage.delete_by_id(
-                            config,
-                            &auth_profile.auth_backend_id,
-                            &auth_profile.username,
-                        );
-                        config.clear_selected_auth_profile();
-                    }
-                }
-            }
-        });
-
-        let storage_entry = self.get_selected_storage_entry(config);
-
-        match &self.auth_status {
-            AuthStatus::NotAuthorized if self.auth_task.is_none() => {
-                if instance_auth_backend != &AuthBackend::None {
-                    let auth_provider = get_auth_provider(instance_auth_backend);
-                    let auth_provider_name = auth_provider.get_name();
-                    ui.label(LangMessage::AuthorizeUsing(auth_provider_name).to_string(lang));
-                }
-            }
-            AuthStatus::NotAuthorized => {
-                ui.label(LangMessage::Authorizing.to_string(lang));
-            }
-            AuthStatus::AuthorizeError(e) => {
-                ui.label(LangMessage::AuthError(e.clone()).to_string(lang));
-            }
-            AuthStatus::AuthorizeErrorOffline => {
-                ui.label(LangMessage::Offline.to_string(lang));
-            }
-            AuthStatus::AuthorizeErrorTimeout => {
-                ui.label(LangMessage::AuthTimeout.to_string(lang));
-            }
-            AuthStatus::Authorized => {}
-        }
-
-        if self.auth_task.is_none() {
-            if self.auth_status != AuthStatus::Authorized
-                && instance_auth_backend != &AuthBackend::None
-            {
-                if ui.button(LangMessage::Authorize.to_string(lang)).clicked() {
-                    self.auth_status = AuthStatus::NotAuthorized;
-                    self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
-                    self.auth_task = Some(authenticate(
-                        runtime,
-                        storage_entry.as_ref().map(|x| x.auth_data.clone()),
-                        instance_auth_backend,
-                        self.auth_message_provider.clone(),
-                        ctx,
-                    ));
-                }
+                });
             }
         } else {
-            if ui.button(LangMessage::Cancel.to_string(lang)).clicked() {
-                self.auth_status = AuthStatus::NotAuthorized;
-                self.auth_task.take().unwrap().cancel();
-                self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
-                self.on_instance_changed(config, runtime, ctx);
+            self.render_buttons(ui, config);
+
+            let all_entries = self.auth_storage.get_all_entries();
+
+            let mut selected_account = auth_profile
+                .as_ref()
+                .map(|x| (x.auth_backend_id.clone(), x.username.clone()));
+            ComboBox::from_id_source("select_account")
+                .selected_text(match &selected_account {
+                    Some((_, username)) => {
+                        Self::get_combobox_text(username, &self.auth_status, lang)
+                    }
+                    None => LangMessage::SelectAccount.to_string(lang),
+                })
+                .width(ui.available_width())
+                .show_ui(ui, |ui| {
+                    if config.selected_instance_name.is_none() {
+                        ui.disable();
+                        return;
+                    }
+                    for (id, username) in all_entries {
+                        ui.selectable_value(
+                            &mut selected_account,
+                            Some((id.clone(), username.clone())),
+                            Self::get_account_display_name(&(id, username)),
+                        );
+                    }
+                });
+            if let Some(selected_account) = selected_account {
+                if auth_profile
+                    .as_ref()
+                    .map(|x| (&x.auth_backend_id, &x.username))
+                    != Some((&selected_account.0, &selected_account.1))
+                {
+                    let auth_profile_value = AuthProfile {
+                        auth_backend_id: selected_account.0,
+                        username: selected_account.1,
+                    };
+                    config.set_selected_auth_profile(auth_profile_value.clone());
+                }
             }
         }
 
         self.render_new_account_window(ui, ctx, runtime, lang);
-
-        if let Some(message) = self.auth_message_provider.get_message() {
-            AuthState::render_auth_window(message, lang, ui);
-        }
+        self.render_auth_window(config, runtime, ui);
     }
 
     pub fn get_auth_data(&self, config: &Config) -> Option<AuthData> {
@@ -570,7 +602,16 @@ impl AuthState {
         None
     }
 
-    pub fn online(&self) -> bool {
-        self.auth_status == AuthStatus::Authorized
+    pub fn offline(&self) -> bool {
+        matches!(
+            self.auth_status,
+            AuthStatus::AuthorizeErrorOffline
+                | AuthStatus::AuthorizeErrorTimeout
+                | AuthStatus::AuthorizeError(_)
+        )
+    }
+
+    pub fn reset(&mut self, config: &mut Config, runtime: &Runtime, ctx: &egui::Context) {
+        self.on_instance_changed(config, runtime, ctx);
     }
 }
