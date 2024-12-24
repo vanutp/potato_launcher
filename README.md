@@ -1,16 +1,24 @@
+<p align="center">
+  <img src="launcher/assets/potato_launcher.png" alt="Potato Launcher logo" width="200"/>
+</p>
+
 # Potato Launcher
 
-A Minecraft launcher that is both extremely easy to use and trivial to deploy with basic DevOps skills. Perfect for frequently changing instances.
-
-![Potato Launcher](image.png)
+A Minecraft launcher that is both extremely easy to use and trivial to deploy with basic DevOps skills. Perfect for frequently changing modpacks.
 
 ## Key Features
 
 - **Simple UI**: Does all the hard work in the background, including syncing instance files, installing Java, and self-updating.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/7b6f310f-c564-4d26-93cc-b709f272efdb" alt="launcher" width="400"/>
+</p>
+
 - **Instance Builder Tool**: Comes with [a tool](instance_builder/) to easily create and deploy different versions and instances in a conformant format (which is an extension to the vanilla one). The tool can make the launcher sync arbitrary files, including mods and configs, with or without overwriting them if they exist, and requires minimal setup.
 - **Performance**: _blazinglyfast_, not just because it is written in Rust, but also because it is async and multithreaded. It syncs only the missing/changed files, minimizing network requests as much as possible. If the instance hasn't changed, it won't make any extra network requests at all.
 - **Custom Authorization**: Supports custom authorization servers.
-- **Vanilla format**: Fully compatible with vanilla, Forge, and Fabric version metadata formats. It can even be built with [vanilla manifest](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json) and launch vanilla versions out of the box, just like the vanilla launcher.
+- **Vanilla format**: Fully compatible with vanilla, Forge, Fabric, and NeoForge version metadata formats. It can even be built with [vanilla manifest](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json) and launch vanilla versions out of the box, just like the vanilla launcher.
+- **Creating new instances**: The launcher can create new instances with vanilla, Fabric, Forge, and NeoForge for all Minecraft versions.
 
 ## Building from Source
 
