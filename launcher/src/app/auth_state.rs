@@ -5,7 +5,6 @@ use log::error;
 use qrcode::QrCode;
 use shared::version::extra_version_metadata::AuthBackend;
 use shared::version::extra_version_metadata::ElyByAuthBackend;
-use shared::version::extra_version_metadata::OfflineAuthBackend;
 use shared::version::extra_version_metadata::TelegramAuthBackend;
 use std::hash::DefaultHasher;
 use std::hash::Hash as _;
@@ -24,7 +23,7 @@ use crate::auth::user_info::AuthData;
 use crate::config::runtime_config::AuthProfile;
 use crate::config::runtime_config::Config;
 use crate::lang::{Lang, LangMessage};
-use crate::message_provider::MessageProvider as _;
+use crate::utils;
 
 use super::background_task::{BackgroundTask, BackgroundTaskResult};
 
@@ -150,10 +149,10 @@ impl AuthState {
         };
     }
 
-    pub fn update(&mut self, config: &mut Config) -> bool {
+    pub fn update(&mut self, runtime: &Runtime, config: &mut Config) -> bool {
         if let Some(task) = self.auth_task.as_ref() {
             if task.has_result() {
-                self.auth_message_provider.clear();
+                runtime.block_on(self.auth_message_provider.clear());
                 let task = self.auth_task.take().unwrap();
                 let result = task.take_result();
                 match result {
@@ -193,7 +192,7 @@ impl AuthState {
     }
 
     fn render_auth_window(&mut self, config: &mut Config, runtime: &Runtime, ui: &mut egui::Ui) {
-        if let Some(message) = self.auth_message_provider.get_message() {
+        if let Some(message) = runtime.block_on(self.auth_message_provider.get_message()) {
             let lang = config.lang;
             let ctx = ui.ctx();
 
@@ -227,6 +226,42 @@ impl AuthState {
                     self.on_instance_changed(config, runtime, ctx);
                 }
             });
+        }
+
+        if runtime.block_on(self.auth_message_provider.need_offline_nickname()) {
+            let lang = config.lang;
+            let ctx = ui.ctx();
+
+            let mut open = true;
+            egui::Window::new(LangMessage::Authorization.to_string(lang))
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(LangMessage::EnterNickname.to_string(lang));
+                            ui.text_edit_singleline(&mut self.offline_nickname);
+                        });
+
+                        if ui
+                            .add_enabled(
+                                utils::is_valid_minecraft_username(&self.offline_nickname),
+                                egui::Button::new(LangMessage::AddAccount.to_string(lang)),
+                            )
+                            .clicked()
+                        {
+                            runtime.block_on(
+                                self.auth_message_provider
+                                    .set_offline_nickname(self.offline_nickname.clone()),
+                            );
+                        }
+                    });
+                });
+            if !open {
+                self.auth_status = AuthStatus::NotAuthorized;
+                self.auth_task = None;
+                self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                self.on_instance_changed(config, runtime, ctx);
+            }
         }
     }
 
@@ -286,12 +321,7 @@ impl AuthState {
                             ui.text_edit_singleline(&mut self.telegram_auth_base_url);
                         });
                     }
-                    NewAccountType::Offline => {
-                        ui.horizontal(|ui| {
-                            ui.label(LangMessage::Nickname.to_string(lang));
-                            ui.text_edit_singleline(&mut self.offline_nickname);
-                        });
-                    }
+                    NewAccountType::Offline => {}
                 }
 
                 if ui
@@ -307,9 +337,7 @@ impl AuthState {
                         NewAccountType::Telegram => AuthBackend::Telegram(TelegramAuthBackend {
                             auth_base_url: self.telegram_auth_base_url.clone(),
                         }),
-                        NewAccountType::Offline => AuthBackend::Offline(OfflineAuthBackend {
-                            nickname: self.offline_nickname.clone(),
-                        }),
+                        NewAccountType::Offline => AuthBackend::Offline,
                     };
 
                     self.auth_status = AuthStatus::NotAuthorized;
@@ -469,7 +497,7 @@ impl AuthState {
 
         let auth_profile = config.get_selected_auth_profile().cloned();
         if let Some(instance_auth_backend) = instance_auth_backend {
-            let entries = self
+            let mut entries = self
                 .auth_storage
                 .get_id_nicknames(&instance_auth_backend.get_id());
 
@@ -490,6 +518,7 @@ impl AuthState {
                             ui.disable();
                             return;
                         }
+                        entries.sort();
                         for username in entries {
                             ui.selectable_value(
                                 &mut selected_username,
@@ -508,11 +537,15 @@ impl AuthState {
                     }
                 }
             } else {
-                let auth_provider = get_auth_provider(instance_auth_backend);
                 ui.add_enabled_ui(self.auth_task.is_none(), |ui| {
-                    let button_text = egui::RichText::new(
-                        LangMessage::AuthorizeUsing(auth_provider.get_name()).to_string(lang),
-                    )
+                    let auth_provider = get_auth_provider(instance_auth_backend);
+                    let button_text = if !matches!(instance_auth_backend, AuthBackend::Offline) {
+                        egui::RichText::new(
+                            LangMessage::AuthorizeUsing(auth_provider.get_name()).to_string(lang),
+                        )
+                    } else {
+                        egui::RichText::new(LangMessage::AddOfflineAccount.to_string(lang))
+                    }
                     .size(20.0);
 
                     if ui
@@ -536,7 +569,7 @@ impl AuthState {
         } else {
             self.render_buttons(ui, config);
 
-            let all_entries = self.auth_storage.get_all_entries();
+            let mut all_entries = self.auth_storage.get_all_entries();
 
             let mut selected_account = auth_profile
                 .as_ref()
@@ -554,6 +587,7 @@ impl AuthState {
                         ui.disable();
                         return;
                     }
+                    all_entries.sort();
                     for (id, username) in all_entries {
                         ui.selectable_value(
                             &mut selected_account,

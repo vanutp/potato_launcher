@@ -6,7 +6,6 @@ mod config;
 mod constants;
 mod lang;
 mod launcher;
-mod message_provider;
 mod update_app;
 mod utils;
 mod vendor;

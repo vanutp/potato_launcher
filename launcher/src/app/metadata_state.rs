@@ -1,11 +1,12 @@
-use std::{path::Path, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use log::{error, info};
 use shared::version::version_manifest::VersionInfo;
 use tokio::runtime::Runtime;
 
 use crate::{
-    config::runtime_config::Config, version::complete_version_metadata::CompleteVersionMetadata,
+    config::runtime_config::Config, lang::LangMessage,
+    version::complete_version_metadata::CompleteVersionMetadata,
 };
 
 use super::background_task::{BackgroundTask, BackgroundTaskResult};
@@ -21,7 +22,8 @@ enum GetStatus {
 
 struct MetadataFetchResult {
     status: GetStatus,
-    metadata: Option<CompleteVersionMetadata>,
+    version_info: VersionInfo,
+    metadata: Option<Arc<CompleteVersionMetadata>>,
 }
 
 fn get_metadata(
@@ -29,16 +31,25 @@ fn get_metadata(
     version_info: &VersionInfo,
     data_dir: &Path,
     ctx: &egui::Context,
+    existing_metadata: Option<Arc<CompleteVersionMetadata>>,
 ) -> BackgroundTask<MetadataFetchResult> {
     let version_info = version_info.clone();
     let data_dir = data_dir.to_path_buf();
 
     let fut = async move {
+        if let Some(metadata) = existing_metadata {
+            return MetadataFetchResult {
+                status: GetStatus::UpToDate,
+                version_info,
+                metadata: Some(metadata),
+            };
+        }
         let result = CompleteVersionMetadata::read_or_download(&version_info, &data_dir).await;
         match result {
             Ok(metadata) => MetadataFetchResult {
                 status: GetStatus::UpToDate,
-                metadata: Some(metadata),
+                version_info,
+                metadata: Some(Arc::new(metadata)),
             },
             Err(e) => {
                 let mut connect_error = false;
@@ -64,7 +75,8 @@ fn get_metadata(
                         error!("Error getting metadata:\n{:#}\n(read local)", e);
                         GetStatus::ReadLocalRemoteError(e.to_string())
                     },
-                    metadata: local_metadata.ok(),
+                    version_info,
+                    metadata: local_metadata.ok().map(Arc::new),
                 }
             }
         }
@@ -77,7 +89,7 @@ fn get_metadata(
 pub struct MetadataState {
     status: GetStatus,
     get_task: Option<BackgroundTask<MetadataFetchResult>>,
-    metadata: Option<Arc<CompleteVersionMetadata>>,
+    metadata_storage: HashMap<String, Arc<CompleteVersionMetadata>>,
 }
 
 impl MetadataState {
@@ -85,7 +97,7 @@ impl MetadataState {
         return MetadataState {
             status: GetStatus::Getting,
             get_task: None,
-            metadata: None,
+            metadata_storage: HashMap::new(),
         };
     }
 
@@ -96,8 +108,30 @@ impl MetadataState {
         version_info: &VersionInfo,
         ctx: &egui::Context,
     ) {
+        self.status = GetStatus::Getting;
+        let name = version_info.get_name();
+        let existing_metadata = self.metadata_storage.get(&name).cloned();
         let launcher_dir = config.get_launcher_dir();
-        self.get_task = Some(get_metadata(runtime, version_info, &launcher_dir, ctx));
+        self.get_task = Some(get_metadata(
+            runtime,
+            version_info,
+            &launcher_dir,
+            ctx,
+            existing_metadata,
+        ));
+    }
+
+    pub fn render_ui(&mut self, ui: &mut egui::Ui, config: &Config) {
+        if matches!(self.status, GetStatus::Getting) {
+            ui.label(
+                if self.get_task.is_some() {
+                    LangMessage::GettingMetadata
+                } else {
+                    LangMessage::NoMetadata
+                }
+                .to_string(config.lang),
+            );
+        }
     }
 
     pub fn update(&mut self) -> bool {
@@ -108,7 +142,12 @@ impl MetadataState {
                 match result {
                     BackgroundTaskResult::Finished(result) => {
                         self.status = result.status;
-                        self.metadata = result.metadata.map(Arc::new);
+                        let name = result.version_info.get_name();
+                        if let Some(metadata) = result.metadata {
+                            self.metadata_storage.insert(name, metadata);
+                        } else {
+                            self.metadata_storage.remove(&name);
+                        }
                     }
                     BackgroundTaskResult::Cancelled => {
                         self.status = GetStatus::Getting;
@@ -122,8 +161,10 @@ impl MetadataState {
         false
     }
 
-    pub fn get_version_metadata(&self) -> Option<Arc<CompleteVersionMetadata>> {
-        self.metadata.clone()
+    pub fn get_version_metadata(&self, config: &Config) -> Option<Arc<CompleteVersionMetadata>> {
+        self.metadata_storage
+            .get(config.selected_instance_name.as_ref()?)
+            .cloned()
     }
 
     pub fn online(&self) -> bool {
@@ -132,5 +173,10 @@ impl MetadataState {
 
     pub fn is_getting(&self) -> bool {
         self.get_task.is_some()
+    }
+
+    pub fn reset(&mut self) {
+        self.status = GetStatus::Getting;
+        self.metadata_storage.clear();
     }
 }

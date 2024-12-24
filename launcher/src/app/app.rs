@@ -39,7 +39,7 @@ pub struct LauncherApp {
 pub fn run_gui(config: Config) {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size((650.0, 450.0))
+            .with_inner_size((670.0, 450.0))
             .with_icon(utils::get_icon_data())
             .with_resizable(false),
         ..Default::default()
@@ -91,7 +91,7 @@ impl LauncherApp {
             .show(ctx, |ui| {
                 ui.add_space(5.0);
                 ui.horizontal(|ui| {
-                    let selected_metadata = self.metadata_state.get_version_metadata();
+                    let selected_metadata = self.metadata_state.get_version_metadata(&self.config);
                     let selected_metadata_ref = selected_metadata.as_deref();
                     self.settings_state.render_ui(
                         ui,
@@ -104,14 +104,15 @@ impl LauncherApp {
                         ui,
                         &self.runtime,
                         &mut self.config,
-                        self.metadata_state.get_version_metadata(),
+                        selected_metadata,
                     );
 
                     if ui.button("🔄").clicked() {
                         self.auth_state.reset(&mut self.config, &self.runtime, ctx);
                         self.manifest_state.retry_fetch(&self.runtime, ctx);
-                        // metadata is checked after manifest is fetched
-                        // java is checked after metadata is fetched
+                        self.metadata_state.reset(); // just reset the state, not the task
+                                                     // metadata is checked after manifest is fetched
+                                                     // java is checked after metadata is fetched
                     }
                 });
                 ui.add_space(5.0);
@@ -201,20 +202,22 @@ impl LauncherApp {
             });
         });
 
-        self.auth_state.update(&mut self.config);
+        self.auth_state.update(&self.runtime, &mut self.config);
 
         ui.vertical_centered(|ui| {
+            self.metadata_state.render_ui(ui, &self.config);
+            let selected_instance = self.metadata_state.get_version_metadata(&self.config);
             self.instance_sync_state.render_ui(
                 ui,
                 &self.runtime,
                 &mut self.config,
-                self.metadata_state.get_version_metadata(),
+                selected_instance,
             );
         });
 
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                let version_metadata = self.metadata_state.get_version_metadata();
+                let version_metadata = self.metadata_state.get_version_metadata(&self.config);
                 let auth_backend =
                     version_metadata.and_then(|metadata| metadata.get_auth_backend().cloned());
                 self.auth_state.render_ui(
@@ -238,7 +241,9 @@ impl LauncherApp {
                     self.instance_sync_state.reset_status();
                 }
 
-                if let Some(version_metadata) = self.metadata_state.get_version_metadata() {
+                if let Some(version_metadata) =
+                    self.metadata_state.get_version_metadata(&self.config)
+                {
                     self.java_state.set_check_java_task(
                         &self.runtime,
                         &version_metadata,
@@ -248,7 +253,7 @@ impl LauncherApp {
                 }
             }
 
-            if let Some(version_metadata) = self.metadata_state.get_version_metadata() {
+            if let Some(version_metadata) = self.metadata_state.get_version_metadata(&self.config) {
                 if self.instance_sync_state.update() {
                     self.runtime.block_on(
                         self.instance_storage
@@ -262,11 +267,9 @@ impl LauncherApp {
         }
 
         ui.vertical_centered(|ui| {
-            self.java_state.render_ui(
-                ui,
-                &mut self.config,
-                self.metadata_state.get_version_metadata().as_deref(),
-            );
+            let selected_instance = self.metadata_state.get_version_metadata(&self.config);
+            self.java_state
+                .render_ui(ui, &mut self.config, selected_instance.as_deref());
 
             self.launch_state.update();
 
@@ -278,13 +281,16 @@ impl LauncherApp {
                     })
             {
                 let auth_data = self.auth_state.get_auth_data(&self.config);
+                let selected_instance = self.metadata_state.get_version_metadata(&self.config);
                 self.launch_state.render_ui(
                     &self.runtime,
                     ui,
                     &mut self.config,
-                    self.metadata_state.get_version_metadata(),
+                    selected_instance,
                     auth_data,
-                    !self.auth_state.offline(),
+                    !self.auth_state.offline()
+                        && self.manifest_state.online()
+                        && self.metadata_state.online(),
                     self.instance_sync_state.is_syncing()
                         || self.manifest_state.is_fetching()
                         || self.metadata_state.is_getting(),
@@ -304,7 +310,9 @@ impl LauncherApp {
                 );
                 match force_launch_result {
                     ForceLaunchResult::ForceLaunchSelected => {
-                        if let Some(version_metadata) = self.metadata_state.get_version_metadata() {
+                        if let Some(version_metadata) =
+                            self.metadata_state.get_version_metadata(&self.config)
+                        {
                             self.instance_sync_state.schedule_sync_if_needed(
                                 &self.runtime,
                                 version_metadata.clone(),

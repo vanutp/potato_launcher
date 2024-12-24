@@ -95,3 +95,15 @@ pub fn get_data_dir() -> PathBuf {
     }
     data_dir
 }
+
+pub fn is_valid_minecraft_username(username: &str) -> bool {
+    if username.len() < 3 || username.len() > 16 {
+        return false;
+    }
+    for c in username.chars() {
+        if !c.is_ascii_alphanumeric() && c != '_' {
+            return false;
+        }
+    }
+    true
+}

@@ -82,10 +82,13 @@ pub enum LangMessage {
     SelectAccount,
     AddAndAuthenticate,
     Offline,
-    Nickname,
     FetchingRemote,
     ErrorFetchingRemote,
     InstanceSyncProgress,
+    AddOfflineAccount,
+    EnterNickname,
+    GettingMetadata,
+    NoMetadata,
 }
 
 impl LangMessage {
@@ -409,10 +412,6 @@ impl LangMessage {
                 Lang::English => "Offline".to_string(),
                 Lang::Russian => "Офлайн".to_string(),
             },
-            LangMessage::Nickname => match lang {
-                Lang::English => "Nickname".to_string(),
-                Lang::Russian => "Никнейм".to_string(),
-            },
             LangMessage::FetchingRemote => match lang {
                 Lang::English => "Fetching...".to_string(),
                 Lang::Russian => "Загрузка...".to_string(),
@@ -424,6 +423,22 @@ impl LangMessage {
             LangMessage::InstanceSyncProgress => match lang {
                 Lang::English => "Instance sync progress".to_string(),
                 Lang::Russian => "Прогресс синхронизации версии".to_string(),
+            },
+            LangMessage::AddOfflineAccount => match lang {
+                Lang::English => "Add offline account".to_string(),
+                Lang::Russian => "Добавить офлайн аккаунт".to_string(),
+            },
+            LangMessage::EnterNickname => match lang {
+                Lang::English => "Enter nickname".to_string(),
+                Lang::Russian => "Введите никнейм".to_string(),
+            },
+            LangMessage::GettingMetadata => match lang {
+                Lang::English => "Getting metadata...".to_string(),
+                Lang::Russian => "Получение метаданных...".to_string(),
+            },
+            LangMessage::NoMetadata => match lang {
+                Lang::English => "No metadata".to_string(),
+                Lang::Russian => "Метаданные отсутствуют".to_string(),
             },
         }
     }

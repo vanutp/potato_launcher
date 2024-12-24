@@ -172,18 +172,20 @@ impl InstanceSyncState {
     ) {
         let lang = config.lang;
 
-        match &self.status {
-            InstanceSyncStatus::NotSynced => {
-                ui.label(LangMessage::InstanceNotSynced.to_string(lang));
-            }
-            InstanceSyncStatus::Synced => {
-                ui.label(LangMessage::InstanceSynced.to_string(lang));
-            }
-            InstanceSyncStatus::SyncError(e) => {
-                ui.label(LangMessage::InstanceSyncError(e.clone()).to_string(lang));
-            }
-            InstanceSyncStatus::SyncErrorOffline => {
-                ui.label(LangMessage::NoConnectionToSyncServer.to_string(lang));
+        if selected_version_metadata.is_some() {
+            match &self.status {
+                InstanceSyncStatus::NotSynced => {
+                    ui.label(LangMessage::InstanceNotSynced.to_string(lang));
+                }
+                InstanceSyncStatus::Synced => {
+                    ui.label(LangMessage::InstanceSynced.to_string(lang));
+                }
+                InstanceSyncStatus::SyncError(e) => {
+                    ui.label(LangMessage::InstanceSyncError(e.clone()).to_string(lang));
+                }
+                InstanceSyncStatus::SyncErrorOffline => {
+                    ui.label(LangMessage::NoConnectionToSyncServer.to_string(lang));
+                }
             }
         }
 

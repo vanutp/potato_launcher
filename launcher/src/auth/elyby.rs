@@ -15,8 +15,8 @@ use tokio::time::sleep;
 
 use crate::config::build_config;
 use crate::lang::LangMessage;
-use crate::message_provider::MessageProvider;
 
+use super::auth::AuthMessageProvider;
 use super::base::{AuthProvider, AuthResultData, AuthState};
 use super::user_info::UserInfo;
 
@@ -163,13 +163,15 @@ impl ElyByAuthProvider {
         }
     }
 
-    fn print_auth_url(&self, redirect_uri: &str, message_provider: &dyn MessageProvider) {
+    async fn print_auth_url(&self, redirect_uri: &str, message_provider: &AuthMessageProvider) {
         let url = format!(
             "https://account.ely.by/oauth2/v1?client_id={}&redirect_uri={}&response_type=code&scope=account_info%20minecraft_server_session&prompt=select_account",
             &self.client_id, redirect_uri
         );
         let _ = open::that(&url);
-        message_provider.set_message(LangMessage::AuthMessage { url });
+        message_provider
+            .set_message(LangMessage::AuthMessage { url })
+            .await;
     }
 }
 
@@ -177,13 +179,13 @@ impl ElyByAuthProvider {
 impl AuthProvider for ElyByAuthProvider {
     async fn authenticate(
         &self,
-        message_provider: &dyn MessageProvider,
+        message_provider: &AuthMessageProvider,
     ) -> anyhow::Result<AuthState> {
         let addr = SocketAddr::from(([127, 0, 0, 1], 0));
         let listener = TcpListener::bind(addr).await?;
 
         let redirect_uri = format!("http://localhost:{}/", listener.local_addr()?.port());
-        self.print_auth_url(&redirect_uri, message_provider);
+        self.print_auth_url(&redirect_uri, message_provider).await;
 
         let mut http = http1::Builder::new();
         http.keep_alive(false);

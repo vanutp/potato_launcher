@@ -1,7 +1,7 @@
+use super::auth::AuthMessageProvider;
 use super::offline::OfflineAuthProvider;
 use super::{elyby::ElyByAuthProvider, telegram::TGAuthProvider, user_info::UserInfo};
 use crate::auth::microsoft::MicrosoftAuthProvider;
-use crate::message_provider::MessageProvider;
 use async_trait::async_trait;
 use shared::version::extra_version_metadata::AuthBackend;
 
@@ -22,7 +22,7 @@ pub enum AuthState {
 pub trait AuthProvider {
     async fn authenticate(
         &self,
-        message_provider: &dyn MessageProvider,
+        message_provider: &AuthMessageProvider,
     ) -> anyhow::Result<AuthState>;
 
     async fn refresh(&self, refresh_token: String) -> anyhow::Result<AuthState>;
@@ -45,6 +45,6 @@ pub fn get_auth_provider(auth_backend: &AuthBackend) -> Box<dyn AuthProvider + S
 
         AuthBackend::Telegram(auth_data) => Box::new(TGAuthProvider::new(&auth_data.auth_base_url)),
 
-        AuthBackend::Offline(auth_data) => Box::new(OfflineAuthProvider::new(&auth_data.nickname)),
+        AuthBackend::Offline => Box::new(OfflineAuthProvider::new()),
     }
 }

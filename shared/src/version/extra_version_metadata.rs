@@ -26,18 +26,13 @@ pub struct ElyByAuthBackend {
 }
 
 #[derive(Deserialize, Serialize, Clone, PartialEq)]
-pub struct OfflineAuthBackend {
-    pub nickname: String,
-}
-
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum AuthBackend {
     Telegram(TelegramAuthBackend),
     #[serde(rename = "ely.by")]
     ElyBy(ElyByAuthBackend),
     Microsoft,
-    Offline(OfflineAuthBackend),
+    Offline,
 }
 
 impl Default for AuthBackend {
@@ -54,7 +49,7 @@ impl AuthBackend {
                 format!("elyby_{}_{}", auth_data.client_id, auth_data.client_secret)
             }
             AuthBackend::Microsoft => "microsoft".to_string(),
-            AuthBackend::Offline(auth_data) => format!("offline_{}", auth_data.nickname),
+            AuthBackend::Offline => "offline".to_string(),
         }
     }
 
@@ -69,9 +64,7 @@ impl AuthBackend {
                 client_secret: parts[2].to_string(),
             }),
             "microsoft" => AuthBackend::Microsoft,
-            "offline" => AuthBackend::Offline(OfflineAuthBackend {
-                nickname: parts[1].to_string(),
-            }),
+            "offline" => AuthBackend::Offline,
             _ => {
                 warn!("Unknown auth backend id: {}", id);
                 AuthBackend::Microsoft

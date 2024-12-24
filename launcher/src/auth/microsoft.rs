@@ -1,7 +1,7 @@
+use super::auth::AuthMessageProvider;
 use super::base::{AuthProvider, AuthResultData, AuthState};
 use super::user_info::UserInfo;
 use crate::lang::LangMessage;
-use crate::message_provider::MessageProvider;
 use crate::vendor::minecraft_msa_auth::MinecraftAuthorizationFlow;
 use async_trait::async_trait;
 use oauth2::reqwest::async_http_client;
@@ -44,7 +44,7 @@ fn get_oauth_client() -> oauth2::basic::BasicClient {
     )
 }
 
-async fn get_ms_token(message_provider: &dyn MessageProvider) -> anyhow::Result<AuthResultData> {
+async fn get_ms_token(message_provider: &AuthMessageProvider) -> anyhow::Result<AuthResultData> {
     let client = get_oauth_client();
 
     let details: StandardDeviceAuthorizationResponse = client
@@ -59,7 +59,9 @@ async fn get_ms_token(message_provider: &dyn MessageProvider) -> anyhow::Result<
         Url::parse_with_params(details.verification_uri(), &[("otc", code.clone())])?.to_string();
 
     let _ = open::that(&url);
-    message_provider.set_message(LangMessage::DeviceAuthMessage { url, code });
+    message_provider
+        .set_message(LangMessage::DeviceAuthMessage { url, code })
+        .await;
 
     let token = client
         .exchange_device_access_token(&details)
@@ -96,10 +98,10 @@ impl MicrosoftAuthProvider {
 impl AuthProvider for MicrosoftAuthProvider {
     async fn authenticate(
         &self,
-        message_provider: &dyn MessageProvider,
+        message_provider: &AuthMessageProvider,
     ) -> anyhow::Result<AuthState> {
         let ms_token = get_ms_token(message_provider).await?;
-        message_provider.clear();
+        message_provider.clear().await;
         let mc_flow = MinecraftAuthorizationFlow::new(Client::new());
         let mc_token = mc_flow
             .exchange_microsoft_token(ms_token.access_token)

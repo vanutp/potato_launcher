@@ -89,6 +89,7 @@ impl Config {
         if let Some(selected_instance_name) = &self.selected_instance_name {
             self.auth_profiles
                 .insert(selected_instance_name.clone(), auth_profile);
+            self.save();
         } else {
             warn!("Failed to set selected auth profile: no selected instance name");
         }
@@ -97,6 +98,7 @@ impl Config {
     pub fn clear_selected_auth_profile(&mut self) {
         if let Some(selected_instance_name) = &self.selected_instance_name {
             self.auth_profiles.remove(selected_instance_name);
+            self.save();
         } else {
             warn!("Failed to clear selected auth profile: no selected instance name");
         }

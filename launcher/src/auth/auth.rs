@@ -1,28 +1,22 @@
 use std::sync::Arc;
-use std::sync::Mutex;
+
+use tokio::sync::{mpsc, Mutex};
 
 use crate::lang::LangMessage;
-use crate::message_provider::MessageProvider;
 
 use super::base::{AuthProvider, AuthResultData, AuthState};
 use super::user_info::AuthData;
 
 struct AuthMessageState {
     auth_message: Option<LangMessage>,
+    need_offline_nickname: u32,
 }
 
 pub struct AuthMessageProvider {
     state: Arc<Mutex<AuthMessageState>>,
+    offline_nickname_sender: mpsc::UnboundedSender<String>,
+    offline_nickname_receiver: Arc<Mutex<mpsc::UnboundedReceiver<String>>>,
     ctx: egui::Context,
-}
-
-impl AuthMessageProvider {
-    pub fn new(ctx: &egui::Context) -> Self {
-        Self {
-            state: Arc::new(Mutex::new(AuthMessageState { auth_message: None })),
-            ctx: ctx.clone(),
-        }
-    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -31,13 +25,26 @@ pub enum AuthError {
     InfiniteAuthLoop,
 }
 
-impl MessageProvider for AuthMessageProvider {
-    fn set_message(&self, message: LangMessage) {
+impl AuthMessageProvider {
+    pub fn new(ctx: &egui::Context) -> Self {
+        let (sender, receiver) = mpsc::unbounded_channel();
+        Self {
+            state: Arc::new(Mutex::new(AuthMessageState {
+                auth_message: None,
+                need_offline_nickname: 0,
+            })),
+            offline_nickname_sender: sender,
+            offline_nickname_receiver: Arc::new(Mutex::new(receiver)),
+            ctx: ctx.clone(),
+        }
+    }
+
+    pub async fn set_message(&self, message: LangMessage) {
         if matches!(
             message,
             LangMessage::AuthMessage { .. } | LangMessage::DeviceAuthMessage { .. }
         ) {
-            let mut state = self.state.lock().unwrap();
+            let mut state = self.state.lock().await;
             state.auth_message = Some(message);
             self.ctx.request_repaint();
         } else {
@@ -45,15 +52,41 @@ impl MessageProvider for AuthMessageProvider {
         }
     }
 
-    fn get_message(&self) -> Option<LangMessage> {
-        let state = self.state.lock().unwrap();
+    pub async fn get_message(&self) -> Option<LangMessage> {
+        let state = self.state.lock().await;
         return state.auth_message.clone();
     }
 
-    fn clear(&self) {
-        let mut state = self.state.lock().unwrap();
+    pub async fn clear(&self) {
+        let mut state = self.state.lock().await;
         state.auth_message = None;
         self.ctx.request_repaint();
+    }
+
+    pub async fn request_offline_nickname(&self) -> String {
+        {
+            let mut state = self.state.lock().await;
+            state.need_offline_nickname += 1;
+        }
+        let nickname = self
+            .offline_nickname_receiver
+            .lock()
+            .await
+            .recv()
+            .await
+            .unwrap();
+        nickname
+    }
+
+    pub async fn need_offline_nickname(&self) -> bool {
+        let state = self.state.lock().await;
+        state.need_offline_nickname > 0
+    }
+
+    pub async fn set_offline_nickname(&self, nickname: String) {
+        let mut state = self.state.lock().await;
+        state.need_offline_nickname -= 1;
+        self.offline_nickname_sender.send(nickname).unwrap();
     }
 }
 

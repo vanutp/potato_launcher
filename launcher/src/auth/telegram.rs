@@ -1,7 +1,7 @@
 use crate::lang::LangMessage;
-use crate::message_provider::MessageProvider;
 
 use super::{
+    auth::AuthMessageProvider,
     base::{AuthProvider, AuthResultData, AuthState},
     user_info::UserInfo,
 };
@@ -52,7 +52,7 @@ impl TGAuthProvider {
 impl AuthProvider for TGAuthProvider {
     async fn authenticate(
         &self,
-        message_provider: &dyn MessageProvider,
+        message_provider: &AuthMessageProvider,
     ) -> anyhow::Result<AuthState> {
         let bot_name = self.get_bot_name().await?;
         let body = self
@@ -66,7 +66,9 @@ impl AuthProvider for TGAuthProvider {
 
         let tg_deeplink = format!("https://t.me/{}?start={}", bot_name, start_resp.code);
         let _ = open::that(&tg_deeplink);
-        message_provider.set_message(LangMessage::AuthMessage { url: tg_deeplink });
+        message_provider
+            .set_message(LangMessage::AuthMessage { url: tg_deeplink })
+            .await;
 
         let access_token;
         loop {

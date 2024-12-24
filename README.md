@@ -2,6 +2,8 @@
 
 A Minecraft launcher that is both extremely easy to use and trivial to deploy with basic DevOps skills. Perfect for frequently changing instances.
 
+![Potato Launcher](image.png)
+
 ## Key Features
 
 - **Simple UI**: Does all the hard work in the background, including syncing instance files, installing Java, and self-updating.
