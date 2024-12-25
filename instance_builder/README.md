@@ -64,7 +64,7 @@ For more details on configuring the `spec.json` file, refer to the [spec.json.ex
 
 To build instances for the launcher, follow these steps:
 
-1. **Prepare the Configuration**: Ensure that your `spec.json` file is properly configured. You can use the provided [spec.json.example](instance_builder/spec.json.example) as a reference.
+1. **Prepare the Configuration**: Ensure that your `spec.json` file is properly configured. You can use the provided [spec.json.example](spec.json.example) as a reference.
 
 2. **Run the Builder**: Execute the Instance Builder with the following command:
 
