@@ -111,8 +111,9 @@ impl LauncherApp {
                         self.auth_state.reset(&mut self.config, &self.runtime, ctx);
                         self.manifest_state.retry_fetch(&self.runtime, ctx);
                         self.metadata_state.reset(); // just reset the state, not the task
-                                                     // metadata is checked after manifest is fetched
-                                                     // java is checked after metadata is fetched
+
+                        // metadata is checked after manifest is fetched
+                        // java is checked after metadata is fetched
                     }
                 });
                 ui.add_space(5.0);

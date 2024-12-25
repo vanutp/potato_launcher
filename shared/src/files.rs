@@ -1,3 +1,4 @@
+use log::error;
 use reqwest::Client;
 use sha1::{Digest, Sha1};
 use std::collections::HashMap;
@@ -78,7 +79,7 @@ pub async fn download_files<M>(
     download_entries: Vec<DownloadEntry>,
     progress_bar: Arc<dyn ProgressBar<M> + Send + Sync>,
 ) -> anyhow::Result<()> {
-    let max_concurrent_downloads: usize = num_cpus::get() * 4;
+    let max_concurrent_downloads: usize = num_cpus::get() * 2;
     let client = Client::new();
 
     let total_size = download_entries.len() as u64;
@@ -88,7 +89,14 @@ pub async fn download_files<M>(
         async move { download_file(&client, &entry.url, &entry.path).await }
     });
 
-    run_tasks_with_progress(futures, progress_bar, total_size, max_concurrent_downloads).await?;
+    if let Some(err) =
+        run_tasks_with_progress(futures, progress_bar, total_size, max_concurrent_downloads)
+            .await
+            .err()
+    {
+        error!("Failed to download files: {:#}", err);
+        return Err(err);
+    }
     Ok(())
 }
 

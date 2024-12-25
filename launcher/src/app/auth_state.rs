@@ -396,7 +396,13 @@ impl AuthState {
         }
     }
 
-    fn render_buttons(&mut self, ui: &mut egui::Ui, config: &mut Config) {
+    fn render_buttons(
+        &mut self,
+        ui: &mut egui::Ui,
+        config: &mut Config,
+        runtime: &Runtime,
+        instance_auth_backend: Option<&AuthBackend>,
+    ) {
         let mut auth_profile = config.get_selected_auth_profile().cloned();
 
         if ui
@@ -414,16 +420,30 @@ impl AuthState {
         }
 
         if ui.button("+").clicked() {
-            self.show_add_account = true;
+            if let Some(instance_auth_backend) = instance_auth_backend {
+                let ctx = ui.ctx();
 
-            self.new_account_type = NewAccountType::Microsoft;
+                self.auth_status = AuthStatus::NotAuthorized;
+                self.auth_message_provider = Arc::new(AuthMessageProvider::new(ctx));
+                self.auth_task = Some(authenticate(
+                    runtime,
+                    None,
+                    instance_auth_backend,
+                    self.auth_message_provider.clone(),
+                    ctx,
+                ));
+            } else {
+                self.show_add_account = true;
 
-            self.ely_by_client_id = String::new();
-            self.ely_by_client_secret = String::new();
+                self.new_account_type = NewAccountType::Microsoft;
 
-            self.telegram_auth_base_url = String::new();
+                self.ely_by_client_id = String::new();
+                self.ely_by_client_secret = String::new();
 
-            self.offline_nickname = String::new();
+                self.telegram_auth_base_url = String::new();
+
+                self.offline_nickname = String::new();
+            }
         }
     }
 
@@ -502,7 +522,7 @@ impl AuthState {
                 .get_id_nicknames(&instance_auth_backend.get_id());
 
             if entries.len() != 0 {
-                self.render_buttons(ui, config);
+                self.render_buttons(ui, config, runtime, Some(instance_auth_backend));
 
                 let mut selected_username = auth_profile.as_ref().map(|x| x.username.to_string());
                 ComboBox::from_id_source("select_account")
@@ -567,7 +587,7 @@ impl AuthState {
                 });
             }
         } else {
-            self.render_buttons(ui, config);
+            self.render_buttons(ui, config, runtime, instance_auth_backend);
 
             let mut all_entries = self.auth_storage.get_all_entries();
 
