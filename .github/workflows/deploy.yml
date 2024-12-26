@@ -8,6 +8,11 @@ defaults:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    env:
+      HAS_SSH_KEY: ${{ secrets.SSH_KEY != '' }}
+      HAS_SERVER_USER: ${{ secrets.SERVER_USER != '' }}
+      HAS_SERVER_ADDR: ${{ secrets.SERVER_ADDR != '' }}
+      HAS_POST_DEPLOY_SCRIPT: ${{ secrets.POST_DEPLOY_SCRIPT_PATH != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -101,26 +106,27 @@ jobs:
           fi
 
       - name: Set up SSH
-        if: github.ref == 'refs/heads/master'
+        if: ${{ github.ref == 'refs/heads/master' && env.HAS_SSH_KEY == 'true' && env.HAS_SERVER_USER == 'true' && env.HAS_SERVER_ADDR == 'true' }}
         uses: shimataro/ssh-key-action@v2
         with:
           key: ${{ secrets.SSH_KEY }}
           known_hosts: no
 
       - name: Deploy to server
-        if: github.ref == 'refs/heads/master'
+        if: ${{ github.ref == 'refs/heads/master' && env.HAS_SSH_KEY == 'true' && env.HAS_SERVER_USER == 'true' && env.HAS_SERVER_ADDR == 'true' }}
         env:
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_ADDR: ${{ secrets.SERVER_ADDR }}
           SERVER_PATH: ${{ secrets.SERVER_PATH }}
         run: scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null build/* $SERVER_USER@$SERVER_ADDR:$SERVER_PATH/
 
-      - name: Purge Cloudflare cache
-        if: github.ref == 'refs/heads/master'
+      - name: Run post-deploy script
+        if: ${{ github.ref == 'refs/heads/master' && env.HAS_SSH_KEY == 'true' && env.HAS_SERVER_USER == 'true' && env.HAS_SERVER_ADDR == 'true' && env.HAS_POST_DEPLOY_SCRIPT == 'true' }}
         env:
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_ADDR: ${{ secrets.SERVER_ADDR }}
-        run: ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $SERVER_USER@$SERVER_ADDR '~/purge_cf_cache.sh'
+          POST_DEPLOY_SCRIPT_PATH: ${{ secrets.POST_DEPLOY_SCRIPT_PATH }}
+        run: ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $SERVER_USER@$SERVER_ADDR "bash \"$POST_DEPLOY_SCRIPT_PATH\""
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

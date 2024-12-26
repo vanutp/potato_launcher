@@ -57,6 +57,11 @@ pub fn run_gui(config: &runtime_config::Config) {
         return;
     }
 
+    if build_config::get_auto_update_base().is_none() {
+        info!("Auto update URL not set, skipping auto-update");
+        return;
+    }
+
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size((300.0, 150.0))
