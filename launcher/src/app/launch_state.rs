@@ -18,6 +18,7 @@ enum LauncherStatus {
 pub struct LaunchState {
     status: LauncherStatus,
     force_launch: bool,
+    launch_from_start: bool,
 }
 
 pub enum ForceLaunchResult {
@@ -27,10 +28,11 @@ pub enum ForceLaunchResult {
 }
 
 impl LaunchState {
-    pub fn new() -> Self {
+    pub fn new(launch_from_start: bool) -> Self {
         LaunchState {
             status: LauncherStatus::NotLaunched,
             force_launch: false,
+            launch_from_start,
         }
     }
 
@@ -118,21 +120,23 @@ impl LaunchState {
                         LangMessage::Offline.to_string(lang)
                     )
                 };
-                ui.add_enabled_ui(
-                    selected_instance.is_some() && auth_data.is_some() && !disabled,
-                    |ui| {
-                        if Self::big_button_clicked(ui, &button_text) || self.force_launch {
-                            self.force_launch = false;
-                            self.launch(
-                                runtime,
-                                config,
-                                &selected_instance.unwrap(),
-                                &auth_data.unwrap(),
-                                online,
-                            );
-                        }
-                    },
-                );
+                let enabled = selected_instance.is_some() && auth_data.is_some() && !disabled;
+                ui.add_enabled_ui(enabled, |ui| {
+                    if Self::big_button_clicked(ui, &button_text)
+                        || (enabled && (self.force_launch || self.launch_from_start))
+                    {
+                        self.launch_from_start = false;
+
+                        self.force_launch = false;
+                        self.launch(
+                            runtime,
+                            config,
+                            &selected_instance.unwrap(),
+                            &auth_data.unwrap(),
+                            online,
+                        );
+                    }
+                });
             }
         }
 
@@ -164,7 +168,10 @@ impl LaunchState {
                 if LaunchState::big_button_clicked(
                     ui,
                     &LangMessage::DownloadAndLaunch.to_string(lang),
-                ) {
+                ) || (!disabled && self.launch_from_start)
+                {
+                    self.launch_from_start = false;
+
                     button_clicked = true;
                 }
             });

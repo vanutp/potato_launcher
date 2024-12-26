@@ -36,7 +36,7 @@ pub struct LauncherApp {
     new_instance_state: NewInstanceState,
 }
 
-pub fn run_gui(config: Config) {
+pub fn run_gui(config: Config, launch: bool) {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size((670.0, 450.0))
@@ -48,9 +48,9 @@ pub fn run_gui(config: Config) {
     run_native(
         &build_config::get_launcher_name(),
         native_options,
-        Box::new(|cc| {
+        Box::new(move |cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
-            Ok(Box::new(LauncherApp::new(config, &cc.egui_ctx)))
+            Ok(Box::new(LauncherApp::new(config, &cc.egui_ctx, launch)))
         }),
     )
     .unwrap();
@@ -67,7 +67,7 @@ impl eframe::App for LauncherApp {
 }
 
 impl LauncherApp {
-    fn new(config: Config, ctx: &egui::Context) -> Self {
+    fn new(config: Config, ctx: &egui::Context, launch: bool) -> Self {
         let runtime = Runtime::new().unwrap();
 
         LauncherApp {
@@ -77,7 +77,7 @@ impl LauncherApp {
             metadata_state: MetadataState::new(),
             java_state: JavaState::new(ctx),
             instance_sync_state: InstanceSyncState::new(ctx),
-            launch_state: LaunchState::new(),
+            launch_state: LaunchState::new(launch),
             new_instance_state: NewInstanceState::new(&runtime, ctx),
             instance_storage: runtime.block_on(InstanceStorage::load(&config)),
             config,

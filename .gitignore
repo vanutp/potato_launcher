@@ -4,7 +4,7 @@
 *.spec
 target
 .vscode
-spec.json
+*.json
 generated/
 workdir/
 .direnv/
