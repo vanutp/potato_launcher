@@ -67,7 +67,7 @@ jobs:
             sips -z 1024 1024 "$PNG_PATH" --out icon.iconset/icon_512x512@2x.png
             iconutil -c icns icon.iconset -o launcher/assets/icon.icns
 
-            cargo install cargo-bundle
+            which cargo-bundle || cargo install cargo-bundle
 
             export MACOSX_DEPLOYMENT_TARGET=10.8
 

@@ -29,13 +29,29 @@ fn main() {
     }
     fs::write(dest_path, config_content).unwrap();
 
+    let data_launcher_name = env::var("LAUNCHER_NAME")
+        .unwrap()
+        .to_lowercase()
+        .replace(" ", "_");
+    let mut res = winres::WindowsResource::new();
+
     if cfg!(target_os = "windows") {
-        let data_launcher_name = env::var("LAUNCHER_NAME")
-            .unwrap()
-            .to_lowercase()
-            .replace(" ", "_");
-        let mut res = winres::WindowsResource::new();
         res.set_icon(&format!("assets/{}.ico", data_launcher_name));
         res.compile().unwrap();
     }
+
+    let icon_src = format!(
+        "{}/assets/{}.png",
+        env::var("CARGO_MANIFEST_DIR").unwrap().replace("\\", "/"),
+        data_launcher_name
+    );
+    let icon_out = format!("{}/icon_file_bytes.rs", out_dir);
+    fs::write(
+        &icon_out,
+        format!(
+            "pub const LAUNCHER_ICON: &[u8] = include_bytes!(\"{}\");",
+            icon_src
+        ),
+    )
+    .unwrap();
 }
