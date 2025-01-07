@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::Path};
 
-use log::warn;
+use log::{error, warn};
 use serde::{Deserialize, Serialize};
 use shared::{
     paths::{get_instance_dir, get_local_instances_path},
@@ -166,11 +166,11 @@ impl InstanceStorage {
             }
 
             if let Err(e) = tokio::fs::rename(&instance_dir, &unique_temp_dir).await {
-                eprintln!("Error moving instance directory: {}", e);
+                error!("Error moving instance directory: {}", e);
             } else {
                 task::spawn(async move {
                     if let Err(e) = tokio::fs::remove_dir_all(&unique_temp_dir).await {
-                        eprintln!("Error deleting temporary directory: {}", e);
+                        error!("Error deleting temporary directory: {}", e);
                     }
                 });
             }

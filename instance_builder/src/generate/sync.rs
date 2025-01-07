@@ -19,7 +19,7 @@ pub fn get_libraries_check_downloads(
 ) -> Vec<CheckEntry> {
     let mut entries = vec![];
     for library in &version_metadata.libraries {
-        entries.extend(library.get_all_check_download_entries(libraries_dir));
+        entries.extend(library.get_check_entries(libraries_dir, None));
     }
     debug!("Library check entries: {:?}", entries);
     entries
@@ -31,11 +31,7 @@ fn get_client_download_entry(
 ) -> Option<CheckEntry> {
     let client_download = version_metadata.downloads.as_ref()?.client.as_ref()?;
 
-    Some(CheckEntry {
-        url: client_download.url.clone(),
-        remote_sha1: Some(client_download.sha1.clone()),
-        path: get_client_jar_path(data_dir, &version_metadata.id),
-    })
+    Some(client_download.get_check_entry(&get_client_jar_path(data_dir, &version_metadata.id)))
 }
 
 const RESOURCES_URL_BASE: &str = "https://resources.download.minecraft.net";

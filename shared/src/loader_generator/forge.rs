@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fmt::{Debug, Display},
     io::Write as _,
     path::{Path, PathBuf},
@@ -11,7 +11,6 @@ use crate::{
     java::{download_java, get_java},
     paths::{get_java_dir, get_libraries_dir, get_metadata_path, get_versions_dir},
     progress::ProgressBar,
-    utils::exec_custom_command_in_dir,
     version::{version_manifest::VersionInfo, version_metadata::VersionMetadata},
 };
 use async_trait::async_trait;
@@ -283,18 +282,20 @@ pub async fn get_forge_version(
                     info!("Version not set, using \"{}\"", FORGE_DEFAULT);
                     forge_promotions
                         .get_latest_version(minecraft_version, FORGE_DEFAULT)
-                        .ok_or_else(|| {
-                            ForgeError::ForgeVersionNotFound(
-                                FORGE_DEFAULT.to_string(),
-                                minecraft_version.to_string(),
-                            )
-                        })?
+                        .ok_or(ForgeError::ForgeVersionNotFound(
+                            FORGE_DEFAULT.to_string(),
+                            minecraft_version.to_string(),
+                        ))?
                 }
             };
 
             let forge_maven_metadata = ForgeMavenMetadata::fetch().await?;
             if forge_maven_metadata.has_version(minecraft_version, &forge_version) {
                 return Ok(forge_version);
+            }
+            let version_with_suffix = format!("{}-{}", forge_version, minecraft_version);
+            if forge_maven_metadata.has_version(minecraft_version, &version_with_suffix) {
+                return Ok(version_with_suffix);
             }
         }
         Loader::Neoforge => {
@@ -306,12 +307,10 @@ pub async fn get_forge_version(
                     info!("Version not set, using latest");
                     neoforge_maven_metadata
                         .get_latest_matching_version(minecraft_version)
-                        .ok_or_else(|| {
-                            ForgeError::ForgeVersionNotFound(
-                                "neoforge:latest".to_string(),
-                                minecraft_version.to_string(),
-                            )
-                        })?
+                        .ok_or(ForgeError::ForgeVersionNotFound(
+                            "neoforge:latest".to_string(),
+                            minecraft_version.to_string(),
+                        ))?
                 }
             };
 
@@ -345,7 +344,7 @@ pub async fn get_vanilla_java_version(
 pub fn trick_forge(forge_work_dir: &Path, minecraft_version: &str) -> anyhow::Result<()> {
     std::fs::create_dir_all(forge_work_dir.join("versions").join(minecraft_version))?;
     let mut file = std::fs::File::create(forge_work_dir.join("launcher_profiles.json"))?;
-    file.write(b"{}")?;
+    file.write(b"{\"profiles\":{}}")?;
     Ok(())
 }
 
@@ -371,6 +370,50 @@ fn to_abs_path_str(path: &Path) -> anyhow::Result<String> {
     {
         Ok(path_str.to_string())
     }
+}
+
+async fn run_forge_command(
+    java_path: &Path,
+    forge_installer_path: &Path,
+    forge_work_dir: &Path,
+) -> anyhow::Result<()> {
+    let mut cmd = tokio::process::Command::new(&java_path.canonicalize()?);
+    cmd.current_dir(&forge_work_dir.canonicalize()?)
+        .arg("-jar")
+        .arg(&to_abs_path_str(forge_installer_path)?)
+        .arg("--installClient")
+        .arg(".");
+    info!("Running forge installer: {:?}", cmd);
+
+    let output = cmd.output().await?;
+    if !output.status.success() {
+        let stderr_str = String::from_utf8_lossy(&output.stderr);
+        if stderr_str.contains("'installClient' is not a recognized option") {
+            info!("Retrying without '--installClient' argument.");
+            let mut retry_cmd = tokio::process::Command::new(&java_path.canonicalize()?);
+            retry_cmd
+                .current_dir(&forge_work_dir.canonicalize()?)
+                .arg("-jar")
+                .arg(&to_abs_path_str(forge_installer_path)?);
+            let retry_output = retry_cmd.output().await?;
+            if !retry_output.status.success() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!(
+                        "Command failed: {:?}",
+                        String::from_utf8_lossy(&output.stderr)
+                    ),
+                )
+                .into());
+            }
+        } else {
+            return Err(
+                std::io::Error::new(std::io::ErrorKind::Other, stderr_str.to_string()).into(),
+            );
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn install_forge<M>(
@@ -418,15 +461,12 @@ pub async fn install_forge<M>(
 
         trick_forge(forge_work_dir, minecraft_version)?;
 
-        let command = format!(
-            "\"{}\" -jar \"{}\" --installClient .",
-            to_abs_path_str(&java_installation.path)?,
-            to_abs_path_str(&forge_installer_path)?
-        );
-        info!("Running forge installer: {}", command);
-        exec_custom_command_in_dir(&command, &forge_work_dir).await?;
-
-        std::fs::File::create(lock_file)?;
+        run_forge_command(
+            &java_installation.path,
+            &forge_installer_path,
+            forge_work_dir,
+        )
+        .await?;
     } else {
         info!(
             "Forge {} already present, skipping installation",
@@ -445,6 +485,10 @@ pub async fn install_forge<M>(
         .ok_or(ForgeError::NoForgeProfiles)?
         .last_version_id
         .clone();
+
+    if !lock_file.exists() {
+        std::fs::File::create(lock_file)?;
+    }
 
     Ok(id)
 }
@@ -495,29 +539,12 @@ impl VersionGenerator for ForgeGenerator {
         let forge_metadata = VersionMetadata::read_local(&versions_dir_to, &id).await?;
 
         let installer_libraries_dir = installer_work_dir.join("libraries");
-        let metadata_libs_paths = forge_metadata
-            .libraries
-            .iter()
-            .filter_map(|lib| {
-                if let Some(downloads) = &lib.downloads {
-                    if let Some(artifact) = &downloads.artifact {
-                        if artifact.url != "" {
-                            return lib.get_path(&installer_libraries_dir);
-                        }
-                    }
-                }
-                None
-            })
-            .collect::<HashSet<_>>();
 
         let extra_libs_paths = files::get_files_in_dir(&installer_libraries_dir)?
             .into_iter()
             .filter_map(|path| {
                 let extension = path.extension().and_then(|ext| ext.to_str());
-                if path.is_file()
-                    && extension == Some("jar")
-                    && !metadata_libs_paths.contains(&path)
-                {
+                if path.is_file() && extension == Some("jar") {
                     Some(
                         path.strip_prefix(&installer_libraries_dir)
                             .unwrap()
