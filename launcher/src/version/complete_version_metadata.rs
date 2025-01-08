@@ -1,5 +1,5 @@
-use std::{collections::HashSet, path::Path};
-
+use std::path::Path;
+use std::collections::HashMap;
 use shared::{
     files::{self, CheckEntry},
     paths::{get_client_jar_path, get_versions_dir, get_versions_extra_dir},
@@ -132,15 +132,16 @@ impl CompleteVersionMetadata {
             .rev() // prioritize child libraries
             .flat_map(|metadata| with_overrides(&metadata.libraries, &metadata.id));
 
-        let mut existing_names = HashSet::new();
+        let mut existing_names = HashMap::new();
         all_libraries
             .filter(|library| library.applies_to_os(&os::get_os_name(), &os::get_system_arch()))
             .filter(|library| {
-                let name = library.get_name_without_version();
-                if existing_names.contains(&name) {
-                    false
+                // Newer NeoForge versions add duplicate asm library
+                let (name, version) = library.get_name_and_version();
+                if let Some(prev_version) = existing_names.get(&name) {
+                    version == *prev_version
                 } else {
-                    existing_names.insert(name);
+                    existing_names.insert(name, version);
                     true
                 }
             })

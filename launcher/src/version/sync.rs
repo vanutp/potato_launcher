@@ -178,38 +178,20 @@ fn extract_natives(
         if let Some(natives_path) =
             library.get_os_native_path(libraries_dir, &os::get_os_name(), &os::get_system_arch())
         {
-            let exclude = library.get_extract().map(|x| {
-                x.exclude
-                    .clone()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .collect::<HashSet<_>>()
-            });
-            extract_files(&natives_path, &natives_dir, exclude)?;
+            extract_files(&natives_path, &natives_dir)?;
         }
     }
 
     Ok(())
 }
 
-fn extract_files(src: &Path, dest: &Path, exclude: Option<HashSet<String>>) -> anyhow::Result<()> {
-    let exclude = exclude.unwrap_or_default();
-
+fn extract_files(src: &Path, dest: &Path) -> anyhow::Result<()> {
     let file = fs::File::open(src)?;
     let mut zip = ZipArchive::new(file)?;
 
     for i in 0..zip.len() {
         let mut entry = zip.by_index(i)?;
         if let Some(file_path) = entry.enclosed_name() {
-            if let Some(directory) = file_path.components().next() {
-                let directory = directory.as_os_str().to_str().unwrap_or_default();
-                if exclude.contains(directory)
-                    || exclude.contains(format!("{}/", directory).as_str())
-                {
-                    continue;
-                }
-            }
-
             let output_path = dest.join(file_path);
             if entry.is_file() {
                 if let Some(parent) = output_path.parent() {

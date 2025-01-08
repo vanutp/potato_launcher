@@ -189,11 +189,6 @@ pub struct LibraryDownloads {
     pub classifiers: Option<HashMap<String, Download>>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct LibraryExtract {
-    pub exclude: Option<Vec<String>>,
-}
-
 const MOJANG_LIBRARIES_URL: &str = "https://libraries.minecraft.net/";
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -204,7 +199,6 @@ pub struct Library {
     pub url: Option<String>,
     pub sha1: Option<String>,
     pub natives: Option<HashMap<String, String>>,
-    extract: Option<LibraryExtract>,
 }
 
 impl Library {
@@ -219,7 +213,6 @@ impl Library {
             url: None,
             sha1: None,
             natives: None,
-            extract: None,
         }
     }
 
@@ -361,10 +354,6 @@ impl Library {
         self.get_url() + &self.get_path_from_name() + ".sha1"
     }
 
-    pub fn get_extract(&self) -> Option<&LibraryExtract> {
-        self.extract.as_ref()
-    }
-
     pub fn get_group_id(&self) -> String {
         let parts: Vec<&str> = self.name.split(':').collect();
         parts[0].to_string()
@@ -374,13 +363,14 @@ impl Library {
         self.name.clone()
     }
 
-    pub fn get_name_without_version(&self) -> String {
+    pub fn get_name_and_version(&self) -> (String, String) {
         let mut parts: Vec<&str> = self.name.split(':').collect();
         if parts.len() != 4 {
             parts.push("");
         }
+        let version = parts[2].to_string();
         parts.remove(2);
-        parts.join(":")
+        (parts.join(":"), version)
     }
 }
 
