@@ -374,13 +374,14 @@ impl Library {
         self.name.clone()
     }
 
-    pub fn get_name_without_version(&self) -> String {
+    pub fn get_name_and_version(&self) -> (String, String) {
         let mut parts: Vec<&str> = self.name.split(':').collect();
         if parts.len() != 4 {
             parts.push("");
         }
+        let version = parts[2].to_string();
         parts.remove(2);
-        parts.join(":")
+        (parts.join(":"), version)
     }
 }
 
