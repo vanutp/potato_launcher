@@ -168,7 +168,7 @@ pub async fn get_download_entries<M>(
         .map(|(path, hash)| (path, hash))
         .collect::<HashMap<_, _>>();
 
-    let mut download_entries = Vec::new();
+    let mut download_entries = HashMap::new();
     for entry in check_entries {
         let mut need_download = false;
         if !entry.path.exists() {
@@ -184,14 +184,17 @@ pub async fn get_download_entries<M>(
         }
 
         if need_download {
-            download_entries.push(DownloadEntry {
-                url: entry.url.clone(),
-                path: entry.path.clone(),
-            });
+            download_entries.insert(
+                entry.path.clone(),
+                DownloadEntry {
+                    url: entry.url.clone(),
+                    path: entry.path.clone(),
+                },
+            );
         }
     }
 
-    Ok(download_entries)
+    Ok(download_entries.into_values().collect())
 }
 
 async fn remove_empty_dirs(path: &Path) -> anyhow::Result<()> {

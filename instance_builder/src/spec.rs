@@ -20,7 +20,7 @@ use shared::{
         get_extra_metadata_path, get_instance_dir, get_metadata_path, get_versions_dir,
         get_versions_extra_dir,
     },
-    utils::{exec_custom_command, get_vanilla_version_info, VANILLA_MANIFEST_URL},
+    utils::{get_vanilla_version_info, VANILLA_MANIFEST_URL},
     version::{
         asset_metadata::AssetsMetadata, extra_version_metadata::AuthBackend,
         version_manifest::VersionManifest,
@@ -30,7 +30,7 @@ use shared::{
 use crate::{
     generate::{mapping::get_mapping, patch::replace_download_urls, sync::sync_version},
     progress::TerminalProgressBar,
-    utils::{get_assets_dir, get_replaced_metadata_dir},
+    utils::{exec_string_command, get_assets_dir, get_replaced_metadata_dir},
 };
 
 fn vanilla() -> String {
@@ -87,7 +87,7 @@ impl VersionsSpec {
 
     pub async fn generate(&self, output_dir: &Path, work_dir: &Path) -> anyhow::Result<()> {
         if let Some(command) = &self.exec_before_all {
-            exec_custom_command(&command).await?;
+            exec_string_command(&command).await?;
         }
 
         info!("Fetching version manifest");
@@ -99,7 +99,7 @@ impl VersionsSpec {
 
         for version in &self.versions {
             if let Some(command) = &version.exec_before {
-                exec_custom_command(&command).await?;
+                exec_string_command(&command).await?;
             }
 
             let vanilla_version_info =
@@ -234,7 +234,7 @@ impl VersionsSpec {
             mapping.extend(get_mapping(output_dir, work_dir, &workdir_paths_to_copy)?);
 
             if let Some(command) = &version.exec_after {
-                exec_custom_command(&command).await?;
+                exec_string_command(&command).await?;
             }
 
             info!("Finished generating version {}", &version.name);
@@ -248,7 +248,7 @@ impl VersionsSpec {
         version_manifest.save_to_file(&manifest_path).await?;
 
         if let Some(command) = &self.exec_after_all {
-            exec_custom_command(&command).await?;
+            exec_string_command(&command).await?;
         }
         Ok(())
     }

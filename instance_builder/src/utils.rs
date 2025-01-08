@@ -15,3 +15,16 @@ pub fn get_replaced_metadata_dir(output_dir: &Path) -> PathBuf {
     }
     replaced_manifests_dir
 }
+
+pub async fn exec_string_command(command: &str) -> anyhow::Result<()> {
+    let parts = shell_words::split(command)?;
+    let mut cmd = tokio::process::Command::new(&parts[0]);
+    if parts.len() > 1 {
+        cmd.args(&parts[1..]);
+    }
+    let status = cmd.status().await?;
+    if !status.success() {
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, "Command failed").into());
+    }
+    Ok(())
+}

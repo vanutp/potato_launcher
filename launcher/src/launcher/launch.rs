@@ -13,7 +13,7 @@ use crate::auth::base::get_auth_provider;
 use crate::auth::user_info::AuthData;
 use crate::config::runtime_config::Config;
 use crate::version::complete_version_metadata::CompleteVersionMetadata;
-use crate::version::rules;
+use crate::version::os;
 
 use shared::version::version_metadata;
 
@@ -52,7 +52,7 @@ fn process_args(
     let mut options = vec![];
     for arg in args {
         options.extend(
-            rules::get_matching_values(arg)
+            arg.get_matching_values(&os::get_os_name(), &os::get_system_arch())
                 .iter()
                 .map(|v| replace_launch_config_variables(v.to_string(), variables)),
         );
@@ -96,8 +96,7 @@ pub async fn launch(
     let mut used_library_paths = HashSet::new();
     let mut classpath = vec![];
     for library in version_metadata.get_libraries_with_overrides() {
-        let path = library.get_path(&libraries_dir);
-        if let Some(path) = path {
+        if let Some(path) = library.get_library_path(&libraries_dir) {
             if !path.is_file() {
                 return Err(LaunchError::MissingLibrary(path.clone()).into());
             }

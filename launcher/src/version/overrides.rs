@@ -61,21 +61,21 @@ fn with_mojang_patches(libraries: &Vec<Library>) -> Vec<Library> {
     let mut result = vec![];
     for library in libraries {
         let mut library = library.clone();
-        for override_ in &*LIBRARY_PATCHES {
-            if override_.match_.contains(&library.get_full_name()) {
-                if let Some(override_) = &override_.override_ {
+        for patches in &*LIBRARY_PATCHES {
+            if patches.match_.contains(&library.get_full_name()) {
+                if let Some(patch) = &patches.override_ {
                     info!("Modifying library: {}", library.get_full_name());
-                    if let Some(downloads) = &override_.downloads {
+                    if let Some(downloads) = &patch.downloads {
                         library.downloads = Some(downloads.clone());
                     }
-                    if let Some(natives) = &override_.natives {
+                    if let Some(natives) = &patch.natives {
                         library.natives = Some(natives.clone());
                     }
-                    if let Some(rules) = &override_.rules {
+                    if let Some(rules) = &patch.rules {
                         library.rules = Some(rules.clone());
                     }
                 }
-                if let Some(additional_libraries) = &override_.additional_libraries {
+                if let Some(additional_libraries) = &patches.additional_libraries {
                     info!(
                         "Adding additional libraries for {}",
                         library.get_full_name()

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use log::{debug, info};
+use log::{debug, info, warn};
 use shared::paths::{
     get_authlib_injector_path, get_instance_dir, get_libraries_dir, get_natives_dir,
 };
@@ -11,20 +11,14 @@ use std::fs;
 use zip::ZipArchive;
 
 use shared::files::{self, CheckEntry};
-use shared::progress::{self, ProgressBar};
+use shared::progress::ProgressBar;
 use shared::version::extra_version_metadata::{AuthBackend, ExtraVersionMetadata};
 use shared::version::version_metadata;
 
 use crate::lang::LangMessage;
 
 use super::complete_version_metadata::CompleteVersionMetadata;
-use super::rules;
-
-#[derive(thiserror::Error, Debug)]
-pub enum VersionMetadataError {
-    #[error("Library {0} has neither SHA1 hash nor SHA1 URL")]
-    NoSha1(String),
-}
+use super::os;
 
 fn get_objects_entries(
     extra_version_metadata: &ExtraVersionMetadata,
@@ -85,6 +79,48 @@ fn get_objects_entries(
     Ok(download_entries)
 }
 
+async fn fetch_hashes(
+    sha1_urls: HashMap<PathBuf, String>,
+) -> anyhow::Result<HashMap<PathBuf, String>> {
+    let client = reqwest::Client::new();
+
+    let mut futures = vec![];
+    for (path, url) in sha1_urls {
+        let client = client.clone();
+        let future = async move {
+            let response = client.get(&url).send().await?.error_for_status()?;
+            let bytes = response.bytes().await?;
+            let sha1 = String::from_utf8(bytes.to_vec())?;
+            Ok((path, sha1))
+        };
+        futures.push(future);
+    }
+
+    let results: Vec<Result<(PathBuf, String), anyhow::Error>> =
+        futures::future::join_all(futures).await;
+    let mut hashes = HashMap::new();
+    for result in results {
+        match result {
+            Ok((path, sha1)) => {
+                hashes.insert(path, sha1);
+            }
+            Err(e) => {
+                if let Some(se) = e.downcast_ref::<reqwest::Error>() {
+                    if se.status() == Some(reqwest::StatusCode::NOT_FOUND) {
+                        warn!("SHA1 hash not found: {:?}", se.url().unwrap());
+                    } else {
+                        return Err(e.into());
+                    }
+                } else {
+                    return Err(e);
+                }
+            }
+        }
+    }
+
+    Ok(hashes)
+}
+
 async fn get_libraries_entries(
     libraries: &Vec<version_metadata::Library>,
     libraries_dir: &Path,
@@ -93,7 +129,10 @@ async fn get_libraries_entries(
     let mut check_download_entries: Vec<CheckEntry> = Vec::new();
 
     for library in libraries {
-        for entry in rules::get_check_download_entries(library, libraries_dir) {
+        for entry in library.get_check_entries(
+            libraries_dir,
+            Some((&os::get_os_name(), &os::get_system_arch())),
+        ) {
             if entry.remote_sha1.is_some() || !entry.path.exists() {
                 if entry.url == "" {
                     info!("Skipping library with no URL: {:?}", entry.path);
@@ -101,56 +140,31 @@ async fn get_libraries_entries(
                 }
                 check_download_entries.push(entry);
             } else {
-                match library.get_sha1_url() {
-                    Some(sha1_url) => {
-                        sha1_urls.insert(entry.path.clone(), sha1_url);
-                        check_download_entries.push(CheckEntry {
-                            remote_sha1: None,
-                            ..entry
-                        });
-                    }
-                    None => {
-                        return Err(VersionMetadataError::NoSha1(
-                            entry.path.to_str().unwrap_or("no path").to_string(),
-                        )
-                        .into());
-                    }
-                }
+                sha1_urls.insert(entry.path.clone(), library.get_sha1_url());
+                check_download_entries.push(CheckEntry {
+                    remote_sha1: None,
+                    ..entry
+                });
             }
         }
     }
 
-    let missing_hash_urls: Vec<String> = sha1_urls.values().cloned().collect();
-    let remote_hashes = files::fetch_files(missing_hash_urls, progress::no_progress_bar()).await?;
-    let remote_hashes: Vec<String> = remote_hashes
-        .into_iter()
-        .map(|x| String::from_utf8(x))
-        .collect::<Result<_, _>>()?;
-    let missing_hashes: HashMap<PathBuf, String> =
-        sha1_urls.into_keys().zip(remote_hashes).collect();
+    let missing_hashes = fetch_hashes(sha1_urls).await?;
 
     let check_download_entries: Vec<_> = check_download_entries
         .into_iter()
         .map(|entry| {
             if entry.remote_sha1.is_none() {
-                let sha1 = missing_hashes.get(&entry.path);
-                if let Some(sha1) = sha1 {
-                    Ok(CheckEntry {
+                if let Some(sha1) = missing_hashes.get(&entry.path) {
+                    return CheckEntry {
                         remote_sha1: Some(sha1.clone()),
                         ..entry
-                    })
-                } else if !entry.path.exists() {
-                    Ok(entry)
-                } else {
-                    Err(Box::new(VersionMetadataError::NoSha1(
-                        entry.path.to_str().unwrap_or("no path").to_string(),
-                    )))
+                    };
                 }
-            } else {
-                Ok(entry)
             }
+            entry
         })
-        .collect::<Result<_, _>>()?;
+        .collect();
 
     Ok(check_download_entries)
 }
@@ -161,7 +175,9 @@ fn extract_natives(
     natives_dir: &Path,
 ) -> anyhow::Result<()> {
     for library in libraries {
-        if let Some(natives_path) = rules::get_natives_path(library, libraries_dir) {
+        if let Some(natives_path) =
+            library.get_os_native_path(libraries_dir, &os::get_os_name(), &os::get_system_arch())
+        {
             let exclude = library.get_extract().map(|x| {
                 x.exclude
                     .clone()
@@ -218,16 +234,16 @@ fn get_authlib_injector_entry(
     launcher_dir: &Path,
 ) -> Option<CheckEntry> {
     if let Some(auth_backend) = version_metadata.get_auth_backend() {
-        if auth_backend != &AuthBackend::Microsoft {
-            return Some(CheckEntry {
-                url: AUTHLIB_INJECTOR_URL.to_string(),
-                remote_sha1: Some(AUTHLIB_INJECTOR_SHA1.to_string()),
-                path: get_authlib_injector_path(launcher_dir),
-            });
+        if auth_backend == &AuthBackend::Microsoft {
+            return None;
         }
     }
 
-    None
+    return Some(CheckEntry {
+        url: AUTHLIB_INJECTOR_URL.to_string(),
+        remote_sha1: Some(AUTHLIB_INJECTOR_SHA1.to_string()),
+        path: get_authlib_injector_path(launcher_dir),
+    });
 }
 
 pub async fn sync_instance(

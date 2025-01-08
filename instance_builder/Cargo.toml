@@ -13,6 +13,7 @@ reqwest = { version = "0.12.8", features = ["rustls-tls", "json", "stream"], def
 serde = "1.0.210"
 serde_json = "1.0.128"
 shared = { path = "../shared" }
+shell-words = "1.1.0"
 thiserror = "1.0.64"
 tokio = "1.40.0"
 

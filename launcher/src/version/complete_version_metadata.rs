@@ -11,7 +11,7 @@ use shared::{
     },
 };
 
-use super::{overrides::with_overrides, rules};
+use super::{os, overrides::with_overrides};
 
 pub struct CompleteVersionMetadata {
     version_name: String,
@@ -112,11 +112,9 @@ impl CompleteVersionMetadata {
     pub fn get_client_check_entry(&self, launcher_dir: &Path) -> anyhow::Result<CheckEntry> {
         if let Some(downloads) = self.base[0].downloads.as_ref() {
             if let Some(client) = downloads.client.as_ref() {
-                return Ok(CheckEntry {
-                    url: client.url.clone(),
-                    remote_sha1: Some(client.sha1.clone()),
-                    path: get_client_jar_path(launcher_dir, self.get_id()),
-                });
+                return Ok(
+                    client.get_check_entry(&get_client_jar_path(launcher_dir, self.get_id()))
+                );
             }
         }
 
@@ -136,7 +134,7 @@ impl CompleteVersionMetadata {
 
         let mut existing_names = HashSet::new();
         all_libraries
-            .filter(|library| rules::library_matches_os(library))
+            .filter(|library| library.applies_to_os(&os::get_os_name(), &os::get_system_arch()))
             .filter(|library| {
                 let name = library.get_name_without_version();
                 if existing_names.contains(&name) {

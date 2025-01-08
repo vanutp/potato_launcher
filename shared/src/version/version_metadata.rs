@@ -14,17 +14,83 @@ use crate::{
 
 use super::version_manifest::MetadataInfo;
 
-#[derive(Deserialize, Serialize, Clone)]
-pub struct Os {
-    pub name: Option<String>,
-    pub arch: Option<String>,
+fn get_arch_os_name(os_name: &str, arch: &str) -> String {
+    os_name.to_string()
+        + match arch {
+            "arm32" => "-arm32",
+            "arm64" => "-arm64",
+            _ => "",
+        }
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct Os {
+    name: Option<String>,
+    arch: Option<String>,
+}
+
+impl Os {
+    fn matches_os(&self, os_name: &str, arch: &str) -> bool {
+        if let Some(expected_arch) = &self.arch {
+            if expected_arch != &arch {
+                return false;
+            }
+        }
+        if let Some(expected_name) = &self.name {
+            if expected_name != &os_name && expected_name != &format!("{}-{}", os_name, arch) {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Rule {
-    pub action: String,
-    pub os: Option<Os>,
-    pub features: Option<HashMap<String, bool>>,
+    /// "allow" or "disallow"
+    action: String,
+    /// Optional OS constraints
+    os: Option<Os>,
+    /// Optional feature flags (e.g. {"has_custom_resolution": true})
+    features: Option<HashMap<String, bool>>,
+}
+
+impl Rule {
+    fn allowed_on_os(&self, os_name: &str, arch: &str) -> Option<bool> {
+        let is_allowed = self.action == "allow";
+        let matching_features = vec!["has_custom_resolution"];
+
+        if let Some(os) = &self.os {
+            if !os.matches_os(os_name, arch) {
+                return None;
+            }
+        }
+
+        if let Some(features) = &self.features {
+            for (feature, value) in features {
+                let contains = matching_features.contains(&feature.as_str());
+                if contains != *value {
+                    return None;
+                }
+            }
+        }
+
+        Some(is_allowed)
+    }
+}
+
+fn rules_apply(rules: &[Rule], os_name: &str, arch: &str) -> bool {
+    let mut some_allowed = false;
+    for rule in rules {
+        if let Some(is_allowed) = rule.allowed_on_os(os_name, arch) {
+            if !is_allowed {
+                return false;
+            }
+            some_allowed = true;
+        }
+    }
+    some_allowed
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -45,8 +111,8 @@ impl ArgumentValue {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ComplexArgument {
-    pub value: ArgumentValue,
-    pub rules: Vec<Rule>,
+    value: ArgumentValue,
+    rules: Vec<Rule>,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -61,6 +127,19 @@ impl VariableArgument {
         match self {
             VariableArgument::Simple(s) => vec![s.as_str()],
             VariableArgument::Complex(c) => c.value.get_values(),
+        }
+    }
+
+    pub fn get_matching_values(&self, os_name: &str, arch: &str) -> Vec<&str> {
+        match self {
+            VariableArgument::Simple(s) => vec![s.as_str()],
+            VariableArgument::Complex(complex) => {
+                if rules_apply(&complex.rules, os_name, arch) {
+                    complex.value.get_values()
+                } else {
+                    vec![]
+                }
+            }
         }
     }
 }
@@ -84,14 +163,14 @@ pub struct JavaVersion {
     pub major_version: u64,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Download {
     pub sha1: String,
     pub url: String,
 }
 
 impl Download {
-    pub fn get_check_download_entry(&self, path: &Path) -> CheckEntry {
+    pub fn get_check_entry(&self, path: &Path) -> CheckEntry {
         CheckEntry {
             url: self.url.clone(),
             remote_sha1: Some(self.sha1.clone()),
@@ -104,18 +183,20 @@ impl Download {
     }
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct LibraryDownloads {
     pub artifact: Option<Download>,
     pub classifiers: Option<HashMap<String, Download>>,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct LibraryExtract {
     pub exclude: Option<Vec<String>>,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+const MOJANG_LIBRARIES_URL: &str = "https://libraries.minecraft.net/";
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Library {
     name: String,
     pub downloads: Option<LibraryDownloads>,
@@ -163,116 +244,121 @@ impl Library {
         )
     }
 
+    pub fn get_library_path(&self, libraries_dir: &Path) -> Option<PathBuf> {
+        if let Some(downloads) = &self.downloads {
+            if downloads.artifact.is_some() {
+                Some(libraries_dir.join(&self.get_path_from_name()))
+            } else {
+                None
+            }
+        } else {
+            Some(libraries_dir.join(&self.get_path_from_name()))
+        }
+    }
+
+    pub fn get_url(&self) -> String {
+        self.url.clone().unwrap_or(MOJANG_LIBRARIES_URL.to_string())
+    }
+
     fn get_library_dir(&self, libraries_dir: &Path) -> PathBuf {
         let path = libraries_dir.join(self.get_path_from_name());
         path.parent().unwrap_or(libraries_dir).to_path_buf()
     }
 
-    pub fn get_natives_path(
-        &self,
-        natives_name: &str,
-        natives_download: &Download,
-        libraries_dir: &Path,
-    ) -> PathBuf {
-        let path = self
-            .get_library_dir(libraries_dir)
-            .join(natives_name)
-            .join(natives_download.get_filename());
-        path
+    fn get_native_name(&self, os_arch: &str) -> Option<&str> {
+        self.natives.as_ref()?.get(os_arch).map(|x| x.as_str())
     }
 
-    pub fn get_path(&self, libraries_dir: &Path) -> Option<PathBuf> {
-        if let Some(downloads) = &self.downloads {
-            if downloads.artifact.is_some() {
-                return Some(libraries_dir.join(&self.get_path_from_name()));
-            }
-        }
-        if self.url.is_some() {
-            return Some(libraries_dir.join(&self.get_path_from_name()));
-        }
-
-        None
-    }
-
-    fn get_check_download_entry(&self, libraries_dir: &Path) -> Option<CheckEntry> {
-        if let Some(url) = &self.url {
-            return Some(CheckEntry {
-                url: format!("{}/{}", url, self.get_path_from_name()),
-                remote_sha1: self.sha1.clone(),
-                path: libraries_dir.join(&self.get_path_from_name()),
-            });
-        }
-        if let Some(downloads) = &self.downloads {
-            if let Some(artifact) = &downloads.artifact {
-                if let Some(path) = self.get_path(libraries_dir) {
-                    return Some(artifact.get_check_download_entry(&path));
-                }
-            }
-        }
-
-        None
-    }
-
-    fn get_natives_check_download_entries(&self, libraries_dir: &Path) -> Vec<CheckEntry> {
-        let mut entries = vec![];
-
-        if let Some(downloads) = &self.downloads {
-            if let Some(classifiers) = &downloads.classifiers {
-                for (natives_name, download) in classifiers {
-                    entries.push(CheckEntry {
-                        url: download.url.clone(),
-                        remote_sha1: Some(download.sha1.clone()),
-                        path: libraries_dir.join(self.get_natives_path(
-                            natives_name,
-                            download,
-                            libraries_dir,
-                        )),
-                    });
-                }
-            }
-        }
-
-        entries
-    }
-
-    pub fn get_all_check_download_entries(&self, libraries_dir: &Path) -> Vec<CheckEntry> {
-        let mut entries = vec![];
-        if let Some(entry) = self.get_check_download_entry(libraries_dir) {
-            entries.push(entry);
-        }
-        entries.extend(self.get_natives_check_download_entries(libraries_dir));
-
-        entries
-    }
-
-    pub fn get_natives_download(&self, natives_name: &str) -> Option<&Download> {
+    pub fn get_native_download(&self, natives_name: &str) -> Option<&Download> {
         let downloads = self.downloads.as_ref()?;
         let classifiers = downloads.classifiers.as_ref()?;
         let download = classifiers.get(natives_name)?;
         Some(download)
     }
 
-    pub fn get_specific_check_download_entries(
+    pub fn get_native_path(
         &self,
-        natives_name: Option<&str>,
         libraries_dir: &Path,
-    ) -> Vec<CheckEntry> {
-        let mut entries = vec![];
-        if let Some(natives_name) = natives_name {
-            if let Some(download) = self.get_natives_download(natives_name) {
-                let path = self.get_natives_path(natives_name, download, libraries_dir);
-                entries.push(download.get_check_download_entry(&path));
+        native_name: &str,
+        native_download: &Download,
+    ) -> PathBuf {
+        self.get_library_dir(libraries_dir)
+            .join(native_name)
+            .join(native_download.get_filename())
+    }
+
+    pub fn get_os_native_path(
+        &self,
+        libraries_dir: &Path,
+        os_name: &str,
+        arch: &str,
+    ) -> Option<PathBuf> {
+        if let Some(native_name) = self.get_native_name(&get_arch_os_name(os_name, arch)) {
+            if let Some(download) = self.get_native_download(native_name) {
+                return Some(self.get_native_path(libraries_dir, native_name, download));
             }
         }
-        if let Some(entry) = self.get_check_download_entry(libraries_dir) {
+        None
+    }
+
+    fn get_library_check_entry(&self, libraries_dir: &Path) -> Option<CheckEntry> {
+        if let Some(downloads) = &self.downloads {
+            if let Some(artifact) = &downloads.artifact {
+                let path = self.get_library_path(libraries_dir)?;
+                Some(artifact.get_check_entry(&path))
+            } else {
+                None
+            }
+        } else {
+            Some(CheckEntry {
+                url: format!("{}/{}", self.get_url(), self.get_path_from_name()),
+                remote_sha1: self.sha1.clone(),
+                path: libraries_dir.join(&self.get_path_from_name()),
+            })
+        }
+    }
+
+    // os_with_arch = None means all natives
+    pub fn get_check_entries(
+        &self,
+        libraries_dir: &Path,
+        os_with_arch: Option<(&str, &str)>,
+    ) -> Vec<CheckEntry> {
+        let mut entries = vec![];
+        if let Some(entry) = self.get_library_check_entry(libraries_dir) {
             entries.push(entry);
+        }
+        if let Some((os_name, arch)) = os_with_arch {
+            if let Some(native_name) = self.get_native_name(&get_arch_os_name(os_name, arch)) {
+                if let Some(download) = self.get_native_download(native_name) {
+                    let path = self.get_native_path(libraries_dir, native_name, download);
+                    entries.push(download.get_check_entry(&path));
+                }
+            }
+        } else {
+            if let Some(natives) = &self.natives {
+                for (native_name, _) in natives {
+                    if let Some(download) = self.get_native_download(native_name) {
+                        let path = self.get_native_path(libraries_dir, native_name, download);
+                        entries.push(download.get_check_entry(&path));
+                    }
+                }
+            }
         }
 
         entries
     }
 
-    pub fn get_sha1_url(&self) -> Option<String> {
-        Some(self.url.clone()? + &self.get_path_from_name() + ".sha1")
+    pub fn applies_to_os(&self, os_name: &str, arch: &str) -> bool {
+        if let Some(rules) = &self.rules {
+            rules_apply(rules, os_name, arch)
+        } else {
+            true
+        }
+    }
+
+    pub fn get_sha1_url(&self) -> String {
+        self.get_url() + &self.get_path_from_name() + ".sha1"
     }
 
     pub fn get_extract(&self) -> Option<&LibraryExtract> {
