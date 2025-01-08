@@ -189,11 +189,6 @@ pub struct LibraryDownloads {
     pub classifiers: Option<HashMap<String, Download>>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct LibraryExtract {
-    pub exclude: Option<Vec<String>>,
-}
-
 const MOJANG_LIBRARIES_URL: &str = "https://libraries.minecraft.net/";
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -204,7 +199,6 @@ pub struct Library {
     pub url: Option<String>,
     pub sha1: Option<String>,
     pub natives: Option<HashMap<String, String>>,
-    extract: Option<LibraryExtract>,
 }
 
 impl Library {
@@ -219,7 +213,6 @@ impl Library {
             url: None,
             sha1: None,
             natives: None,
-            extract: None,
         }
     }
 
@@ -359,10 +352,6 @@ impl Library {
 
     pub fn get_sha1_url(&self) -> String {
         self.get_url() + &self.get_path_from_name() + ".sha1"
-    }
-
-    pub fn get_extract(&self) -> Option<&LibraryExtract> {
-        self.extract.as_ref()
     }
 
     pub fn get_group_id(&self) -> String {
