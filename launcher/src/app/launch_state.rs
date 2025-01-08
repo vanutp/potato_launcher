@@ -63,12 +63,13 @@ impl LaunchState {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, ctx: &egui::Context) {
         match self.status {
             LauncherStatus::Running { ref mut child } => {
                 match child.try_wait() {
                     Ok(Some(exit_status)) => {
                         self.hide_window = false;
+                        ctx.request_repaint();
                         self.status = if exit_status.success() {
                             LauncherStatus::NotLaunched
                         } else {

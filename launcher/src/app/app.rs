@@ -274,7 +274,7 @@ impl LauncherApp {
             self.java_state
                 .render_ui(ui, &mut self.config, selected_instance.as_deref());
 
-            self.launch_state.update();
+            self.launch_state.update(&ctx);
 
             if self.java_state.ready_for_launch()
                 && self
