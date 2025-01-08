@@ -70,6 +70,8 @@ impl LauncherApp {
     fn new(config: Config, ctx: &egui::Context, launch: bool) -> Self {
         let runtime = Runtime::new().unwrap();
 
+        runtime.spawn(Self::refresher(ctx.clone()));
+
         LauncherApp {
             settings_state: SettingsState::new(),
             auth_state: AuthState::new(ctx, &config),
@@ -77,7 +79,7 @@ impl LauncherApp {
             metadata_state: MetadataState::new(),
             java_state: JavaState::new(ctx),
             instance_sync_state: InstanceSyncState::new(ctx),
-            launch_state: LaunchState::new(launch),
+            launch_state: LaunchState::new(launch, ctx.clone()),
             new_instance_state: NewInstanceState::new(&runtime, ctx),
             instance_storage: runtime.block_on(InstanceStorage::load(&config)),
             config,
@@ -85,8 +87,14 @@ impl LauncherApp {
         }
     }
 
+    async fn refresher(ctx: egui::Context) {
+        loop {
+            ctx.request_repaint();
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        }
+    }
+
     fn ui(&mut self, ctx: &egui::Context) {
-        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(!self.launch_state.hide_window()));
 
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(false)
@@ -274,7 +282,7 @@ impl LauncherApp {
             self.java_state
                 .render_ui(ui, &mut self.config, selected_instance.as_deref());
 
-            self.launch_state.update(&ctx);
+            self.launch_state.update();
 
             if self.java_state.ready_for_launch()
                 && self

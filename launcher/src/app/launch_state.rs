@@ -19,7 +19,7 @@ pub struct LaunchState {
     status: LauncherStatus,
     force_launch: bool,
     launch_from_start: bool,
-    hide_window: bool,
+    ctx: egui::Context,
 }
 
 pub enum ForceLaunchResult {
@@ -29,17 +29,13 @@ pub enum ForceLaunchResult {
 }
 
 impl LaunchState {
-    pub fn new(launch_from_start: bool) -> Self {
+    pub fn new(launch_from_start: bool, ctx: egui::Context) -> Self {
         LaunchState {
             status: LauncherStatus::NotLaunched,
             force_launch: false,
             launch_from_start,
-            hide_window: false,
+            ctx,
         }
-    }
-
-    pub fn hide_window(&self) -> bool {
-        self.hide_window
     }
 
     fn launch(
@@ -53,7 +49,7 @@ impl LaunchState {
         match runtime.block_on(launch::launch(selected_instance, config, auth_data, online)) {
             Ok(child) => {
                 if config.close_launcher_after_launch {
-                    self.hide_window = true;
+                    self.ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
                 }
                 self.status = LauncherStatus::Running { child };
             }
@@ -63,13 +59,12 @@ impl LaunchState {
         }
     }
 
-    pub fn update(&mut self, ctx: &egui::Context) {
+    pub fn update(&mut self) {
         match self.status {
             LauncherStatus::Running { ref mut child } => {
                 match child.try_wait() {
                     Ok(Some(exit_status)) => {
-                        self.hide_window = false;
-                        ctx.request_repaint();
+                        self.ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
                         self.status = if exit_status.success() {
                             LauncherStatus::NotLaunched
                         } else {
