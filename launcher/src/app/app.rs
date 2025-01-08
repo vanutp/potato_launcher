@@ -86,6 +86,8 @@ impl LauncherApp {
     }
 
     fn ui(&mut self, ctx: &egui::Context) {
+        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(!self.launch_state.hide_window()));
+
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(false)
             .show(ctx, |ui| {

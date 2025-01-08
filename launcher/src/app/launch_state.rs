@@ -19,6 +19,7 @@ pub struct LaunchState {
     status: LauncherStatus,
     force_launch: bool,
     launch_from_start: bool,
+    hide_window: bool,
 }
 
 pub enum ForceLaunchResult {
@@ -33,7 +34,12 @@ impl LaunchState {
             status: LauncherStatus::NotLaunched,
             force_launch: false,
             launch_from_start,
+            hide_window: false,
         }
+    }
+
+    pub fn hide_window(&self) -> bool {
+        self.hide_window
     }
 
     fn launch(
@@ -47,7 +53,7 @@ impl LaunchState {
         match runtime.block_on(launch::launch(selected_instance, config, auth_data, online)) {
             Ok(child) => {
                 if config.close_launcher_after_launch {
-                    std::process::exit(0);
+                    self.hide_window = true;
                 }
                 self.status = LauncherStatus::Running { child };
             }
@@ -62,6 +68,7 @@ impl LaunchState {
             LauncherStatus::Running { ref mut child } => {
                 match child.try_wait() {
                     Ok(Some(exit_status)) => {
+                        self.hide_window = false;
                         self.status = if exit_status.success() {
                             LauncherStatus::NotLaunched
                         } else {
