@@ -70,8 +70,6 @@ impl LauncherApp {
     fn new(config: Config, ctx: &egui::Context, launch: bool) -> Self {
         let runtime = Runtime::new().unwrap();
 
-        runtime.spawn(Self::refresher(ctx.clone()));
-
         LauncherApp {
             settings_state: SettingsState::new(),
             auth_state: AuthState::new(ctx, &config),
@@ -84,13 +82,6 @@ impl LauncherApp {
             instance_storage: runtime.block_on(InstanceStorage::load(&config)),
             config,
             runtime,
-        }
-    }
-
-    async fn refresher(ctx: egui::Context) {
-        loop {
-            ctx.request_repaint();
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
     }
 
@@ -282,7 +273,7 @@ impl LauncherApp {
             self.java_state
                 .render_ui(ui, &mut self.config, selected_instance.as_deref());
 
-            self.launch_state.update();
+            self.launch_state.update(&self.runtime);
 
             if self.java_state.ready_for_launch()
                 && self

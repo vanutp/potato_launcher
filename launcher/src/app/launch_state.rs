@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{process::ExitStatus, sync::{Arc, Mutex}};
 
 use shared::paths::get_logs_dir;
 use tokio::{process::Child, runtime::Runtime};
@@ -20,6 +20,7 @@ pub struct LaunchState {
     force_launch: bool,
     launch_from_start: bool,
     ctx: egui::Context,
+    watcher_handle: Option<tokio::task::JoinHandle<ExitStatus>>,
 }
 
 pub enum ForceLaunchResult {
@@ -35,23 +36,24 @@ impl LaunchState {
             force_launch: false,
             launch_from_start,
             ctx,
+            watcher_handle: None,
         }
     }
 
-    async fn child_callback(child: Arc<Mutex<Child>>, ctx: egui::Context) {
+    async fn child_callback(child: Arc<Mutex<Child>>, ctx: egui::Context) -> ExitStatus {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
             let result = child.lock().unwrap().try_wait();
             match result {
-                Ok(Some(_)) => {
+                Ok(Some(status)) => {
                     ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
                     ctx.request_repaint();
-                    break;
+                    return status;
                 }
                 Ok(None) => {
                 }
                 Err(_) => {
-                    break;
+                    ExitStatus::default();
                 }
             }
         }
@@ -71,7 +73,7 @@ impl LaunchState {
                 if config.hide_launcher_after_launch {
                     self.ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
                 }
-                runtime.spawn(Self::child_callback(arc_child.clone(), self.ctx.clone()));
+                self.watcher_handle = Some(runtime.spawn(Self::child_callback(arc_child.clone(), self.ctx.clone())));
                 self.status = LauncherStatus::Running { child: arc_child.clone() };
             }
             Err(e) => {
@@ -80,28 +82,19 @@ impl LaunchState {
         }
     }
 
-    pub fn update(&mut self) {
-        match self.status {
-            LauncherStatus::Running { ref mut child } => {
-                let result = child.lock().unwrap().try_wait();
-                match result {
-                    Ok(Some(exit_status)) => {
-                        self.ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
-                        self.status = if exit_status.success() {
-                            LauncherStatus::NotLaunched
-                        } else {
-                            LauncherStatus::ProcessErrorCode(
-                                exit_status.code().unwrap_or(-1).to_string(),
-                            )
-                        };
-                    }
-                    Ok(None) => {}
-                    Err(e) => {
-                        self.status = LauncherStatus::Error(e.to_string());
-                    }
+    pub fn update(&mut self, runtime: &Runtime) {
+        match self.watcher_handle.take_if(|handle| handle.is_finished()) {
+            None => {},
+            Some(handle) => {
+                let exit_status = runtime.block_on(handle).unwrap_or(ExitStatus::default());
+                self.status = if exit_status.success() {
+                    LauncherStatus::NotLaunched
+                } else {
+                    LauncherStatus::ProcessErrorCode(
+                        exit_status.code().unwrap_or(-1).to_string(),
+                    )
                 };
             }
-            _ => {}
         }
     }
 
