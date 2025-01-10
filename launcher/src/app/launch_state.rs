@@ -1,5 +1,6 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
+use egui::Context;
 use shared::paths::get_logs_dir;
 use tokio::{process::Child, runtime::Runtime};
 
@@ -10,7 +11,7 @@ use crate::{
 
 enum LauncherStatus {
     NotLaunched,
-    Running { child: Child },
+    Running { child: Arc<Mutex<Child>> },
     Error(String),
     ProcessErrorCode(String),
 }
@@ -38,6 +39,33 @@ impl LaunchState {
         }
     }
 
+    async fn child_callback(child: Arc<Mutex<Child>>, ctx: egui::Context) {
+        loop {
+            let result = child.lock().unwrap().try_wait();
+            match result {
+                Ok(Some(_)) => {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                    ctx.request_repaint();
+                    break;
+                }
+                Ok(None) => {
+                }
+                Err(_) => {
+                    break;
+                }
+            }
+        }
+    }
+
+    pub fn get_minecraft_error_message(&self) -> Option<String> {
+        match &self.status {
+            LauncherStatus::Error(e) => {
+                Some(e.clone())
+            }
+            _ => None
+        }
+    }
+
     fn launch(
         &mut self,
         runtime: &Runtime,
@@ -48,10 +76,12 @@ impl LaunchState {
     ) {
         match runtime.block_on(launch::launch(selected_instance, config, auth_data, online)) {
             Ok(child) => {
+                let arc_child = Arc::new(Mutex::new(child));
                 if config.close_launcher_after_launch {
                     self.ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
                 }
-                self.status = LauncherStatus::Running { child };
+                runtime.spawn(Self::child_callback(arc_child.clone(), self.ctx.clone()));
+                self.status = LauncherStatus::Running { child: arc_child.clone() };
             }
             Err(e) => {
                 self.status = LauncherStatus::Error(e.to_string());
@@ -62,7 +92,8 @@ impl LaunchState {
     pub fn update(&mut self) {
         match self.status {
             LauncherStatus::Running { ref mut child } => {
-                match child.try_wait() {
+                let result = child.lock().unwrap().try_wait();
+                match result {
                     Ok(Some(exit_status)) => {
                         self.ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
                         self.status = if exit_status.success() {
@@ -110,7 +141,7 @@ impl LaunchState {
                     .button(LangMessage::KillMinecraft.to_string(lang))
                     .clicked()
                 {
-                    let _ = runtime.block_on(child.kill());
+                    let _ = runtime.block_on(child.lock().unwrap().kill());
                 }
             }
             _ => {
