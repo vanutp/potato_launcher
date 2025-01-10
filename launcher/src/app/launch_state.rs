@@ -1,6 +1,5 @@
 use std::sync::{Arc, Mutex};
 
-use egui::Context;
 use shared::paths::get_logs_dir;
 use tokio::{process::Child, runtime::Runtime};
 
@@ -57,15 +56,6 @@ impl LaunchState {
         }
     }
 
-    pub fn get_minecraft_error_message(&self) -> Option<String> {
-        match &self.status {
-            LauncherStatus::Error(e) => {
-                Some(e.clone())
-            }
-            _ => None
-        }
-    }
-
     fn launch(
         &mut self,
         runtime: &Runtime,
@@ -77,7 +67,7 @@ impl LaunchState {
         match runtime.block_on(launch::launch(selected_instance, config, auth_data, online)) {
             Ok(child) => {
                 let arc_child = Arc::new(Mutex::new(child));
-                if config.close_launcher_after_launch {
+                if config.hide_launcher_after_launch {
                     self.ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
                 }
                 runtime.spawn(Self::child_callback(arc_child.clone(), self.ctx.clone()));

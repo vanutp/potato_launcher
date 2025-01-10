@@ -96,18 +96,6 @@ impl LauncherApp {
 
     fn ui(&mut self, ctx: &egui::Context) {
 
-        if let Some(error_msg) = self.launch_state.get_minecraft_error_message() {
-            egui::TopBottomPanel::top("top_panel")
-                .resizable(false)
-                .show(ctx, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.add_space(5.0);
-                        ui.label("Error: ");
-                        ui.label(error_msg);
-                    });
-                });
-        }
-
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(false)
             .show(ctx, |ui| {

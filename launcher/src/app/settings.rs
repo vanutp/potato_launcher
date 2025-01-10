@@ -118,12 +118,12 @@ impl SettingsState {
     }
 
     fn render_close_launcher_checkbox(&mut self, ui: &mut egui::Ui, config: &mut Config) {
-        let old_close_launcher_after_launch = config.close_launcher_after_launch;
+        let old_close_launcher_after_launch = config.hide_launcher_after_launch;
         ui.checkbox(
-            &mut config.close_launcher_after_launch,
+            &mut config.hide_launcher_after_launch,
             LangMessage::CloseLauncherAfterLaunch.to_string(config.lang),
         );
-        if old_close_launcher_after_launch != config.close_launcher_after_launch {
+        if old_close_launcher_after_launch != config.hide_launcher_after_launch {
             config.save();
         }
     }

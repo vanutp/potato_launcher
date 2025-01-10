@@ -21,7 +21,7 @@ pub struct Config {
     pub xmx: String,
     pub selected_instance_name: Option<String>,
     pub lang: Lang,
-    pub close_launcher_after_launch: bool,
+    pub hide_launcher_after_launch: bool,
     pub auth_profiles: HashMap<String, AuthProfile>,
 }
 
@@ -49,7 +49,7 @@ impl Config {
             xmx: String::from(constants::DEFAULT_JAVA_XMX),
             selected_instance_name: None,
             lang: constants::DEFAULT_LANG,
-            close_launcher_after_launch: true,
+            hide_launcher_after_launch: true,
             auth_profiles: HashMap::new(),
         };
         return config;
