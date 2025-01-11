@@ -1,5 +1,3 @@
-use std::path::Path;
-use std::collections::HashMap;
 use shared::{
     files::{self, CheckEntry},
     paths::{get_client_jar_path, get_versions_dir, get_versions_extra_dir},
@@ -10,6 +8,8 @@ use shared::{
         version_metadata::{Arguments, AssetIndex, Library, VersionMetadata},
     },
 };
+use std::collections::HashMap;
+use std::path::Path;
 
 use super::{os, overrides::with_overrides};
 

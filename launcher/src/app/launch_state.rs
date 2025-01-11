@@ -1,7 +1,10 @@
-use std::{process::ExitStatus, sync::{Arc, Mutex}};
+use std::{
+    process::{exit, ExitStatus},
+    sync::Arc,
+};
 
 use shared::paths::get_logs_dir;
-use tokio::{process::Child, runtime::Runtime};
+use tokio::{process::Child, runtime::Runtime, sync::Mutex};
 
 use crate::{
     auth::user_info::AuthData, config::runtime_config::Config, lang::LangMessage, launcher::launch,
@@ -40,18 +43,17 @@ impl LaunchState {
         }
     }
 
-    async fn child_callback(child: Arc<Mutex<Child>>, ctx: egui::Context) -> ExitStatus {
+    async fn child_watcher(child: Arc<Mutex<Child>>, ctx: egui::Context) -> ExitStatus {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-            let result = child.lock().unwrap().try_wait();
+            let result = child.lock().await.try_wait();
             match result {
                 Ok(Some(status)) => {
                     ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
                     ctx.request_repaint();
                     return status;
                 }
-                Ok(None) => {
-                }
+                Ok(None) => {}
                 Err(_) => {
                     ExitStatus::default();
                 }
@@ -71,10 +73,14 @@ impl LaunchState {
             Ok(child) => {
                 let arc_child = Arc::new(Mutex::new(child));
                 if config.hide_launcher_after_launch {
-                    self.ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+                    self.ctx
+                        .send_viewport_cmd(egui::ViewportCommand::Visible(false));
                 }
-                self.watcher_handle = Some(runtime.spawn(Self::child_callback(arc_child.clone(), self.ctx.clone())));
-                self.status = LauncherStatus::Running { child: arc_child.clone() };
+                self.watcher_handle =
+                    Some(runtime.spawn(Self::child_watcher(arc_child.clone(), self.ctx.clone())));
+                self.status = LauncherStatus::Running {
+                    child: arc_child.clone(),
+                };
             }
             Err(e) => {
                 self.status = LauncherStatus::Error(e.to_string());
@@ -82,18 +88,21 @@ impl LaunchState {
         }
     }
 
-    pub fn update(&mut self, runtime: &Runtime) {
+    pub fn update(&mut self, runtime: &Runtime, config: &Config) {
         match self.watcher_handle.take_if(|handle| handle.is_finished()) {
-            None => {},
+            None => {}
             Some(handle) => {
                 let exit_status = runtime.block_on(handle).unwrap_or(ExitStatus::default());
-                self.status = if exit_status.success() {
-                    LauncherStatus::NotLaunched
+                if exit_status.success() {
+                    if config.hide_launcher_after_launch {
+                        exit(0);
+                    }
+                    self.status = LauncherStatus::NotLaunched;
                 } else {
-                    LauncherStatus::ProcessErrorCode(
+                    self.status = LauncherStatus::ProcessErrorCode(
                         exit_status.code().unwrap_or(-1).to_string(),
-                    )
-                };
+                    );
+                }
             }
         }
     }
@@ -125,7 +134,8 @@ impl LaunchState {
                     .button(LangMessage::KillMinecraft.to_string(lang))
                     .clicked()
                 {
-                    let _ = runtime.block_on(child.lock().unwrap().kill());
+                    let mut child_lock = runtime.block_on(child.lock());
+                    let _ = runtime.block_on(child_lock.kill());
                 }
             }
             _ => {

@@ -86,7 +86,6 @@ impl LauncherApp {
     }
 
     fn ui(&mut self, ctx: &egui::Context) {
-
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(false)
             .show(ctx, |ui| {
@@ -273,7 +272,7 @@ impl LauncherApp {
             self.java_state
                 .render_ui(ui, &mut self.config, selected_instance.as_deref());
 
-            self.launch_state.update(&self.runtime);
+            self.launch_state.update(&self.runtime, &self.config);
 
             if self.java_state.ready_for_launch()
                 && self
