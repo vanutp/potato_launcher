@@ -7,8 +7,9 @@ use tokio::runtime::Runtime;
 use super::auth_state::AuthState;
 use super::instance_sync_state::InstanceSyncState;
 use super::java_state::JavaState;
-use super::launch_state::ForceLaunchResult;
+use super::launch_state::ForceLaunchResultSelect;
 use super::launch_state::LaunchState;
+use super::launch_state::RenderUiParams;
 use super::manifest_state::ManifestState;
 use super::metadata_state::MetadataState;
 use super::new_instance_state::NewInstanceState;
@@ -103,7 +104,7 @@ impl LauncherApp {
                     self.instance_sync_state.render_sync_button(
                         ui,
                         &self.runtime,
-                        &mut self.config,
+                        &self.config,
                         selected_metadata,
                     );
 
@@ -160,7 +161,7 @@ impl LauncherApp {
         if let Some(version_info) = self.new_instance_state.take_new_instance() {
             self.runtime.block_on(
                 self.instance_storage
-                    .add_instance(&mut self.config, version_info),
+                    .add_instance(&self.config, version_info),
             );
         }
 
@@ -185,7 +186,7 @@ impl LauncherApp {
                     self.config.save();
                     self.runtime.block_on(
                         self.instance_storage
-                            .delete_instance(&mut self.config, &instance_to_delete),
+                            .delete_instance(&self.config, &instance_to_delete),
                     );
                     self.instance_sync_state.reset_status();
                 }
@@ -208,12 +209,8 @@ impl LauncherApp {
         ui.vertical_centered(|ui| {
             self.metadata_state.render_ui(ui, &self.config);
             let selected_instance = self.metadata_state.get_version_metadata(&self.config);
-            self.instance_sync_state.render_ui(
-                ui,
-                &self.runtime,
-                &mut self.config,
-                selected_instance,
-            );
+            self.instance_sync_state
+                .render_ui(ui, &self.runtime, &self.config, selected_instance);
         });
 
         ui.horizontal(|ui| {
@@ -248,7 +245,7 @@ impl LauncherApp {
                     self.java_state.set_check_java_task(
                         &self.runtime,
                         &version_metadata,
-                        &mut self.config,
+                        &self.config,
                         ctx,
                     );
                 }
@@ -258,7 +255,7 @@ impl LauncherApp {
                 if self.instance_sync_state.update() {
                     self.runtime.block_on(
                         self.instance_storage
-                            .mark_downloaded(&mut self.config, version_metadata.get_name()),
+                            .mark_downloaded(&self.config, version_metadata.get_name()),
                     );
                 }
 
@@ -277,24 +274,26 @@ impl LauncherApp {
             if self.java_state.ready_for_launch()
                 && self
                     .get_selected_instance(&self.config)
-                    .map_or(false, |instance| {
-                        instance.status == InstanceStatus::UpToDate
-                    })
+                    .is_some_and(|instance| instance.status == InstanceStatus::UpToDate)
             {
                 let auth_data = self.auth_state.get_auth_data(&self.config);
                 let selected_instance = self.metadata_state.get_version_metadata(&self.config);
+
+                let params = RenderUiParams {
+                    online: !self.auth_state.offline()
+                        && self.manifest_state.online()
+                        && self.metadata_state.online(),
+                    disabled: self.instance_sync_state.is_syncing()
+                        || self.manifest_state.is_fetching()
+                        || self.metadata_state.is_getting(),
+                };
                 self.launch_state.render_ui(
                     &self.runtime,
                     ui,
                     &mut self.config,
                     selected_instance,
                     auth_data,
-                    !self.auth_state.offline()
-                        && self.manifest_state.online()
-                        && self.metadata_state.online(),
-                    self.instance_sync_state.is_syncing()
-                        || self.manifest_state.is_fetching()
-                        || self.metadata_state.is_getting(),
+                    params,
                 );
             } else {
                 let some_version_selected = self.get_selected_instance(&self.config).is_some();
@@ -310,7 +309,7 @@ impl LauncherApp {
                         || !have_some_auth_data,
                 );
                 match force_launch_result {
-                    ForceLaunchResult::ForceLaunchSelected => {
+                    ForceLaunchResultSelect::ForceLaunch => {
                         if let Some(version_metadata) =
                             self.metadata_state.get_version_metadata(&self.config)
                         {
@@ -318,7 +317,7 @@ impl LauncherApp {
                                 &self.runtime,
                                 version_metadata.clone(),
                                 false,
-                                &mut self.config,
+                                &self.config,
                                 ctx,
                             );
                             self.java_state.schedule_download_if_needed(
@@ -328,11 +327,11 @@ impl LauncherApp {
                             );
                         }
                     }
-                    ForceLaunchResult::CancelSelected => {
+                    ForceLaunchResultSelect::Cancel => {
                         self.java_state.cancel_download();
                         self.instance_sync_state.cancel_sync();
                     }
-                    ForceLaunchResult::NotSelected => {}
+                    ForceLaunchResultSelect::Nothing => {}
                 }
             }
         });

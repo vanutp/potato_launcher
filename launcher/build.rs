@@ -11,7 +11,7 @@ fn main() {
 
     let mut config_content = String::new();
     for env in build_envs.iter() {
-        let value = env::var(env).expect(&format!("{} is not set", env));
+        let value = env::var(env).unwrap_or_else(|_| panic!("{} is not set", env));
         config_content.push_str(&format!("pub const {}: &str = \"{}\";\n", env, value));
     }
     for env in optional_envs.iter() {

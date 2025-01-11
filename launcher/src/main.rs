@@ -34,5 +34,5 @@ fn main() {
 
     let config = Config::load();
     update_app::app::run_gui(&config);
-    app::app::run_gui(config, matches.get_flag("launch"));
+    app::launcher_app::run_gui(config, matches.get_flag("launch"));
 }

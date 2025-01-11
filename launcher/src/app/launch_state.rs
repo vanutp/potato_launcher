@@ -26,10 +26,15 @@ pub struct LaunchState {
     watcher_handle: Option<tokio::task::JoinHandle<ExitStatus>>,
 }
 
-pub enum ForceLaunchResult {
-    NotSelected,
-    ForceLaunchSelected,
-    CancelSelected,
+pub enum ForceLaunchResultSelect {
+    Nothing,
+    ForceLaunch,
+    Cancel,
+}
+
+pub struct RenderUiParams {
+    pub online: bool,
+    pub disabled: bool,
 }
 
 impl LaunchState {
@@ -92,7 +97,7 @@ impl LaunchState {
         match self.watcher_handle.take_if(|handle| handle.is_finished()) {
             None => {}
             Some(handle) => {
-                let exit_status = runtime.block_on(handle).unwrap_or(ExitStatus::default());
+                let exit_status = runtime.block_on(handle).unwrap_or_default();
                 if exit_status.success() {
                     if config.hide_launcher_after_launch {
                         exit(0);
@@ -122,9 +127,10 @@ impl LaunchState {
         config: &mut Config,
         selected_instance: Option<Arc<CompleteVersionMetadata>>,
         auth_data: Option<AuthData>,
-        online: bool,
-        disabled: bool,
+        params: RenderUiParams,
     ) {
+        let RenderUiParams { online, disabled } = params;
+
         let lang = config.lang;
 
         match &mut self.status {
@@ -187,7 +193,7 @@ impl LaunchState {
         ui: &mut egui::Ui,
         config: &mut Config,
         disabled: bool,
-    ) -> ForceLaunchResult {
+    ) -> ForceLaunchResultSelect {
         let lang = config.lang;
 
         if !self.force_launch {
@@ -205,7 +211,7 @@ impl LaunchState {
             });
             if button_clicked {
                 self.force_launch = true;
-                return ForceLaunchResult::ForceLaunchSelected;
+                return ForceLaunchResultSelect::ForceLaunch;
             }
         } else {
             let mut cancel_clicked = false;
@@ -216,10 +222,10 @@ impl LaunchState {
                 }
             });
             if cancel_clicked {
-                return ForceLaunchResult::CancelSelected;
+                return ForceLaunchResultSelect::Cancel;
             }
         }
-        ForceLaunchResult::NotSelected
+        ForceLaunchResultSelect::Nothing
     }
 }
 

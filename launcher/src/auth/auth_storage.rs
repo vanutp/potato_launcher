@@ -88,11 +88,11 @@ impl AuthStorage {
 
         self.runtime_storage
             .entry(id.clone())
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(username.clone(), auth_data.clone());
         self.persistent_storage
             .entry(id)
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(username, auth_data);
 
         self.save(config);

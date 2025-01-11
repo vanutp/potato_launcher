@@ -13,8 +13,8 @@ use std::io::Cursor;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
-use crate::auth::auth::auth; // nice
-use crate::auth::auth::AuthMessageProvider;
+use crate::auth::auth_flow::perform_auth;
+use crate::auth::auth_flow::AuthMessageProvider;
 use crate::auth::auth_storage::AuthDataSource;
 use crate::auth::auth_storage::AuthStorage;
 use crate::auth::auth_storage::StorageEntry;
@@ -54,7 +54,7 @@ fn authenticate(
     let auth_provider = get_auth_provider(&auth_backend);
 
     let fut = async move {
-        match auth(auth_data, auth_provider, auth_message_provider).await {
+        match perform_auth(auth_data, auth_provider, auth_message_provider).await {
             Ok(data) => AuthResult {
                 auth_backend,
                 status: AuthStatus::Authorized,
@@ -128,7 +128,7 @@ pub struct AuthState {
 
 impl AuthState {
     pub fn new(ctx: &egui::Context, config: &Config) -> Self {
-        return AuthState {
+        AuthState {
             auth_status: AuthStatus::NotAuthorized,
             auth_task: None,
             auth_message_provider: Arc::new(AuthMessageProvider::new(ctx)),
@@ -146,7 +146,7 @@ impl AuthState {
             offline_nickname: String::new(),
 
             last_auth_profile: None,
-        };
+        }
     }
 
     pub fn update(&mut self, runtime: &Runtime, config: &mut Config) -> bool {
@@ -157,23 +157,17 @@ impl AuthState {
                 let result = task.take_result();
                 match result {
                     BackgroundTaskResult::Finished(result) => {
-                        match &result.status {
-                            AuthStatus::Authorized => {
-                                if let Some(auth_data) = result.auth_data {
-                                    config.set_selected_auth_profile(AuthProfile {
-                                        auth_backend_id: result.auth_backend.get_id(),
-                                        username: auth_data.user_info.username.clone(),
-                                    });
+                        if result.status == AuthStatus::Authorized {
+                            if let Some(auth_data) = result.auth_data {
+                                config.set_selected_auth_profile(AuthProfile {
+                                    auth_backend_id: result.auth_backend.get_id(),
+                                    username: auth_data.user_info.username.clone(),
+                                });
 
-                                    self.auth_storage.insert(
-                                        config,
-                                        &result.auth_backend,
-                                        auth_data,
-                                    );
-                                    self.show_add_account = false;
-                                }
+                                self.auth_storage
+                                    .insert(config, &result.auth_backend, auth_data);
+                                self.show_add_account = false;
                             }
-                            _ => {}
                         }
 
                         self.auth_status = result.status;
@@ -222,7 +216,7 @@ impl AuthState {
                 if ui.button(LangMessage::Cancel.to_string(lang)).clicked() {
                     self.auth_status = AuthStatus::NotAuthorized;
                     self.auth_task = None;
-                    self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                    self.auth_message_provider = Arc::new(AuthMessageProvider::new(ctx));
                     self.on_instance_changed(config, runtime, ctx);
                 }
             });
@@ -259,7 +253,7 @@ impl AuthState {
             if !open {
                 self.auth_status = AuthStatus::NotAuthorized;
                 self.auth_task = None;
-                self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                self.auth_message_provider = Arc::new(AuthMessageProvider::new(ctx));
                 self.on_instance_changed(config, runtime, ctx);
             }
         }
@@ -341,7 +335,7 @@ impl AuthState {
                     };
 
                     self.auth_status = AuthStatus::NotAuthorized;
-                    self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                    self.auth_message_provider = Arc::new(AuthMessageProvider::new(ctx));
                     self.auth_task = Some(authenticate(
                         runtime,
                         None,
@@ -381,7 +375,7 @@ impl AuthState {
         let storage_entry = self.get_selected_storage_entry(config);
         if let Some(storage_entry) = &storage_entry {
             if storage_entry.source == AuthDataSource::Persistent && self.auth_task.is_none() {
-                self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                self.auth_message_provider = Arc::new(AuthMessageProvider::new(ctx));
                 self.auth_task = Some(authenticate(
                     runtime,
                     Some(storage_entry.auth_data.clone()),
@@ -521,7 +515,7 @@ impl AuthState {
                 .auth_storage
                 .get_id_nicknames(&instance_auth_backend.get_id());
 
-            if entries.len() != 0 {
+            if !entries.is_empty() {
                 self.render_buttons(ui, config, runtime, Some(instance_auth_backend));
 
                 let mut selected_username = auth_profile.as_ref().map(|x| x.username.to_string());
@@ -575,7 +569,7 @@ impl AuthState {
                         let storage_entry = self.get_selected_storage_entry(config);
 
                         self.auth_status = AuthStatus::NotAuthorized;
-                        self.auth_message_provider = Arc::new(AuthMessageProvider::new(&ctx));
+                        self.auth_message_provider = Arc::new(AuthMessageProvider::new(ctx));
                         self.auth_task = Some(authenticate(
                             runtime,
                             storage_entry.as_ref().map(|x| x.auth_data.clone()),

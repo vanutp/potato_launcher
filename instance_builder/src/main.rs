@@ -22,7 +22,7 @@ const LOGS_FILENAME: &str = "builder.log";
 
 pub fn get_logs_path(logs_dir: &Path) -> PathBuf {
     if !logs_dir.exists() {
-        std::fs::create_dir_all(&logs_dir).expect("Failed to create logs directory");
+        std::fs::create_dir_all(logs_dir).expect("Failed to create logs directory");
     }
     logs_dir.join(LOGS_FILENAME)
 }

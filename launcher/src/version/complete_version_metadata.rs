@@ -87,22 +87,21 @@ impl CompleteVersionMetadata {
 
     pub fn get_resources_url_base(&self) -> &str {
         if let Some(extra) = &self.extra {
-            return extra
+            extra
                 .resources_url_base
-                .as_ref()
-                .map(|x| x.as_str())
-                .unwrap_or(DEFAULT_RESOURCES_URL_BASE);
+                .as_deref()
+                .unwrap_or(DEFAULT_RESOURCES_URL_BASE)
         } else {
-            return DEFAULT_RESOURCES_URL_BASE;
+            DEFAULT_RESOURCES_URL_BASE
         }
     }
 
     pub fn get_java_version(&self) -> String {
-        return self.base[0]
+        self.base[0]
             .java_version
             .as_ref()
             .map(|x| x.major_version.to_string())
-            .unwrap_or("8".to_string());
+            .unwrap_or("8".to_string())
     }
 
     pub fn get_name(&self) -> &str {

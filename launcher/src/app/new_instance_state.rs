@@ -44,22 +44,22 @@ fn fetch_all_metadata(
             NeoforgeMavenMetadata::fetch(),
         );
         let (vanilla_manifest, forge_metadata, forge_promotions, neoforge_metadata) = result?;
-        return anyhow::Result::Ok(AllVersionsMetadata {
+        anyhow::Result::Ok(AllVersionsMetadata {
             vanilla_manifest,
             forge_metadata,
             forge_promotions,
             neoforge_metadata,
-        });
+        })
     };
 
     let ctx = ctx.clone();
-    return BackgroundTask::with_callback(
+    BackgroundTask::with_callback(
         fut,
         runtime,
         Box::new(move || {
             ctx.request_repaint();
         }),
-    );
+    )
 }
 
 struct PerVersionMetadata {
@@ -79,13 +79,13 @@ fn fetch_per_version_metadata(
     };
 
     let ctx = ctx.clone();
-    return BackgroundTask::with_callback(
+    BackgroundTask::with_callback(
         fut,
         runtime,
         Box::new(move || {
             ctx.request_repaint();
         }),
-    );
+    )
 }
 
 enum NewInstanceMetadataState<MetadataType> {
@@ -138,10 +138,9 @@ where
         if matches!(
             self,
             NewInstanceMetadataState::Error(_) | NewInstanceMetadataState::OfflineError
-        ) {
-            if ui.button(LangMessage::Retry.to_string(lang)).clicked() {
-                return true;
-            }
+        ) && ui.button(LangMessage::Retry.to_string(lang)).clicked()
+        {
+            return true;
         }
 
         false
@@ -157,82 +156,76 @@ const FABRIC_LOADER: &str = "Fabric";
 const FORGE_LOADER: &str = "Forge";
 const NEOFORGE_LOADER: &str = "NeoForge";
 
+struct NewInstanceParams {
+    instance_name: String,
+    minecraft_version: String,
+    loader: String,
+    loader_version: String,
+}
+
 fn create_new_instance(
     runtime: &Runtime,
     ctx: &egui::Context,
     launcher_dir: &Path,
     version_manifest: &VersionManifest,
-    instance_name: &str,
-    minecraft_version: &str,
-    loader: &str,
-    loader_version: &str,
+    new_instance_params: NewInstanceParams,
 ) -> BackgroundTask<anyhow::Result<VersionInfo>> {
+    let NewInstanceParams {
+        instance_name,
+        minecraft_version,
+        loader,
+        loader_version,
+    } = new_instance_params;
+
     let launcher_dir = launcher_dir.to_path_buf();
     let version_manifest = version_manifest.clone();
-    let instance_name = instance_name.to_string();
-    let minecraft_version = minecraft_version.to_string();
-    let loader = loader.to_string();
-    let loader_version = loader_version.to_string();
     let fut = async move {
         let vanilla_info = get_vanilla_version_info(&version_manifest, &minecraft_version)?;
 
-        let generator: Box<dyn VersionGenerator + Send>;
-        match loader.as_str() {
+        let generator: Box<dyn VersionGenerator + Send> = match loader.as_str() {
             VANILLA_LOADER => {
                 if !loader_version.is_empty() {
                     log::warn!("Ignoring loader version for vanilla version");
                 }
 
-                generator = Box::new(VanillaGenerator::new(
+                Box::new(VanillaGenerator::new(
                     instance_name.to_string(),
                     vanilla_info,
-                ));
+                ))
             }
 
-            FABRIC_LOADER => {
-                generator = Box::new(FabricGenerator::new(
-                    instance_name.to_string(),
-                    vanilla_info,
-                    Some(loader_version),
-                ));
-            }
+            FABRIC_LOADER => Box::new(FabricGenerator::new(
+                instance_name.to_string(),
+                vanilla_info,
+                Some(loader_version),
+            )),
 
-            FORGE_LOADER => {
-                generator = Box::new(ForgeGenerator::new(
-                    instance_name.to_string(),
-                    vanilla_info,
-                    Loader::Forge,
-                    Some(loader_version),
-                    Arc::new(NoProgressBar),
-                ));
-            }
+            FORGE_LOADER => Box::new(ForgeGenerator::new(
+                instance_name.to_string(),
+                vanilla_info,
+                Loader::Forge,
+                Some(loader_version),
+                Arc::new(NoProgressBar),
+            )),
 
-            NEOFORGE_LOADER => {
-                generator = Box::new(ForgeGenerator::new(
-                    instance_name.to_string(),
-                    vanilla_info,
-                    Loader::Neoforge,
-                    Some(loader_version),
-                    Arc::new(NoProgressBar),
-                ));
-            }
+            NEOFORGE_LOADER => Box::new(ForgeGenerator::new(
+                instance_name.to_string(),
+                vanilla_info,
+                Loader::Neoforge,
+                Some(loader_version),
+                Arc::new(NoProgressBar),
+            )),
 
             _ => {
                 return Err(anyhow::Error::msg("Unknown loader"));
             }
-        }
+        };
 
         let generator_result = generator.generate(&launcher_dir).await?;
 
-        const DOWNLOAD_SERVER_BASE: &str = "https://this-should-not-be-used.com";
-
         let extra_generator = ExtraMetadataGenerator::new(
             instance_name.to_string(),
-            vec![],
-            vec![],
             None,
-            None,
-            DOWNLOAD_SERVER_BASE.to_string(),
             generator_result.extra_libs_paths,
             None,
         );
@@ -242,21 +235,21 @@ fn create_new_instance(
             &launcher_dir,
             &generator_result.metadata,
             &instance_name,
-            DOWNLOAD_SERVER_BASE,
+            None,
         )
         .await?;
 
-        return Ok(version_info);
+        Ok(version_info)
     };
 
     let ctx = ctx.clone();
-    return BackgroundTask::with_callback(
+    BackgroundTask::with_callback(
         fut,
         runtime,
         Box::new(move || {
             ctx.request_repaint();
         }),
-    );
+    )
 }
 
 pub struct NewInstanceState {
@@ -400,7 +393,7 @@ impl NewInstanceState {
                     if selected_version != self.instance_version {
                         self.instance_version = selected_version;
                         self.current_version_metadata_task = Some(fetch_per_version_metadata(
-                            &runtime,
+                            runtime,
                             ui.ctx(),
                             &self.instance_version,
                         ));
@@ -412,7 +405,7 @@ impl NewInstanceState {
 
                 if self.curent_metadata_state.render_ui(ui, lang, self.current_version_metadata_task.is_some()) {
                     self.current_version_metadata_task = Some(fetch_per_version_metadata(
-                        &runtime,
+                        runtime,
                         ui.ctx(),
                         &self.instance_version,
                     ));
@@ -470,18 +463,16 @@ impl NewInstanceState {
                             }
                         }
 
-                        if self.instance_loader_version.is_empty() {
-                            if self.instance_loader == FORGE_LOADER {
-                                for latest_type in latest_types.iter() {
-                                    if let Some(promotion) = all_metadata.forge_promotions.get_latest_version(&self.instance_version, latest_type) {
-                                        self.instance_loader_version = promotion.to_string();
-                                        break;
-                                    }
+                        if self.instance_loader_version.is_empty() && self.instance_loader == FORGE_LOADER {
+                            for latest_type in latest_types.iter() {
+                                if let Some(promotion) = all_metadata.forge_promotions.get_latest_version(&self.instance_version, latest_type) {
+                                    self.instance_loader_version = promotion.to_string();
+                                    break;
                                 }
                             }
                         }
                         if self.instance_loader_version.is_empty() {
-                            if let Some(version) = versions.get(0) {
+                            if let Some(version) = versions.first() {
                                 self.instance_loader_version = version.to_string();
                             }
                         }
@@ -491,34 +482,37 @@ impl NewInstanceState {
                             .selected_text(self.instance_loader_version.clone())
                             .show_ui(ui, |ui| {
                                 for version in versions.iter() {
-                                    ui.selectable_value(&mut self.instance_loader_version, version.to_string(), version_name.get(version).unwrap_or(&version).to_string());
+                                    ui.selectable_value(&mut self.instance_loader_version, version.to_string(), version_name.get(version).unwrap_or(version).to_string());
                                 }
                             });
                     });
                 }
 
-                if self.new_instance_name != "" && (self.instance_loader == VANILLA_LOADER || versions.contains_key(&self.instance_loader)) {
+                if !self.new_instance_name.is_empty() && (self.instance_loader == VANILLA_LOADER || versions.contains_key(&self.instance_loader)) {
                     if existing_names.contains(&self.new_instance_name) {
                         ui.label(LangMessage::InstanceNameExists.to_string(lang));
                     } else {
                         ui.horizontal(|ui| {
                             if self.instance_generate_task.is_none() {
                                 if ui.button(LangMessage::CreateInstance.to_string(lang)).clicked() {
+                                    let params = NewInstanceParams {
+                                        instance_name: self.new_instance_name.clone(),
+                                        minecraft_version: self.instance_version.clone(),
+                                        loader: self.instance_loader.clone(),
+                                        loader_version: self.instance_loader_version.clone(),
+                                    };
                                     let task = create_new_instance(
-                                        &runtime,
+                                        runtime,
                                         ui.ctx(),
                                         &config.get_launcher_dir(),
                                         &all_metadata.vanilla_manifest,
-                                        &self.new_instance_name,
-                                        &self.instance_version,
-                                        &self.instance_loader,
-                                        &self.instance_loader_version,
+                                        params,
                                     );
                                     self.instance_generate_task = Some(task);
                                 }
                                 if let Some(error) = &self.instance_generate_error {
                                     ui.label(if error.downcast_ref::<reqwest::Error>()
-                                        .map_or(false, |e| e.is_connect())
+                                        .is_some_and(|e| e.is_connect())
                                     {
                                         LangMessage::InstanceGenerateErrorOffline
                                             .to_string(lang)

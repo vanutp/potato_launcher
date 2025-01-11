@@ -29,7 +29,7 @@ pub async fn replace_download_urls(
     }
 
     for library in &mut version_metadata.libraries {
-        if let Some(library_path) = library.get_library_path(&&libraries_dir) {
+        if let Some(library_path) = library.get_library_path(&libraries_dir) {
             if let Some(downloads) = &mut library.downloads {
                 if let Some(artifact) = &mut downloads.artifact {
                     artifact.url = url_from_path(&library_path, data_dir, download_server_base)?;

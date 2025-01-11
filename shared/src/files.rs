@@ -165,7 +165,6 @@ pub async fn get_download_entries<M>(
     let hashes = to_hash
         .into_iter()
         .zip(hashes.into_iter())
-        .map(|(path, hash)| (path, hash))
         .collect::<HashMap<_, _>>();
 
     let mut download_entries = HashMap::new();
@@ -239,9 +238,9 @@ pub async fn sync_mapping(
         if source.is_file() {
             mappings_files.insert(target.clone(), source.clone());
         } else if source.is_dir() {
-            let files = get_files_in_dir(&source)?;
+            let files = get_files_in_dir(source)?;
             for file in files {
-                let relative_path = file.strip_prefix(&source).unwrap();
+                let relative_path = file.strip_prefix(source).unwrap();
                 let target_path = target.join(relative_path);
                 mappings_files.insert(target_path, file);
             }
@@ -250,21 +249,21 @@ pub async fn sync_mapping(
         }
     }
 
-    let paths = get_files_in_dir(&target_dir)?;
+    let paths = get_files_in_dir(target_dir)?;
     for path in paths {
         if !mappings_files.contains_key(&path) {
             fs::remove_file(&path).await?;
         }
     }
 
-    remove_empty_dirs(&target_dir).await?;
+    remove_empty_dirs(target_dir).await?;
 
     let fut = mappings_files.iter().map(|(target, source)| async move {
         fs::create_dir_all(target.parent().ok_or(CopyFilesError::InvalidPath)?).await?;
         if target.is_dir() {
             fs::remove_dir(&target).await?;
         }
-        if !target.exists() || hash_file(&source).await? != hash_file(&target).await? {
+        if !target.exists() || hash_file(source).await? != hash_file(target).await? {
             fs::copy(&source, &target).await?;
         }
         anyhow::Result::<()>::Ok(())

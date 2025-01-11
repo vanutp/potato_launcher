@@ -139,19 +139,16 @@ impl UpdateApp {
     fn ui(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.vertical_centered(|ui| {
-                match &self.download_status {
-                    DownloadStatus::Downloaded(new_binary) => {
-                        if let Some(e) = replace_launcher_and_start(new_binary).err() {
-                            self.download_status = if utils::is_read_only_error(&e) {
-                                DownloadStatus::ErrorReadOnly
-                            } else {
-                                DownloadStatus::DownloadError(e.to_string())
-                            };
+                if let DownloadStatus::Downloaded(new_binary) = &self.download_status {
+                    if let Some(e) = replace_launcher_and_start(new_binary).err() {
+                        self.download_status = if utils::is_read_only_error(&e) {
+                            DownloadStatus::ErrorReadOnly
                         } else {
-                            panic!("Launcher should have been replaced and launched");
-                        }
+                            DownloadStatus::DownloadError(e.to_string())
+                        };
+                    } else {
+                        panic!("Launcher should have been replaced and launched");
                     }
-                    _ => {}
                 }
 
                 if let Some(new_binary_receiver) = &self.new_binary_receiver {
@@ -169,44 +166,40 @@ impl UpdateApp {
                         }
                         self.download_status = download_status;
                     }
-                } else {
-                    if let Ok(update_status) = self.need_update_receiver.try_recv() {
-                        match &update_status {
-                            UpdateStatus::NeedUpdate => {
-                                let (new_binary_sender, new_binary_receiver) = mpsc::channel();
-                                self.new_binary_receiver = Some(new_binary_receiver);
-                                let update_progress_bar = self.update_progress_bar.clone();
-                                let ctx = ctx.clone();
-                                self.runtime.spawn(async move {
-                                    let _ = new_binary_sender.send(
-                                        match download_new_launcher(update_progress_bar).await {
-                                            Ok(new_binary) => {
-                                                DownloadStatus::Downloaded(new_binary)
-                                            }
-                                            Err(e) if utils::is_read_only_error(&e) => {
-                                                DownloadStatus::ErrorReadOnly
-                                            }
-                                            Err(e) if utils::is_connect_error(&e) => {
-                                                DownloadStatus::DownloadErrorOffline(e.to_string())
-                                            }
-                                            Err(e) => DownloadStatus::DownloadError(e.to_string()),
-                                        },
-                                    );
-                                    ctx.request_repaint();
-                                });
-                            }
-                            UpdateStatus::UpToDate => {
-                                self.exit_on_close = false;
-                                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-                            }
-                            UpdateStatus::UpdateError(_) => {}
-                            UpdateStatus::UpdateErrorOffline(_) => {}
-                            UpdateStatus::Checking => {
-                                panic!("Should not receive Checking");
-                            }
+                } else if let Ok(update_status) = self.need_update_receiver.try_recv() {
+                    match &update_status {
+                        UpdateStatus::NeedUpdate => {
+                            let (new_binary_sender, new_binary_receiver) = mpsc::channel();
+                            self.new_binary_receiver = Some(new_binary_receiver);
+                            let update_progress_bar = self.update_progress_bar.clone();
+                            let ctx = ctx.clone();
+                            self.runtime.spawn(async move {
+                                let _ = new_binary_sender.send(
+                                    match download_new_launcher(update_progress_bar).await {
+                                        Ok(new_binary) => DownloadStatus::Downloaded(new_binary),
+                                        Err(e) if utils::is_read_only_error(&e) => {
+                                            DownloadStatus::ErrorReadOnly
+                                        }
+                                        Err(e) if utils::is_connect_error(&e) => {
+                                            DownloadStatus::DownloadErrorOffline(e.to_string())
+                                        }
+                                        Err(e) => DownloadStatus::DownloadError(e.to_string()),
+                                    },
+                                );
+                                ctx.request_repaint();
+                            });
                         }
-                        self.update_status = update_status;
+                        UpdateStatus::UpToDate => {
+                            self.exit_on_close = false;
+                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
+                        UpdateStatus::UpdateError(_) => {}
+                        UpdateStatus::UpdateErrorOffline(_) => {}
+                        UpdateStatus::Checking => {
+                            panic!("Should not receive Checking");
+                        }
                     }
+                    self.update_status = update_status;
                 }
 
                 match &self.update_status {

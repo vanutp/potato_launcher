@@ -54,7 +54,7 @@ impl AuthMessageProvider {
 
     pub async fn get_message(&self) -> Option<LangMessage> {
         let state = self.state.lock().await;
-        return state.auth_message.clone();
+        state.auth_message.clone()
     }
 
     pub async fn clear(&self) {
@@ -68,14 +68,13 @@ impl AuthMessageProvider {
             let mut state = self.state.lock().await;
             state.need_offline_nickname += 1;
         }
-        let nickname = self
-            .offline_nickname_receiver
+
+        self.offline_nickname_receiver
             .lock()
             .await
             .recv()
             .await
-            .unwrap();
-        nickname
+            .unwrap()
     }
 
     pub async fn need_offline_nickname(&self) -> bool {
@@ -90,20 +89,18 @@ impl AuthMessageProvider {
     }
 }
 
-pub async fn auth(
+pub async fn perform_auth(
     auth_data: Option<AuthData>,
     auth_provider: Box<dyn AuthProvider + Send + Sync>,
     auth_message_provider: Arc<AuthMessageProvider>,
 ) -> anyhow::Result<AuthData> {
-    let mut auth_result_data = auth_data.map_or(None, |data| {
-        Some(AuthResultData {
-            access_token: data.access_token,
-            refresh_token: data.refresh_token,
-        })
+    let mut auth_result_data = auth_data.map(|data| AuthResultData {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
     });
     let mut auth_state = auth_result_data
         .clone()
-        .map_or(AuthState::Auth, |data| AuthState::UserInfo(data));
+        .map_or(AuthState::Auth, AuthState::UserInfo);
 
     for _ in 0..10 {
         match auth_state {

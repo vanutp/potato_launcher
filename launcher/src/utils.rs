@@ -46,15 +46,15 @@ pub fn validate_xmx(xmx: &str) -> bool {
     let xmx = xmx.to_uppercase();
     if xmx.ends_with("M") {
         if let Ok(xmx) = xmx[..xmx.len() - 1].parse::<u32>() {
-            return xmx >= constants::MIN_JAVA_MB && xmx <= constants::MAX_JAVA_MB;
+            return (constants::MIN_JAVA_MB..=constants::MAX_JAVA_MB).contains(&xmx);
         }
     } else if xmx.ends_with("G") {
         if let Ok(xmx) = xmx[..xmx.len() - 1].parse::<u32>() {
-            return xmx >= constants::MIN_JAVA_MB * 1024 && xmx <= constants::MAX_JAVA_MB * 1024;
+            return (constants::MIN_JAVA_MB * 1024..=constants::MAX_JAVA_MB * 1024).contains(&xmx);
         }
     }
 
-    return false;
+    false
 }
 
 pub fn get_icon_data() -> egui::IconData {

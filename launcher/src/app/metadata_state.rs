@@ -94,11 +94,11 @@ pub struct MetadataState {
 
 impl MetadataState {
     pub fn new() -> Self {
-        return MetadataState {
+        MetadataState {
             status: GetStatus::Getting,
             get_task: None,
             metadata_storage: HashMap::new(),
-        };
+        }
     }
 
     pub fn set_metadata_task(

@@ -8,7 +8,6 @@ use std::sync::Mutex;
 pub fn setup_logger(logs_path: &Path) {
     let log_file = OpenOptions::new()
         .create(true)
-        .write(true)
         .append(true)
         .open(logs_path)
         .unwrap();

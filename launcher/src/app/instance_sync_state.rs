@@ -67,14 +67,14 @@ impl InstanceSyncState {
     pub fn new(ctx: &egui::Context) -> Self {
         let instance_sync_progress_bar = Arc::new(GuiProgressBar::new(ctx));
 
-        return InstanceSyncState {
+        InstanceSyncState {
             status: InstanceSyncStatus::NotSynced,
             instance_sync_task: None,
             instance_sync_progress_bar,
 
             instance_sync_window_open: false,
             force_overwrite_checked: false,
-        };
+        }
     }
 
     pub fn update(&mut self) -> bool {
@@ -238,7 +238,7 @@ impl InstanceSyncState {
         selected_version_metadata: Option<Arc<CompleteVersionMetadata>>,
     ) {
         let lang = config.lang;
-        let mut instance_sync_window_open = self.instance_sync_window_open.clone();
+        let mut instance_sync_window_open = self.instance_sync_window_open;
         let mut close_sync_window = false;
         egui::Window::new(LangMessage::SyncInstance.to_string(lang))
             .open(&mut instance_sync_window_open)

@@ -16,7 +16,7 @@ use tokio::time::sleep;
 use crate::config::build_config;
 use crate::lang::LangMessage;
 
-use super::auth::AuthMessageProvider;
+use super::auth_flow::AuthMessageProvider;
 use super::base::{AuthProvider, AuthResultData, AuthState};
 use super::user_info::UserInfo;
 
@@ -82,10 +82,8 @@ async fn exchange_code(
 
     let status = resp.status();
     let data: serde_json::Value = resp.json().await?;
-    if status != 200 {
-        if data.get("error") == Some(&"invalid_request".into()) {
-            return Err(AuthError::InvalidCode.into());
-        }
+    if status != 200 && data.get("error") == Some(&"invalid_request".into()) {
+        return Err(AuthError::InvalidCode.into());
     }
 
     if data.get("token_type") != Some(&"Bearer".into()) {

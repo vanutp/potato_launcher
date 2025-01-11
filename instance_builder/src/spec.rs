@@ -9,7 +9,10 @@ use tokio::fs;
 
 use shared::{
     files::sync_mapping,
-    generate::{extra::ExtraMetadataGenerator, manifest::get_version_info},
+    generate::{
+        extra::{ExtraMetadataGenerator, IncludeConfig},
+        manifest::get_version_info,
+    },
     loader_generator::{
         fabric::FabricGenerator,
         forge::{ForgeGenerator, Loader},
@@ -85,9 +88,9 @@ impl VersionsSpec {
         Ok(spec)
     }
 
-    pub async fn generate(&self, output_dir: &Path, work_dir: &Path) -> anyhow::Result<()> {
+    pub async fn generate(self, output_dir: &Path, work_dir: &Path) -> anyhow::Result<()> {
         if let Some(command) = &self.exec_before_all {
-            exec_string_command(&command).await?;
+            exec_string_command(command).await?;
         }
 
         info!("Fetching version manifest");
@@ -97,9 +100,9 @@ impl VersionsSpec {
         let mut synced_metadata = HashSet::new();
         let mut mapping = HashMap::new();
 
-        for version in &self.versions {
+        for version in self.versions {
             if let Some(command) = &version.exec_before {
-                exec_string_command(&command).await?;
+                exec_string_command(command).await?;
             }
 
             let vanilla_version_info =
@@ -107,52 +110,45 @@ impl VersionsSpec {
 
             let progress_bar = Arc::new(TerminalProgressBar::new());
 
-            let generator: Box<dyn VersionGenerator>;
-            match version.loader_name.as_str() {
+            let generator: Box<dyn VersionGenerator> = match version.loader_name.as_str() {
                 "vanilla" => {
                     if version.loader_version.is_some() {
                         warn!("Ignoring loader version for vanilla version");
                     }
 
-                    generator = Box::new(VanillaGenerator::new(
+                    Box::new(VanillaGenerator::new(
                         version.name.clone(),
                         vanilla_version_info,
-                    ));
+                    ))
                 }
 
-                "fabric" => {
-                    generator = Box::new(FabricGenerator::new(
-                        version.name.clone(),
-                        vanilla_version_info,
-                        version.loader_version.clone(),
-                    ));
-                }
+                "fabric" => Box::new(FabricGenerator::new(
+                    version.name.clone(),
+                    vanilla_version_info,
+                    version.loader_version.clone(),
+                )),
 
-                "forge" => {
-                    generator = Box::new(ForgeGenerator::new(
-                        version.name.clone(),
-                        vanilla_version_info,
-                        Loader::Forge,
-                        version.loader_version.clone(),
-                        progress_bar.clone(),
-                    ));
-                }
+                "forge" => Box::new(ForgeGenerator::new(
+                    version.name.clone(),
+                    vanilla_version_info,
+                    Loader::Forge,
+                    version.loader_version.clone(),
+                    progress_bar.clone(),
+                )),
 
-                "neoforge" => {
-                    generator = Box::new(ForgeGenerator::new(
-                        version.name.clone(),
-                        vanilla_version_info,
-                        Loader::Neoforge,
-                        version.loader_version.clone(),
-                        progress_bar.clone(),
-                    ));
-                }
+                "neoforge" => Box::new(ForgeGenerator::new(
+                    version.name.clone(),
+                    vanilla_version_info,
+                    Loader::Neoforge,
+                    version.loader_version.clone(),
+                    progress_bar.clone(),
+                )),
 
                 _ => {
                     error!("Unsupported loader name: {}", version.loader_name);
                     continue;
                 }
-            }
+            };
 
             let mut workdir_paths_to_copy = vec![];
 
@@ -200,15 +196,27 @@ impl VersionsSpec {
             } else {
                 None
             };
+
+            let include_config = if let Some(include_from) = version.include_from {
+                Some(IncludeConfig {
+                    include: version.include,
+                    include_no_overwrite: version.include_no_overwrite,
+                    include_from,
+                    download_server_base: self.download_server_base.clone(),
+                    resources_url_base,
+                })
+            } else {
+                if !version.include.is_empty() || !version.include_no_overwrite.is_empty() {
+                    warn!("Ignoring include and include_no_overwrite, include_from is not set");
+                }
+                None
+            };
+
             let extra_generator = ExtraMetadataGenerator::new(
                 version.name.clone(),
-                version.include.clone(),
-                version.include_no_overwrite.clone(),
-                version.include_from.clone(),
-                resources_url_base,
-                self.download_server_base.clone(),
+                include_config,
                 result.extra_libs_paths,
-                version.auth_backend.clone(),
+                version.auth_backend,
             );
             let extra_generator_result = extra_generator.generate(work_dir).await?;
             mapping.extend(extra_generator_result.include_mapping.into_iter().map(
@@ -226,7 +234,7 @@ impl VersionsSpec {
                 work_dir,
                 &result.metadata,
                 &version.name,
-                &self.download_server_base,
+                Some(self.download_server_base.as_str()),
             )
             .await?;
             version_manifest.versions.push(version_info);
@@ -234,7 +242,7 @@ impl VersionsSpec {
             mapping.extend(get_mapping(output_dir, work_dir, &workdir_paths_to_copy)?);
 
             if let Some(command) = &version.exec_after {
-                exec_string_command(&command).await?;
+                exec_string_command(command).await?;
             }
 
             info!("Finished generating version {}", &version.name);
@@ -248,7 +256,7 @@ impl VersionsSpec {
         version_manifest.save_to_file(&manifest_path).await?;
 
         if let Some(command) = &self.exec_after_all {
-            exec_string_command(&command).await?;
+            exec_string_command(command).await?;
         }
         Ok(())
     }

@@ -50,7 +50,7 @@ impl FabricVersionsMeta {
     }
 
     pub fn get_latest_version(&self) -> Option<&str> {
-        self.get_versions().first().map(|version| *version)
+        self.get_versions().first().copied()
     }
 }
 
@@ -64,7 +64,7 @@ async fn download_fabric_metadata(
         FABRIC_META_BASE_URL, minecraft_version, loader_version
     );
     let version_metadata = VersionMetadata::fetch(&fabric_metadata_url).await?;
-    let versions_dir = get_versions_dir(&output_dir);
+    let versions_dir = get_versions_dir(output_dir);
     version_metadata.save(&versions_dir).await?;
     Ok(version_metadata)
 }
@@ -131,7 +131,7 @@ impl VersionGenerator for FabricGenerator {
 
         info!("Downloading Fabric version metadata");
         let fabric_metadata =
-            download_fabric_metadata(&minecraft_version, &fabric_version, &work_dir).await?;
+            download_fabric_metadata(&minecraft_version, &fabric_version, work_dir).await?;
 
         info!("Fabric version \"{}\" generated", self.version_name);
 

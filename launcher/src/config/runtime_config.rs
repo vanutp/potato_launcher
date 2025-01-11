@@ -42,7 +42,7 @@ impl Config {
             }
         }
 
-        let config = Config {
+        Config {
             java_paths: HashMap::new(),
             assets_dir: None,
             data_dir: None,
@@ -51,8 +51,7 @@ impl Config {
             lang: constants::DEFAULT_LANG,
             hide_launcher_after_launch: true,
             auth_profiles: HashMap::new(),
-        };
-        return config;
+        }
     }
 
     pub fn get_launcher_dir(&self) -> PathBuf {

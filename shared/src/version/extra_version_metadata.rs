@@ -14,31 +14,26 @@ pub struct Object {
     pub url: String,
 }
 
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
 pub struct TelegramAuthBackend {
     pub auth_base_url: String,
 }
 
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
 pub struct ElyByAuthBackend {
     pub client_id: String,
     pub client_secret: String,
 }
 
-#[derive(Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Default, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum AuthBackend {
     Telegram(TelegramAuthBackend),
     #[serde(rename = "ely.by")]
     ElyBy(ElyByAuthBackend),
+    #[default]
     Microsoft,
     Offline,
-}
-
-impl Default for AuthBackend {
-    fn default() -> Self {
-        AuthBackend::Microsoft
-    }
 }
 
 impl AuthBackend {

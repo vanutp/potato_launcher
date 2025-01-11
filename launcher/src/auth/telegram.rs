@@ -1,7 +1,7 @@
 use crate::lang::LangMessage;
 
 use super::{
-    auth::AuthMessageProvider,
+    auth_flow::AuthMessageProvider,
     base::{AuthProvider, AuthResultData, AuthState},
     user_info::UserInfo,
 };

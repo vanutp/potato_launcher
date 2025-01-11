@@ -109,7 +109,7 @@ async fn fetch_hashes(
                     if se.status() == Some(reqwest::StatusCode::NOT_FOUND) {
                         warn!("SHA1 hash not found: {:?}", se.url().unwrap());
                     } else {
-                        return Err(e.into());
+                        return Err(e);
                     }
                 } else {
                     return Err(e);
@@ -134,7 +134,7 @@ async fn get_libraries_entries(
             Some((&os::get_os_name(), &os::get_system_arch())),
         ) {
             if entry.remote_sha1.is_some() || !entry.path.exists() {
-                if entry.url == "" {
+                if entry.url.is_empty() {
                     info!("Skipping library with no URL: {:?}", entry.path);
                     continue;
                 }
@@ -178,7 +178,7 @@ fn extract_natives(
         if let Some(natives_path) =
             library.get_os_native_path(libraries_dir, &os::get_os_name(), &os::get_system_arch())
         {
-            extract_files(&natives_path, &natives_dir)?;
+            extract_files(&natives_path, natives_dir)?;
         }
     }
 
@@ -221,11 +221,11 @@ fn get_authlib_injector_entry(
         }
     }
 
-    return Some(CheckEntry {
+    Some(CheckEntry {
         url: AUTHLIB_INJECTOR_URL.to_string(),
         remote_sha1: Some(AUTHLIB_INJECTOR_SHA1.to_string()),
         path: get_authlib_injector_path(launcher_dir),
-    });
+    })
 }
 
 pub async fn sync_instance(
@@ -239,7 +239,7 @@ pub async fn sync_instance(
 
     let libraries_dir = get_libraries_dir(launcher_dir);
     let natives_dir = get_natives_dir(launcher_dir, version_metadata.get_parent_id());
-    let instance_dir = get_instance_dir(launcher_dir, &version_name);
+    let instance_dir = get_instance_dir(launcher_dir, version_name);
 
     let mut check_entries = vec![];
 

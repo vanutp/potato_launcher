@@ -145,7 +145,7 @@ pub async fn launch(
         "user_properties".to_string() => "{}".to_string(),
     };
 
-    let mut java_options = vec![
+    let mut java_options = [
         GC_OPTIONS
             .iter()
             .map(|&s| s.to_string())
@@ -195,7 +195,7 @@ pub async fn launch(
 
     let mut cmd = TokioCommand::new(java_path);
     cmd.args(&java_options)
-        .arg(&version_metadata.get_main_class())
+        .arg(version_metadata.get_main_class())
         .args(&minecraft_options)
         .current_dir(minecraft_dir_short);
 

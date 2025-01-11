@@ -32,12 +32,12 @@ pub struct Os {
 impl Os {
     fn matches_os(&self, os_name: &str, arch: &str) -> bool {
         if let Some(expected_arch) = &self.arch {
-            if expected_arch != &arch {
+            if expected_arch != arch {
                 return false;
             }
         }
         if let Some(expected_name) = &self.name {
-            if expected_name != &os_name && expected_name != &format!("{}-{}", os_name, arch) {
+            if expected_name != os_name && expected_name != &format!("{}-{}", os_name, arch) {
                 return false;
             }
         }
@@ -59,7 +59,7 @@ pub struct Rule {
 impl Rule {
     fn allowed_on_os(&self, os_name: &str, arch: &str) -> Option<bool> {
         let is_allowed = self.action == "allow";
-        let matching_features = vec!["has_custom_resolution"];
+        let matching_features = ["has_custom_resolution"];
 
         if let Some(os) = &self.os {
             if !os.matches_os(os_name, arch) {
@@ -240,12 +240,12 @@ impl Library {
     pub fn get_library_path(&self, libraries_dir: &Path) -> Option<PathBuf> {
         if let Some(downloads) = &self.downloads {
             if downloads.artifact.is_some() {
-                Some(libraries_dir.join(&self.get_path_from_name()))
+                Some(libraries_dir.join(self.get_path_from_name()))
             } else {
                 None
             }
         } else {
-            Some(libraries_dir.join(&self.get_path_from_name()))
+            Some(libraries_dir.join(self.get_path_from_name()))
         }
     }
 
@@ -306,12 +306,12 @@ impl Library {
             Some(CheckEntry {
                 url: format!("{}/{}", self.get_url(), self.get_path_from_name()),
                 remote_sha1: self.sha1.clone(),
-                path: libraries_dir.join(&self.get_path_from_name()),
+                path: libraries_dir.join(self.get_path_from_name()),
             })
         }
     }
 
-    // os_with_arch = None means all natives
+    // [os_with_arch = None] means all natives
     pub fn get_check_entries(
         &self,
         libraries_dir: &Path,
@@ -328,13 +328,11 @@ impl Library {
                     entries.push(download.get_check_entry(&path));
                 }
             }
-        } else {
-            if let Some(natives) = &self.natives {
-                for (native_name, _) in natives {
-                    if let Some(download) = self.get_native_download(native_name) {
-                        let path = self.get_native_path(libraries_dir, native_name, download);
-                        entries.push(download.get_check_entry(&path));
-                    }
+        } else if let Some(natives) = &self.natives {
+            for native_name in natives.keys() {
+                if let Some(download) = self.get_native_download(native_name) {
+                    let path = self.get_native_path(libraries_dir, native_name, download);
+                    entries.push(download.get_check_entry(&path));
                 }
             }
         }

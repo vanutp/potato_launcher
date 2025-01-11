@@ -37,7 +37,7 @@ impl AssetsMetadata {
     }
 
     pub async fn read_local(asset_id: &str, assets_dir: &Path) -> anyhow::Result<Self> {
-        let data = tokio::fs::read(Self::get_path(&assets_dir, asset_id).await?).await?;
+        let data = tokio::fs::read(Self::get_path(assets_dir, asset_id).await?).await?;
         let data: Self = serde_json::from_slice(&data)?;
         Ok(data)
     }
@@ -56,7 +56,7 @@ impl AssetsMetadata {
         let download_entries =
             files::get_download_entries(check_entries, progress::no_progress_bar()).await?;
         files::download_files(download_entries, progress::no_progress_bar()).await?;
-        Self::read_local(&asset_index.id, &assets_dir).await
+        Self::read_local(&asset_index.id, assets_dir).await
     }
 
     pub fn get_check_entries(
@@ -66,7 +66,7 @@ impl AssetsMetadata {
     ) -> anyhow::Result<Vec<CheckEntry>> {
         let mut download_entries = vec![];
 
-        download_entries.extend(self.objects.iter().map(|(_, object)| {
+        download_entries.extend(self.objects.values().map(|object| {
             CheckEntry {
                 url: format!(
                     "{}/{}/{}",
@@ -87,7 +87,7 @@ impl AssetsMetadata {
 
     pub async fn save_to_file(&self, asset_id: &str, assets_dir: &Path) -> anyhow::Result<()> {
         let data = serde_json::to_vec(self)?;
-        tokio::fs::write(Self::get_path(&assets_dir, asset_id).await?, data).await?;
+        tokio::fs::write(Self::get_path(assets_dir, asset_id).await?, data).await?;
         Ok(())
     }
 }

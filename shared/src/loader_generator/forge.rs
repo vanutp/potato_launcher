@@ -55,13 +55,9 @@ impl ForgeMavenMetadata {
             .into_iter()
             .rev()
             .filter_map(|version| {
-                if let Some(forge_version) =
-                    version.strip_prefix(&format!("{}-", minecraft_version))
-                {
-                    Some(forge_version.to_string())
-                } else {
-                    None
-                }
+                version
+                    .strip_prefix(&format!("{}-", minecraft_version))
+                    .map(|forge_version| forge_version.to_string())
             })
             .collect()
     }
@@ -69,7 +65,7 @@ impl ForgeMavenMetadata {
     fn has_version(&self, minecraft_version: &str, forge_version: &str) -> bool {
         self.versions
             .get(minecraft_version)
-            .map_or(false, |versions| {
+            .is_some_and(|versions| {
                 versions.contains(&format!("{}-{}", minecraft_version, forge_version))
             })
     }
@@ -127,11 +123,11 @@ impl NeoforgeMavenMetadata {
             .into_iter()
             .max_by(|a, b| {
                 let a_parts: Vec<u32> = a
-                    .split(|c: char| !c.is_digit(10))
+                    .split(|c: char| !c.is_ascii_digit())
                     .filter_map(|s| s.parse().ok())
                     .collect();
                 let b_parts: Vec<u32> = b
-                    .split(|c: char| !c.is_digit(10))
+                    .split(|c: char| !c.is_ascii_digit())
                     .filter_map(|s| s.parse().ok())
                     .collect();
                 a_parts.cmp(&b_parts)
@@ -344,7 +340,7 @@ pub async fn get_vanilla_java_version(
 pub fn trick_forge(forge_work_dir: &Path, minecraft_version: &str) -> anyhow::Result<()> {
     std::fs::create_dir_all(forge_work_dir.join("versions").join(minecraft_version))?;
     let mut file = std::fs::File::create(forge_work_dir.join("launcher_profiles.json"))?;
-    file.write(b"{\"profiles\":{}}")?;
+    let _ = file.write(b"{\"profiles\":{}}")?;
     Ok(())
 }
 
@@ -443,12 +439,12 @@ pub async fn install_forge<M>(
 
         info!("Getting java {}", &java_version);
         let java_installation;
-        if let Some(existing_java_installation) = get_java(&java_version, &java_dir).await {
+        if let Some(existing_java_installation) = get_java(&java_version, java_dir).await {
             java_installation = existing_java_installation;
         } else {
             info!("Java installation not found, downloading");
 
-            java_installation = download_java(&java_version, &java_dir, progress_bar).await?;
+            java_installation = download_java(&java_version, java_dir, progress_bar).await?;
         }
 
         info!("Downloading forge installer");
@@ -517,7 +513,7 @@ impl VersionGenerator for ForgeGenerator {
 
         let installer_work_dir = work_dir
             .join(format!(".{:?}", self.loader))
-            .join(&get_full_version(&minecraft_version, &forge_version));
+            .join(get_full_version(&minecraft_version, &forge_version));
         let id = install_forge(
             &installer_work_dir,
             &get_java_dir(work_dir),
@@ -529,7 +525,7 @@ impl VersionGenerator for ForgeGenerator {
         .await?;
 
         let versions_dir_from = installer_work_dir.join("versions");
-        let versions_dir_to = get_versions_dir(&work_dir);
+        let versions_dir_to = get_versions_dir(work_dir);
 
         info!("Copying version metadata");
         let metadata_from = versions_dir_from.join(&id).join(format!("{}.json", id));
@@ -565,13 +561,13 @@ impl VersionGenerator for ForgeGenerator {
 
         // copy extra forge libs to work dir
         let forge_installer_libraries_dir = installer_work_dir.join("libraries");
-        let libraries_dir = get_libraries_dir(&work_dir);
+        let libraries_dir = get_libraries_dir(work_dir);
         let extra_libs_paths = extra_libs_paths
             .into_iter()
             .map(|lib_path| {
                 let lib_dest = libraries_dir.join(&lib_path);
                 std::fs::create_dir_all(lib_dest.parent().unwrap())?;
-                std::fs::copy(&forge_installer_libraries_dir.join(&lib_path), &lib_dest)?;
+                std::fs::copy(forge_installer_libraries_dir.join(&lib_path), &lib_dest)?;
                 Ok(lib_dest)
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -585,7 +581,7 @@ impl VersionGenerator for ForgeGenerator {
 
         Ok(GeneratorResult {
             metadata: vec![vanilla_metadata, forge_metadata],
-            extra_libs_paths: extra_libs_paths,
+            extra_libs_paths,
         })
     }
 }

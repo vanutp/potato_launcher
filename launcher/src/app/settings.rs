@@ -35,10 +35,7 @@ impl SettingsState {
             self.settings_opened = true;
 
             self.picked_java_path = if let Some(selected_metadata) = selected_metadata {
-                config
-                    .java_paths
-                    .get(&selected_metadata.get_name().to_string())
-                    .cloned()
+                config.java_paths.get(selected_metadata.get_name()).cloned()
             } else {
                 None
             };
@@ -62,7 +59,7 @@ impl SettingsState {
         selected_metadata: Option<&CompleteVersionMetadata>,
     ) {
         let lang = config.lang;
-        let mut settings_opened = self.settings_opened.clone();
+        let mut settings_opened = self.settings_opened;
 
         let mut update_status = false;
         egui::Window::new(LangMessage::Settings.to_string(lang))
@@ -121,7 +118,7 @@ impl SettingsState {
         let old_close_launcher_after_launch = config.hide_launcher_after_launch;
         ui.checkbox(
             &mut config.hide_launcher_after_launch,
-            LangMessage::CloseLauncherAfterLaunch.to_string(config.lang),
+            LangMessage::HideLauncherAfterLaunch.to_string(config.lang),
         );
         if old_close_launcher_after_launch != config.hide_launcher_after_launch {
             config.save();

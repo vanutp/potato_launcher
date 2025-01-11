@@ -75,7 +75,7 @@ fn check_arch(_: &str) -> bool {
 }
 
 async fn does_match(java: &JavaInstallation, required_version: &str) -> bool {
-    if !(java.version.starts_with(&format!("{}", required_version))
+    if !(java.version.starts_with(&required_version.to_string())
         || java.version.starts_with(&format!("1.{}", required_version)))
     {
         return false;
@@ -298,7 +298,7 @@ pub async fn download_java<M>(
 
         if versions
             .as_array()
-            .ok_or_else(|| JavaDownloadError::NoVersionsArray)?
+            .ok_or(JavaDownloadError::NoVersionsArray)?
             .is_empty()
         {
             continue;
@@ -306,7 +306,7 @@ pub async fn download_java<M>(
 
         let version_url = versions[0]["download_url"]
             .as_str()
-            .ok_or_else(|| JavaDownloadError::NoDownloadURL)?;
+            .ok_or(JavaDownloadError::NoDownloadURL)?;
         let response = client.get(version_url).send().await?;
 
         let java_download_path = get_temp_dir().join(format!("java_download.{}", archive_type));
@@ -332,28 +332,27 @@ pub async fn download_java<M>(
         if archive_type == "tar.gz" {
             let tar = GzDecoder::new(archive);
             let mut archive = Archive::new(tar);
-            archive.unpack(&java_dir)?;
+            archive.unpack(java_dir)?;
         } else {
             let mut archive = zip::ZipArchive::new(archive)?;
-            archive.extract(&java_dir)?;
+            archive.extract(java_dir)?;
         }
 
         let url = Url::parse(version_url)?;
         let filename = url
             .path_segments()
             .and_then(|segments| segments.last())
-            .ok_or_else(|| JavaDownloadError::NoFileNameInURL)?
+            .ok_or(JavaDownloadError::NoFileNameInURL)?
             .strip_suffix(&format!(".{}", archive_type))
-            .ok_or_else(|| JavaDownloadError::NoFileExtensionInURL)?;
+            .ok_or(JavaDownloadError::NoFileExtensionInURL)?;
         fs::rename(java_dir.join(filename), &target_dir)?;
 
         let java_path = target_dir.join("bin").join(JAVA_BINARY_NAME);
         if !check_java(required_version, &java_path).await {
             return Err(JavaDownloadError::InvalidDownloadedJava.into());
         }
-        match get_installation(&java_path).await {
-            Some(installation) => return Ok(installation),
-            None => {}
+        if let Some(installation) = get_installation(&java_path).await {
+            return Ok(installation);
         }
     }
 

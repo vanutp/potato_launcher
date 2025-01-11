@@ -36,10 +36,7 @@ lazy_static::lazy_static! {
 }
 
 lazy_static::lazy_static! {
-    static ref UPDATE_URL: Option<String> = match build_config::get_auto_update_base() {
-        Some(url) => Some(format!("{}/{}", url, &*LAUNCHER_FILE_NAME)),
-        _ => None,
-    };
+    static ref UPDATE_URL: Option<String> = build_config::get_auto_update_base().map(|url| format!("{}/{}", url, &*LAUNCHER_FILE_NAME));
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -160,8 +157,8 @@ pub fn replace_launcher_and_start(new_archive: &[u8]) -> anyhow::Result<()> {
     // update.app is the name of the app bundle in the tar.gz created in ci
     const UPDATE_APP_NAME: &str = "update.app";
 
-    fs::rename(&bundle_dir, &backup_dir)?;
-    fs::rename(&temp_dir.join(UPDATE_APP_NAME), &bundle_dir)?;
+    fs::rename(bundle_dir, &backup_dir)?;
+    fs::rename(temp_dir.join(UPDATE_APP_NAME), bundle_dir)?;
     fs::remove_dir_all(&backup_dir)?;
 
     let args: Vec<String> = env::args().collect();

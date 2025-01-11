@@ -1,4 +1,4 @@
-use super::auth::AuthMessageProvider;
+use super::auth_flow::AuthMessageProvider;
 use super::offline::OfflineAuthProvider;
 use super::{elyby::ElyByAuthProvider, telegram::TGAuthProvider, user_info::UserInfo};
 use crate::auth::microsoft::MicrosoftAuthProvider;

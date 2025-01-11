@@ -17,8 +17,11 @@ pub async fn get_version_info(
     work_dir: &Path,
     version_metadata: &Vec<VersionMetadata>,
     version_name: &str,
-    download_server_base: &str,
+    download_server_base: Option<&str>,
 ) -> anyhow::Result<VersionInfo> {
+    // is used in local instances to be compliant with the manifest format
+    let download_server_base = download_server_base.unwrap_or("empty-url");
+
     let rel_versions_dir = get_rel_versions_dir();
     let mut metadata_info = vec![];
     for metadata in version_metadata {

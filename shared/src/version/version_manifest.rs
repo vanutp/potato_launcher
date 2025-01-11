@@ -34,7 +34,7 @@ impl VersionInfo {
     }
 
     pub fn get_parent_metadata_info(&self) -> MetadataInfo {
-        match self.inherits_from.get(0) {
+        match self.inherits_from.first() {
             Some(parent_info) => parent_info.clone(),
             None => MetadataInfo {
                 id: self.id.clone(),
@@ -104,7 +104,7 @@ impl VersionManifest {
     }
 
     pub fn is_up_to_date(&self, version_info: &VersionInfo) -> bool {
-        self.versions.iter().find(|i| i == &version_info).is_some()
+        self.versions.iter().any(|i| i == version_info)
     }
 
     pub async fn add_version_and_save(

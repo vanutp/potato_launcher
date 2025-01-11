@@ -53,7 +53,7 @@ pub enum LangMessage {
     ForceOverwrite,
     ForceOverwriteWarning,
     KillMinecraft,
-    CloseLauncherAfterLaunch,
+    HideLauncherAfterLaunch,
     DownloadAndLaunch,
     CancelLaunch,
     CancelDownload,
@@ -296,9 +296,9 @@ impl LangMessage {
                 Lang::English => "Kill Minecraft".to_string(),
                 Lang::Russian => "Закрыть Minecraft".to_string(),
             },
-            LangMessage::CloseLauncherAfterLaunch => match lang {
-                Lang::English => "Close launcher after launch".to_string(),
-                Lang::Russian => "Закрыть лаунчер после запуска".to_string(),
+            LangMessage::HideLauncherAfterLaunch => match lang {
+                Lang::English => "Hide launcher after launch".to_string(),
+                Lang::Russian => "Скрыть лаунчер после запуска".to_string(),
             },
             LangMessage::DownloadAndLaunch => match lang {
                 Lang::English => "Download and launch".to_string(),

@@ -1,4 +1,4 @@
-use super::auth::AuthMessageProvider;
+use super::auth_flow::AuthMessageProvider;
 use super::base::{AuthProvider, AuthResultData, AuthState};
 use super::user_info::UserInfo;
 use crate::lang::LangMessage;

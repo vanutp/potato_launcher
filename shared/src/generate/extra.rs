@@ -53,7 +53,7 @@ pub enum ExtraForgeLibsError {
 }
 
 async fn get_extra_forge_libs(
-    extra_forge_libs_paths: &Vec<PathBuf>,
+    extra_forge_libs_paths: &[PathBuf],
     data_dir: &Path,
     download_server_base: &str,
 ) -> anyhow::Result<Vec<Library>> {
@@ -66,7 +66,7 @@ async fn get_extra_forge_libs(
     let libraries = extra_forge_libs_paths
         .iter()
         .zip(hashes.iter())
-        .filter(|(path, _)| path.is_file() && path.extension().map_or(false, |ext| ext == "jar"))
+        .filter(|(path, _)| path.is_file() && path.extension().is_some_and(|ext| ext == "jar"))
         .map(|(path, hash)| {
             let url = url_from_path(path, data_dir, download_server_base)?;
 
@@ -106,17 +106,6 @@ async fn get_extra_forge_libs(
     Ok(libraries)
 }
 
-pub struct ExtraMetadataGenerator {
-    version_name: String,
-    include: Vec<String>,
-    include_no_overwrite: Vec<String>,
-    include_from: Option<String>,
-    resources_url_base: Option<String>,
-    download_server_base: String,
-    extra_forge_libs_paths: Vec<PathBuf>,
-    auth_backend: Option<AuthBackend>,
-}
-
 pub struct GeneratorResult {
     // relative include path -> absolute source path
     pub include_mapping: HashMap<String, PathBuf>,
@@ -124,64 +113,76 @@ pub struct GeneratorResult {
     pub extra_metadata: ExtraVersionMetadata,
 }
 
+pub struct IncludeConfig {
+    pub include: Vec<String>,
+    pub include_no_overwrite: Vec<String>,
+    pub include_from: String,
+    pub download_server_base: String,
+    pub resources_url_base: Option<String>,
+}
+
+pub struct ExtraMetadataGenerator {
+    version_name: String,
+    include_config: Option<IncludeConfig>,
+    extra_forge_libs_paths: Vec<PathBuf>,
+    auth_backend: Option<AuthBackend>,
+}
+
 impl ExtraMetadataGenerator {
     pub fn new(
         version_name: String,
-        include: Vec<String>,
-        include_no_overwrite: Vec<String>,
-        include_from: Option<String>,
-        resources_url_base: Option<String>,
-        download_server_base: String,
+        include_config: Option<IncludeConfig>,
         extra_forge_libs_paths: Vec<PathBuf>,
         auth_backend: Option<AuthBackend>,
     ) -> Self {
         Self {
             version_name,
-            include,
-            include_no_overwrite,
-            include_from,
-            resources_url_base,
-            download_server_base,
+            include_config,
             extra_forge_libs_paths,
             auth_backend,
         }
     }
 
-    pub async fn generate(&self, work_dir: &Path) -> anyhow::Result<GeneratorResult> {
+    pub async fn generate(self, work_dir: &Path) -> anyhow::Result<GeneratorResult> {
         info!(
             "Generating extra metadata for instance {}",
             self.version_name
         );
 
-        let extra_forge_libs = get_extra_forge_libs(
-            &self.extra_forge_libs_paths,
-            work_dir,
-            &self.download_server_base,
-        )
-        .await?;
-
         let mut extra_metadata = ExtraVersionMetadata {
-            include: self.include.clone(),
-            include_no_overwrite: self.include_no_overwrite.clone(),
+            include: vec![],
+            include_no_overwrite: vec![],
             objects: vec![],
-            resources_url_base: self.resources_url_base.clone(),
-            auth_backend: self.auth_backend.clone(),
-            extra_forge_libs,
+            resources_url_base: None,
+            auth_backend: self.auth_backend,
+            extra_forge_libs: vec![],
         };
+
         let mut include_mapping = HashMap::new();
 
-        if let Some(include_from) = &self.include_from {
-            let mut objects = vec![];
-            let copy_from = PathBuf::from(include_from);
+        if let Some(include_config) = self.include_config {
+            let extra_forge_libs = get_extra_forge_libs(
+                &self.extra_forge_libs_paths,
+                work_dir,
+                &include_config.download_server_base,
+            )
+            .await?;
 
-            for include in self.include.iter().chain(self.include_no_overwrite.iter()) {
+            let mut objects = vec![];
+            let copy_from = PathBuf::from(&include_config.include_from);
+
+            for include in include_config
+                .include
+                .iter()
+                .chain(include_config.include_no_overwrite.iter())
+            {
                 let from = copy_from.join(include);
 
                 objects.extend(
                     get_objects(
                         &copy_from,
                         &from,
-                        &self.download_server_base,
+                        &include_config.download_server_base,
                         &self.version_name,
                     )
                     .await?,
@@ -190,6 +191,11 @@ impl ExtraMetadataGenerator {
             }
 
             extra_metadata.objects = objects;
+
+            extra_metadata.include = include_config.include;
+            extra_metadata.include_no_overwrite = include_config.include_no_overwrite;
+            extra_metadata.resources_url_base = include_config.resources_url_base;
+            extra_metadata.extra_forge_libs = extra_forge_libs;
         }
 
         let versions_extra_dir = get_versions_extra_dir(work_dir);
