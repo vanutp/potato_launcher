@@ -54,7 +54,14 @@ impl LaunchState {
             let result = child.lock().await.try_wait();
             match result {
                 Ok(Some(status)) => {
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                    if cfg!(windows) {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Decorations(true));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(
+                            [670.0, 450.0].into(),
+                        ));
+                    } else {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                    }
                     ctx.request_repaint();
                     return status;
                 }
@@ -78,8 +85,15 @@ impl LaunchState {
             Ok(child) => {
                 let arc_child = Arc::new(Mutex::new(child));
                 if config.hide_launcher_after_launch {
-                    self.ctx
-                        .send_viewport_cmd(egui::ViewportCommand::Visible(false));
+                    if cfg!(windows) {
+                        self.ctx
+                            .send_viewport_cmd(egui::ViewportCommand::Decorations(false));
+                        self.ctx
+                            .send_viewport_cmd(egui::ViewportCommand::InnerSize([0.0, 0.0].into()));
+                    } else {
+                        self.ctx
+                            .send_viewport_cmd(egui::ViewportCommand::Visible(false));
+                    }
                 }
                 self.watcher_handle =
                     Some(runtime.spawn(Self::child_watcher(arc_child.clone(), self.ctx.clone())));
