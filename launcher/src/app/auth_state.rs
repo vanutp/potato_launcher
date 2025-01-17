@@ -31,7 +31,7 @@ use super::background_task::{BackgroundTask, BackgroundTaskResult};
 enum AuthStatus {
     NotAuthorized,
     Authorized,
-    AuthorizeError(String),
+    AuthorizeError,
     AuthorizeErrorOffline,
     AuthorizeErrorTimeout,
 }
@@ -63,11 +63,11 @@ fn authenticate(
 
             Err(e) => {
                 let mut connect_error = false;
+                if utils::is_connect_error(&e) {
+                    connect_error = true;
+                }
                 let mut timeout_error = false;
                 if let Some(re) = e.downcast_ref::<reqwest::Error>() {
-                    if re.is_connect() {
-                        connect_error = true;
-                    }
                     if re.is_timeout() || re.status().map(|s| s.as_u16()) == Some(524) {
                         timeout_error = true;
                     }
@@ -81,7 +81,7 @@ fn authenticate(
                         AuthStatus::AuthorizeErrorTimeout
                     } else {
                         error!("Auth error:\n{:#}", e);
-                        AuthStatus::AuthorizeError(e.to_string())
+                        AuthStatus::AuthorizeError
                     },
                     auth_data: None,
                 }
@@ -280,7 +280,7 @@ impl AuthState {
             .open(&mut show_add_account)
             .show(ui.ctx(), |ui| {
                 ui.label(LangMessage::SelectAccount.to_string(lang));
-                ComboBox::from_id_source("new_account_type")
+                ComboBox::from_id_salt("new_account_type")
                     .selected_text(Self::get_type_display_name(lang, self.new_account_type))
                     .show_ui(ui, |ui| {
                         for account_type in [
@@ -462,10 +462,10 @@ impl AuthState {
                 nickname,
                 LangMessage::Authorizing.to_string(lang)
             ),
-            AuthStatus::AuthorizeError(e) => format!(
+            AuthStatus::AuthorizeError => format!(
                 "{} ({})",
                 nickname,
-                LangMessage::AuthError(e.clone()).to_string(lang)
+                LangMessage::UnknownAuthError.to_string(lang)
             ),
             AuthStatus::AuthorizeErrorOffline => {
                 format!("{} ({})", nickname, LangMessage::Offline.to_string(lang))
@@ -519,7 +519,7 @@ impl AuthState {
                 self.render_buttons(ui, config, runtime, Some(instance_auth_backend));
 
                 let mut selected_username = auth_profile.as_ref().map(|x| x.username.to_string());
-                ComboBox::from_id_source("select_account")
+                ComboBox::from_id_salt("select_account")
                     .selected_text(match &selected_username {
                         Some(username) => {
                             Self::get_combobox_text(username, &self.auth_status, lang)
@@ -588,7 +588,7 @@ impl AuthState {
             let mut selected_account = auth_profile
                 .as_ref()
                 .map(|x| (x.auth_backend_id.clone(), x.username.clone()));
-            ComboBox::from_id_source("select_account")
+            ComboBox::from_id_salt("select_account")
                 .selected_text(match &selected_account {
                     Some((_, username)) => {
                         Self::get_combobox_text(username, &self.auth_status, lang)
@@ -655,7 +655,7 @@ impl AuthState {
             self.auth_status,
             AuthStatus::AuthorizeErrorOffline
                 | AuthStatus::AuthorizeErrorTimeout
-                | AuthStatus::AuthorizeError(_)
+                | AuthStatus::AuthorizeError
         )
     }
 

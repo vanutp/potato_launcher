@@ -1,3 +1,4 @@
+use log::error;
 use shared::progress::ProgressBar;
 use std::path::Path;
 use std::sync::Arc;
@@ -16,7 +17,7 @@ use super::progress_bar::GuiProgressBar;
 enum InstanceSyncStatus {
     NotSynced,
     Synced,
-    SyncError(String),
+    SyncError,
     SyncErrorOffline,
 }
 
@@ -90,7 +91,8 @@ impl InstanceSyncState {
                                 if utils::is_connect_error(&e) {
                                     InstanceSyncStatus::SyncErrorOffline
                                 } else {
-                                    InstanceSyncStatus::SyncError(e.to_string())
+                                    error!("Error syncing instance: {}", e);
+                                    InstanceSyncStatus::SyncError
                                 }
                             }
                         };
@@ -149,7 +151,7 @@ impl InstanceSyncState {
     ) {
         match &self.status {
             InstanceSyncStatus::NotSynced
-            | InstanceSyncStatus::SyncError(_)
+            | InstanceSyncStatus::SyncError
             | InstanceSyncStatus::SyncErrorOffline => {
                 self.schedule_sync(
                     runtime,
@@ -163,34 +165,33 @@ impl InstanceSyncState {
         };
     }
 
-    pub fn render_ui(
+    pub fn render_status(&self, ui: &mut egui::Ui, config: &Config) {
+        let lang = config.lang;
+        match &self.status {
+            InstanceSyncStatus::NotSynced => {
+                ui.label(LangMessage::InstanceNotSynced.to_string(lang));
+            }
+            InstanceSyncStatus::Synced => {
+                ui.label(LangMessage::InstanceSynced.to_string(lang));
+            }
+            InstanceSyncStatus::SyncError => {
+                ui.label(LangMessage::InstanceSyncError.to_string(lang));
+            }
+            InstanceSyncStatus::SyncErrorOffline => {
+                ui.label(LangMessage::NoConnectionToSyncServer.to_string(lang));
+            }
+        }
+    }
+
+    pub fn render_windows(
         &mut self,
         ui: &mut egui::Ui,
         runtime: &Runtime,
         config: &Config,
         selected_version_metadata: Option<Arc<CompleteVersionMetadata>>,
     ) {
-        let lang = config.lang;
-
-        if selected_version_metadata.is_some() {
-            match &self.status {
-                InstanceSyncStatus::NotSynced => {
-                    ui.label(LangMessage::InstanceNotSynced.to_string(lang));
-                }
-                InstanceSyncStatus::Synced => {
-                    ui.label(LangMessage::InstanceSynced.to_string(lang));
-                }
-                InstanceSyncStatus::SyncError(e) => {
-                    ui.label(LangMessage::InstanceSyncError(e.clone()).to_string(lang));
-                }
-                InstanceSyncStatus::SyncErrorOffline => {
-                    ui.label(LangMessage::NoConnectionToSyncServer.to_string(lang));
-                }
-            }
-        }
-
         self.render_sync_window(ui, runtime, config, selected_version_metadata);
-        self.render_progress_bar_window(ui, lang);
+        self.render_progress_bar_window(ui, config.lang);
     }
 
     pub fn render_sync_button(
@@ -213,7 +214,7 @@ impl InstanceSyncState {
         {
             match &self.status {
                 InstanceSyncStatus::NotSynced
-                | InstanceSyncStatus::SyncError(_)
+                | InstanceSyncStatus::SyncError
                 | InstanceSyncStatus::SyncErrorOffline => {
                     self.schedule_sync(
                         runtime,

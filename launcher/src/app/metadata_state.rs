@@ -5,7 +5,7 @@ use shared::version::version_manifest::VersionInfo;
 use tokio::runtime::Runtime;
 
 use crate::{
-    config::runtime_config::Config, lang::LangMessage,
+    config::runtime_config::Config, lang::LangMessage, utils,
     version::complete_version_metadata::CompleteVersionMetadata,
 };
 
@@ -13,11 +13,11 @@ use super::background_task::{BackgroundTask, BackgroundTaskResult};
 
 #[derive(PartialEq)]
 enum GetStatus {
-    Getting,
+    NoMetadata,
     UpToDate,
-    ReadLocalRemoteError(String),
+    ReadLocalRemoteError,
     ReadLocalOffline,
-    ErrorGetting(String),
+    ErrorGetting,
 }
 
 struct MetadataFetchResult {
@@ -52,17 +52,10 @@ fn get_metadata(
                 metadata: Some(Arc::new(metadata)),
             },
             Err(e) => {
-                let mut connect_error = false;
-                if let Some(re) = e.downcast_ref::<reqwest::Error>() {
-                    if re.is_connect() {
-                        connect_error = true;
-                    }
-                }
-
                 let local_metadata =
                     CompleteVersionMetadata::read_local(&version_info, &data_dir).await;
                 MetadataFetchResult {
-                    status: if connect_error {
+                    status: if utils::is_connect_error(&e) {
                         info!("Metadata offline mode");
                         GetStatus::ReadLocalOffline
                     } else if let Some(local_error) = local_metadata.as_ref().err() {
@@ -70,10 +63,10 @@ fn get_metadata(
                             "Error getting metadata:\n{:#}\nlocal metadata error:\n{:#}",
                             e, local_error
                         );
-                        GetStatus::ErrorGetting(e.to_string())
+                        GetStatus::ErrorGetting
                     } else {
                         error!("Error getting metadata:\n{:#}\n(read local)", e);
-                        GetStatus::ReadLocalRemoteError(e.to_string())
+                        GetStatus::ReadLocalRemoteError
                     },
                     version_info,
                     metadata: local_metadata.ok().map(Arc::new),
@@ -95,7 +88,7 @@ pub struct MetadataState {
 impl MetadataState {
     pub fn new() -> Self {
         MetadataState {
-            status: GetStatus::Getting,
+            status: GetStatus::NoMetadata,
             get_task: None,
             metadata_storage: HashMap::new(),
         }
@@ -108,7 +101,7 @@ impl MetadataState {
         version_info: &VersionInfo,
         ctx: &egui::Context,
     ) {
-        self.status = GetStatus::Getting;
+        self.status = GetStatus::NoMetadata;
         let name = version_info.get_name();
         let existing_metadata = self.metadata_storage.get(&name).cloned();
         let launcher_dir = config.get_launcher_dir();
@@ -121,8 +114,8 @@ impl MetadataState {
         ));
     }
 
-    pub fn render_ui(&mut self, ui: &mut egui::Ui, config: &Config) {
-        if matches!(self.status, GetStatus::Getting) {
+    pub fn render_status(&mut self, ui: &mut egui::Ui, config: &Config) {
+        if matches!(self.status, GetStatus::NoMetadata) {
             ui.label(
                 if self.get_task.is_some() {
                     LangMessage::GettingMetadata
@@ -150,7 +143,7 @@ impl MetadataState {
                         }
                     }
                     BackgroundTaskResult::Cancelled => {
-                        self.status = GetStatus::Getting;
+                        self.status = GetStatus::NoMetadata;
                     }
                 }
 
@@ -175,8 +168,10 @@ impl MetadataState {
         self.get_task.is_some()
     }
 
-    pub fn reset(&mut self) {
-        self.status = GetStatus::Getting;
-        self.metadata_storage.clear();
+    pub fn reset(&mut self, clear_storage: bool) {
+        self.status = GetStatus::NoMetadata;
+        if clear_storage {
+            self.metadata_storage.clear();
+        }
     }
 }

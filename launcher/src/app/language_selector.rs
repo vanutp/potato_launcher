@@ -12,7 +12,7 @@ impl LanguageSelector {
 
     pub fn render_ui(&mut self, ui: &mut egui::Ui, config: &mut runtime_config::Config) {
         let mut lang = config.lang;
-        egui::ComboBox::from_id_source("language_selector")
+        egui::ComboBox::from_id_salt("language_selector")
             .selected_text("🌐 ".to_string() + &LangMessage::LanguageName.to_string(config.lang))
             .show_ui(ui, |ui| {
                 ui.selectable_value(

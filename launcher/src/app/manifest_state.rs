@@ -1,6 +1,7 @@
 use crate::{
     config::{build_config, runtime_config::Config},
     lang::LangMessage,
+    utils,
 };
 
 use log::error;
@@ -36,24 +37,15 @@ where
                 status: FetchStatus::Fetched,
                 manifest: Some(manifest),
             },
-            Err(e) => {
-                let mut connect_error = false;
-                if let Some(re) = e.downcast_ref::<reqwest::Error>() {
-                    if re.is_connect() {
-                        connect_error = true;
-                    }
-                }
-
-                ManifestFetchResult {
-                    status: if connect_error {
-                        FetchStatus::FetchErrorOffline
-                    } else {
-                        error!("Error fetching version manifest:\n{:#}", e);
-                        FetchStatus::FetchError(e.to_string())
-                    },
-                    manifest: None,
-                }
-            }
+            Err(e) => ManifestFetchResult {
+                status: if utils::is_connect_error(&e) {
+                    FetchStatus::FetchErrorOffline
+                } else {
+                    error!("Error fetching version manifest:\n{:#}", e);
+                    FetchStatus::FetchError(e.to_string())
+                },
+                manifest: None,
+            },
         }
     };
 
@@ -151,7 +143,7 @@ impl ManifestState {
                 }
             }
 
-            egui::ComboBox::from_id_source("instances")
+            egui::ComboBox::from_id_salt("instances")
                 .width(ui.available_width())
                 .selected_text(selected_text)
                 .show_ui(ui, |ui| {

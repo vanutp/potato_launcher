@@ -111,7 +111,7 @@ impl LauncherApp {
                     if ui.button("🔄").clicked() {
                         self.auth_state.reset(&mut self.config, &self.runtime, ctx);
                         self.manifest_state.retry_fetch(&self.runtime, ctx);
-                        self.metadata_state.reset(); // just reset the state, not the task
+                        self.metadata_state.reset(true); // just reset the state, not the task
 
                         // metadata is checked after manifest is fetched
                         // java is checked after metadata is fetched
@@ -189,6 +189,7 @@ impl LauncherApp {
                             .delete_instance(&self.config, &instance_to_delete),
                     );
                     self.instance_sync_state.reset_status();
+                    self.metadata_state.reset(false);
                 }
 
                 let selected_version_changed = self.manifest_state.render_combo_box(
@@ -207,10 +208,18 @@ impl LauncherApp {
         self.auth_state.update(&self.runtime, &mut self.config);
 
         ui.vertical_centered(|ui| {
-            self.metadata_state.render_ui(ui, &self.config);
             let selected_instance = self.metadata_state.get_version_metadata(&self.config);
-            self.instance_sync_state
-                .render_ui(ui, &self.runtime, &self.config, selected_instance);
+            if selected_instance.is_some() {
+                self.instance_sync_state.render_status(ui, &self.config);
+            } else {
+                self.metadata_state.render_status(ui, &self.config);
+            }
+            self.instance_sync_state.render_windows(
+                ui,
+                &self.runtime,
+                &self.config,
+                selected_instance,
+            );
         });
 
         ui.horizontal(|ui| {

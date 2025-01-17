@@ -32,7 +32,8 @@ pub fn is_read_only_error(e: &anyhow::Error) -> bool {
 
 pub fn is_connect_error(e: &anyhow::Error) -> bool {
     if let Some(e) = e.downcast_ref::<reqwest::Error>() {
-        return e.is_connect();
+        return e.is_connect() || e.status().map_or(false, |s| s.as_u16() == 523);
+        // 523 = Cloudflare Origin is Unreachable
     }
     false
 }

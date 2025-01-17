@@ -3,6 +3,7 @@ use std::{
     sync::Arc,
 };
 
+use log::error;
 use shared::paths::get_logs_dir;
 use tokio::{process::Child, runtime::Runtime, sync::Mutex};
 
@@ -14,7 +15,7 @@ use crate::{
 enum LauncherStatus {
     NotLaunched,
     Running { child: Arc<Mutex<Child>> },
-    Error(String),
+    Error,
     ProcessErrorCode(String),
 }
 
@@ -102,7 +103,8 @@ impl LaunchState {
                 };
             }
             Err(e) => {
-                self.status = LauncherStatus::Error(e.to_string());
+                error!("Error launching Minecraft: {}", e);
+                self.status = LauncherStatus::Error;
             }
         }
     }
@@ -189,8 +191,8 @@ impl LaunchState {
         }
 
         match &self.status {
-            LauncherStatus::Error(e) => {
-                ui.label(LangMessage::LaunchError(e.clone()).to_string(lang));
+            LauncherStatus::Error => {
+                ui.label(LangMessage::LaunchError.to_string(lang));
             }
             LauncherStatus::ProcessErrorCode(e) => {
                 ui.label(LangMessage::ProcessErrorCode(e.clone()).to_string(lang));

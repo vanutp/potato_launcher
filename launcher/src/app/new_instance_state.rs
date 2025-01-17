@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 
+use log::error;
 use maplit::hashmap;
 use shared::generate::extra::ExtraMetadataGenerator;
 use shared::generate::manifest::get_version_info;
@@ -92,7 +93,7 @@ enum NewInstanceMetadataState<MetadataType> {
     NotFetched,
     Fetched(MetadataType),
     OfflineError,
-    Error(String),
+    UnknownError,
 }
 
 impl<MetadataType> NewInstanceMetadataState<MetadataType>
@@ -108,7 +109,8 @@ where
                         if utils::is_connect_error(&e) {
                             NewInstanceMetadataState::OfflineError
                         } else {
-                            NewInstanceMetadataState::Error(e.to_string())
+                            error!("Error getting metadata:\n{:#}", e);
+                            NewInstanceMetadataState::UnknownError
                         }
                     }
                 };
@@ -129,15 +131,15 @@ where
             NewInstanceMetadataState::OfflineError => {
                 ui.label(LangMessage::MetadataErrorOffline.to_string(lang));
             }
-            NewInstanceMetadataState::Error(e) => {
-                ui.label(LangMessage::MetadataFetchError(e.clone()).to_string(lang));
+            NewInstanceMetadataState::UnknownError => {
+                ui.label(LangMessage::MetadataFetchError.to_string(lang));
             }
             NewInstanceMetadataState::Fetched(_) => {}
         }
 
         if matches!(
             self,
-            NewInstanceMetadataState::Error(_) | NewInstanceMetadataState::OfflineError
+            NewInstanceMetadataState::UnknownError | NewInstanceMetadataState::OfflineError
         ) && ui.button(LangMessage::Retry.to_string(lang)).clicked()
         {
             return true;
@@ -252,6 +254,12 @@ fn create_new_instance(
     )
 }
 
+enum NewInstanceGenerateState {
+    NoError,
+    Offline,
+    UnknownError,
+}
+
 pub struct NewInstanceState {
     window_open: bool,
     new_instance_name: String,
@@ -265,7 +273,7 @@ pub struct NewInstanceState {
     curent_metadata_state: NewInstanceMetadataState<PerVersionMetadata>,
 
     instance_generate_task: Option<BackgroundTask<anyhow::Result<VersionInfo>>>,
-    instance_generate_error: Option<anyhow::Error>,
+    instance_generate_state: NewInstanceGenerateState,
     delete_window_open: bool,
     selected_instance_to_delete: String,
     confirm_delete: bool,
@@ -286,7 +294,7 @@ impl NewInstanceState {
             curent_metadata_state: NewInstanceMetadataState::NotFetched,
 
             instance_generate_task: None,
-            instance_generate_error: None,
+            instance_generate_state: NewInstanceGenerateState::NoError,
             delete_window_open: false,
             selected_instance_to_delete: String::new(),
             confirm_delete: false,
@@ -301,15 +309,20 @@ impl NewInstanceState {
                     BackgroundTaskResult::Finished(result) => match result {
                         Ok(version_info) => {
                             self.window_open = false;
-                            self.instance_generate_error = None;
+                            self.instance_generate_state = NewInstanceGenerateState::NoError;
                             return Some(version_info);
                         }
                         Err(e) => {
-                            self.instance_generate_error = Some(e);
+                            error!("Error creating instance: {:#}", e);
+                            self.instance_generate_state = if utils::is_connect_error(&e) {
+                                NewInstanceGenerateState::Offline
+                            } else {
+                                NewInstanceGenerateState::UnknownError
+                            };
                         }
                     },
                     BackgroundTaskResult::Cancelled => {
-                        self.instance_generate_error = None;
+                        self.instance_generate_state = NewInstanceGenerateState::NoError;
                     }
                 }
             }
@@ -382,7 +395,7 @@ impl NewInstanceState {
                         .map(|i| i.get_name())
                         .collect::<Vec<_>>();
                     let mut selected_version = self.instance_version.clone();
-                    egui::ComboBox::from_id_source("versions")
+                    egui::ComboBox::from_id_salt("versions")
                         .selected_text(selected_version.clone())
                         .show_ui(ui, |ui| {
                             for version in versions.iter() {
@@ -435,7 +448,7 @@ impl NewInstanceState {
 
                     let mut new_instance_loader = self.instance_loader.clone();
                     ui.label(LangMessage::Loader.to_string(lang));
-                    egui::ComboBox::from_id_source("loaders")
+                    egui::ComboBox::from_id_salt("loaders")
                         .selected_text(self.instance_loader.clone())
                         .show_ui(ui, |ui| {
                             for loader in loaders.iter() {
@@ -478,7 +491,7 @@ impl NewInstanceState {
                         }
 
                         ui.label(LangMessage::LoaderVersion.to_string(lang));
-                        egui::ComboBox::from_id_source("loader_versions")
+                        egui::ComboBox::from_id_salt("loader_versions")
                             .selected_text(self.instance_loader_version.clone())
                             .show_ui(ui, |ui| {
                                 for version in versions.iter() {
@@ -510,16 +523,14 @@ impl NewInstanceState {
                                     );
                                     self.instance_generate_task = Some(task);
                                 }
-                                if let Some(error) = &self.instance_generate_error {
-                                    ui.label(if error.downcast_ref::<reqwest::Error>()
-                                        .is_some_and(|e| e.is_connect())
-                                    {
-                                        LangMessage::InstanceGenerateErrorOffline
-                                            .to_string(lang)
-                                    } else {
-                                        LangMessage::InstanceGenerateError(error.to_string())
-                                            .to_string(lang)
-                                    });
+                                match self.instance_generate_state {
+                                    NewInstanceGenerateState::Offline => {
+                                        ui.label(LangMessage::InstanceGenerateErrorOffline.to_string(lang));
+                                    }
+                                    NewInstanceGenerateState::UnknownError => {
+                                        ui.label(LangMessage::InstanceGenerateError.to_string(lang));
+                                    }
+                                    _ => {}
                                 }
                             } else {
                                 ui.label(LangMessage::CreatingInstance.to_string(lang));
@@ -543,7 +554,7 @@ impl NewInstanceState {
             .open(&mut delete_window_open)
             .show(ui.ctx(), |ui| {
                 ui.label(LangMessage::SelectInstanceToDelete.to_string(lang));
-                egui::ComboBox::from_id_source("delete_instances")
+                egui::ComboBox::from_id_salt("delete_instances")
                     .selected_text(if self.selected_instance_to_delete.is_empty() {
                         LangMessage::NotSelected.to_string(lang)
                     } else {

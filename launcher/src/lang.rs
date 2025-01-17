@@ -11,7 +11,7 @@ pub enum LangMessage {
     AuthMessage { url: String },
     DeviceAuthMessage { url: String, code: String },
     AuthTimeout,
-    AuthError(String),
+    UnknownAuthError,
     AuthorizeUsing(String),
     Authorizing,
     SelectInstance,
@@ -23,12 +23,12 @@ pub enum LangMessage {
     InstanceNotSynced,
     InstanceSynced,
     NoConnectionToSyncServer,
-    InstanceSyncError(String),
+    InstanceSyncError,
     CheckingJava,
     DownloadingJava,
     JavaInstalled { version: String },
     NeedJava { version: String },
-    ErrorDownloadingJava(String),
+    UnknownErrorDownloadingJava,
     NoConnectionToJavaServer,
     UnknownJavaVersion,
     Settings,
@@ -37,16 +37,16 @@ pub enum LangMessage {
     JavaXMX,
     SelectJavaPath,
     Launch,
-    LaunchError(String),
+    LaunchError,
     ProcessErrorCode(String),
     Running,
     LanguageName,
     DownloadingUpdate,
     CheckingForUpdates,
     Launching,
-    ErrorCheckingForUpdates(String),
-    ErrorDownloadingUpdate(String),
-    NoConnectionToUpdateServer(String),
+    ErrorCheckingForUpdates,
+    ErrorDownloadingUpdate,
+    NoConnectionToUpdateServer,
     ErrorReadOnly,
     ProceedToLauncher,
     Authorization,
@@ -61,7 +61,7 @@ pub enum LangMessage {
     OpenLogs,
     LoadingMetadata,
     MetadataErrorOffline,
-    MetadataFetchError(String),
+    MetadataFetchError,
     NewInstance,
     NewInstanceName,
     GameVersion,
@@ -72,7 +72,7 @@ pub enum LangMessage {
     CreatingInstance,
     Cancel,
     InstanceGenerateErrorOffline,
-    InstanceGenerateError(String),
+    InstanceGenerateError,
     LongTimeWarning,
     DeleteInstance,
     SelectInstanceToDelete,
@@ -115,9 +115,9 @@ impl LangMessage {
                 Lang::English => "Authorization timeout".to_string(),
                 Lang::Russian => "Превышено время авторизации".to_string(),
             },
-            LangMessage::AuthError(e) => match lang {
-                Lang::English => format!("Authorization error: {}", e),
-                Lang::Russian => format!("Ошибка авторизации: {}", e),
+            LangMessage::UnknownAuthError => match lang {
+                Lang::English => "Authorization error".to_string(),
+                Lang::Russian => "Ошибка авторизации".to_string(),
             },
             LangMessage::AuthorizeUsing(app_name) => match lang {
                 Lang::English => format!("Authorize using {}", app_name),
@@ -160,12 +160,12 @@ impl LangMessage {
                 Lang::Russian => "Версия синхронизирована".to_string(),
             },
             LangMessage::NoConnectionToSyncServer => match lang {
-                Lang::English => "Error: no connection to the instance sync server".to_string(),
-                Lang::Russian => "Ошибка: нет подключения к серверу синхронизации версий".to_string(),
+                Lang::English => "No connection to instance sync server".to_string(),
+                Lang::Russian => "Нет подключения к серверу синхронизации версий".to_string(),
             },
-            LangMessage::InstanceSyncError(e) => match lang {
-                Lang::English => format!("Error syncing instance: {}", e),
-                Lang::Russian => format!("Ошибка синхронизации версии: {}", e),
+            LangMessage::InstanceSyncError => match lang {
+                Lang::English => "Error syncing instance".to_string(),
+                Lang::Russian => "Ошибка синхронизации версии".to_string(),
             },
             LangMessage::CheckingJava => match lang {
                 Lang::English => "Checking Java...".to_string(),
@@ -183,13 +183,13 @@ impl LangMessage {
                 Lang::English => format!("Java {} not installed", version),
                 Lang::Russian => format!("Java {} не установлена", version),
             },
-            LangMessage::ErrorDownloadingJava(e) => match lang {
-                Lang::English => format!("Error downloading Java: {}", e),
-                Lang::Russian => format!("Ошибка загрузки Java: {}", e),
+            LangMessage::UnknownErrorDownloadingJava => match lang {
+                Lang::English => "Error downloading Java".to_string(),
+                Lang::Russian => "Ошибка загрузки Java".to_string(),
             },
             LangMessage::NoConnectionToJavaServer => match lang {
-                Lang::English => "Error: no connection to the Java download server".to_string(),
-                Lang::Russian => "Ошибка: нет подключения к серверу загрузки Java".to_string(),
+                Lang::English => "No connection to Java download server".to_string(),
+                Lang::Russian => "Нет подключения к серверу загрузки Java".to_string(),
             },
             LangMessage::UnknownJavaVersion => match lang {
                 Lang::English => "Unknown Java version".to_string(),
@@ -219,9 +219,9 @@ impl LangMessage {
                 Lang::English => "Launch".to_string(),
                 Lang::Russian => "Запустить".to_string(),
             },
-            LangMessage::LaunchError(e) => match lang {
-                Lang::English => format!("Error launching: {}", e),
-                Lang::Russian => format!("Ошибка запуска: {}", e),
+            LangMessage::LaunchError => match lang {
+                Lang::English => "Error launching".to_string(),
+                Lang::Russian => "Ошибка запуска".to_string(),
             },
             LangMessage::ProcessErrorCode(e) => match lang {
                 Lang::English => format!("Process exited with code: {}", e),
@@ -247,17 +247,17 @@ impl LangMessage {
                 Lang::English => "Launching...".to_string(),
                 Lang::Russian => "Запуск...".to_string(),
             },
-            LangMessage::ErrorCheckingForUpdates(e) => match lang {
-                Lang::English => format!("Error checking for updates: {}", e),
-                Lang::Russian => format!("Ошибка проверки обновлений: {}", e),
+            LangMessage::ErrorCheckingForUpdates => match lang {
+                Lang::English => "Error checking for updates".to_string(),
+                Lang::Russian => "Ошибка проверки обновлений".to_string(),
             },
-            LangMessage::ErrorDownloadingUpdate(e) => match lang {
-                Lang::English => format!("Error downloading update: {}", e),
-                Lang::Russian => format!("Ошибка загрузки обновления: {}", e),
+            LangMessage::ErrorDownloadingUpdate => match lang {
+                Lang::English => "Error downloading update".to_string(),
+                Lang::Russian => "Ошибка загрузки обновления".to_string(),
             },
-            LangMessage::NoConnectionToUpdateServer(e) => match lang {
-                Lang::English => format!("Error: no connection to the update server ({})", e),
-                Lang::Russian => format!("Ошибка: нет подключения к серверу обновлений ({})", e),
+            LangMessage::NoConnectionToUpdateServer => match lang {
+                Lang::English => "No connection to update server".to_string(),
+                Lang::Russian => "Нет подключения к серверу обновлений".to_string(),
             },
             LangMessage::ErrorReadOnly => match lang {
                 Lang::English => {
@@ -325,12 +325,12 @@ impl LangMessage {
                 Lang::Russian => "Загрузка метаданных...".to_string(),
             },
             LangMessage::MetadataErrorOffline => match lang {
-                Lang::English => "Error fetching metadata: no connection".to_string(),
-                Lang::Russian => "Ошибка получения метаданных: нет подключения".to_string(),
+                Lang::English => "No connection to metadata server".to_string(),
+                Lang::Russian => "Нет подключения к серверу метаданных".to_string(),
             },
-            LangMessage::MetadataFetchError(e) => match lang {
-                Lang::English => format!("Error fetching metadata: {}", e),
-                Lang::Russian => format!("Ошибка получения метаданных: {}", e),
+            LangMessage::MetadataFetchError => match lang {
+                Lang::English => "Error fetching metadata".to_string(),
+                Lang::Russian => "Ошибка получения метаданных".to_string(),
             },
             LangMessage::NewInstance => match lang {
                 Lang::English => "New instance".to_string(),
@@ -372,9 +372,9 @@ impl LangMessage {
                 Lang::English => "Error generating instance: no connection".to_string(),
                 Lang::Russian => "Ошибка создания версии: нет подключения".to_string(),
             },
-            LangMessage::InstanceGenerateError(e) => match lang {
-                Lang::English => format!("Error generating instance: {}", e),
-                Lang::Russian => format!("Ошибка создания версии: {}", e),
+            LangMessage::InstanceGenerateError => match lang {
+                Lang::English => "Error generating instance".to_string(),
+                Lang::Russian => "Ошибка создания версии".to_string(),
             },
             LangMessage::LongTimeWarning => match lang {
                 Lang::English => "This may take a couple of minutes".to_string(),

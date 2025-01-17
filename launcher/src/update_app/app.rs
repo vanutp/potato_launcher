@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use eframe::egui;
 use eframe::run_native;
+use log::error;
 use log::info;
 use tokio::runtime::Runtime;
 
@@ -23,15 +24,15 @@ enum UpdateStatus {
     Checking,
     NeedUpdate,
     UpToDate,
-    UpdateError(String),
-    UpdateErrorOffline(String),
+    UpdateError,
+    UpdateErrorOffline,
 }
 
 enum DownloadStatus {
     NeedDownloading,
     Downloaded(Vec<u8>),
-    DownloadError(String),
-    DownloadErrorOffline(String),
+    DownloadError,
+    DownloadErrorOffline,
     ErrorReadOnly,
 }
 
@@ -100,10 +101,11 @@ impl UpdateApp {
             let _ = need_update_sender.send(match need_update().await {
                 Ok(true) => UpdateStatus::NeedUpdate,
                 Ok(false) => UpdateStatus::UpToDate,
-                Err(e) if utils::is_connect_error(&e) => {
-                    UpdateStatus::UpdateErrorOffline(e.to_string())
+                Err(e) if utils::is_connect_error(&e) => UpdateStatus::UpdateErrorOffline,
+                Err(e) => {
+                    error!("Unknown error checking for updates: {:#}", e);
+                    UpdateStatus::UpdateError
                 }
-                Err(e) => UpdateStatus::UpdateError(e.to_string()),
             });
             ctx_clone.request_repaint();
         });
@@ -144,7 +146,8 @@ impl UpdateApp {
                         self.download_status = if utils::is_read_only_error(&e) {
                             DownloadStatus::ErrorReadOnly
                         } else {
-                            DownloadStatus::DownloadError(e.to_string())
+                            error!("Error replacing launcher: {:#}", e);
+                            DownloadStatus::DownloadError
                         };
                     } else {
                         panic!("Launcher should have been replaced and launched");
@@ -157,8 +160,8 @@ impl UpdateApp {
                             DownloadStatus::Downloaded(_) => {
                                 ui.label(LangMessage::Launching.to_string(self.lang));
                             }
-                            DownloadStatus::DownloadError(_) => {}
-                            DownloadStatus::DownloadErrorOffline(_) => {}
+                            DownloadStatus::DownloadError => {}
+                            DownloadStatus::DownloadErrorOffline => {}
                             DownloadStatus::NeedDownloading => {
                                 panic!("Should not receive NeedDownloading");
                             }
@@ -181,9 +184,12 @@ impl UpdateApp {
                                             DownloadStatus::ErrorReadOnly
                                         }
                                         Err(e) if utils::is_connect_error(&e) => {
-                                            DownloadStatus::DownloadErrorOffline(e.to_string())
+                                            DownloadStatus::DownloadErrorOffline
                                         }
-                                        Err(e) => DownloadStatus::DownloadError(e.to_string()),
+                                        Err(e) => {
+                                            error!("Unknown error downloading update: {:#}", e);
+                                            DownloadStatus::DownloadError
+                                        }
                                     },
                                 );
                                 ctx.request_repaint();
@@ -193,8 +199,8 @@ impl UpdateApp {
                             self.exit_on_close = false;
                             ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                         }
-                        UpdateStatus::UpdateError(_) => {}
-                        UpdateStatus::UpdateErrorOffline(_) => {}
+                        UpdateStatus::UpdateError => {}
+                        UpdateStatus::UpdateErrorOffline => {}
                         UpdateStatus::Checking => {
                             panic!("Should not receive Checking");
                         }
@@ -210,18 +216,12 @@ impl UpdateApp {
                         DownloadStatus::NeedDownloading => {
                             self.update_progress_bar.render(ui, self.lang);
                         }
-                        DownloadStatus::DownloadError(e) => {
-                            ui.label(
-                                LangMessage::ErrorDownloadingUpdate(e.to_string())
-                                    .to_string(self.lang),
-                            );
+                        DownloadStatus::DownloadError => {
+                            ui.label(LangMessage::ErrorDownloadingUpdate.to_string(self.lang));
                             self.render_close_button(ui);
                         }
-                        DownloadStatus::DownloadErrorOffline(e) => {
-                            ui.label(
-                                LangMessage::NoConnectionToUpdateServer(e.to_string())
-                                    .to_string(self.lang),
-                            );
+                        DownloadStatus::DownloadErrorOffline => {
+                            ui.label(LangMessage::NoConnectionToUpdateServer.to_string(self.lang));
                             self.render_close_button(ui);
                         }
                         DownloadStatus::Downloaded(_) => {}
@@ -231,18 +231,12 @@ impl UpdateApp {
                         }
                     },
                     UpdateStatus::UpToDate => {}
-                    UpdateStatus::UpdateError(e) => {
-                        ui.label(
-                            LangMessage::ErrorCheckingForUpdates(e.to_string())
-                                .to_string(self.lang),
-                        );
+                    UpdateStatus::UpdateError => {
+                        ui.label(LangMessage::ErrorCheckingForUpdates.to_string(self.lang));
                         self.render_close_button(ui);
                     }
-                    UpdateStatus::UpdateErrorOffline(e) => {
-                        ui.label(
-                            LangMessage::NoConnectionToUpdateServer(e.to_string())
-                                .to_string(self.lang),
-                        );
+                    UpdateStatus::UpdateErrorOffline => {
+                        ui.label(LangMessage::NoConnectionToUpdateServer.to_string(self.lang));
                         self.render_close_button(ui);
                     }
                 }

@@ -20,7 +20,7 @@ pub enum JavaDownloadStatus {
     CheckingJava,
     NotDownloaded,
     Downloaded,
-    DownloadError(String),
+    UnknownDownloadError,
     DownloadErrorOffline,
 }
 
@@ -91,7 +91,7 @@ fn download_java(
                     JavaDownloadStatus::DownloadErrorOffline
                 } else {
                     error!("Error downloading Java:\n{:#}", e);
-                    JavaDownloadStatus::DownloadError(e.to_string())
+                    JavaDownloadStatus::UnknownDownloadError
                 },
                 java_installation: None,
             },
@@ -246,7 +246,7 @@ impl JavaState {
         matches!(
             self.status,
             JavaDownloadStatus::NotDownloaded
-                | JavaDownloadStatus::DownloadError(_)
+                | JavaDownloadStatus::UnknownDownloadError
                 | JavaDownloadStatus::DownloadErrorOffline
         )
     }
@@ -283,8 +283,8 @@ impl JavaState {
                             LangMessage::DownloadingJava
                         }
                     }
-                    JavaDownloadStatus::DownloadError(ref e) => {
-                        LangMessage::ErrorDownloadingJava(e.clone())
+                    JavaDownloadStatus::UnknownDownloadError => {
+                        LangMessage::UnknownErrorDownloadingJava
                     }
                     JavaDownloadStatus::DownloadErrorOffline => {
                         LangMessage::NoConnectionToJavaServer
