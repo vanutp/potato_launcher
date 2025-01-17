@@ -24,9 +24,6 @@ jobs:
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
 
-      - name: Update Rust
-        run: rustup update stable
-
       - name: Set environment variables
         run: |
           echo "VERSION=$GITHUB_SHA" >> $GITHUB_ENV
@@ -66,7 +63,7 @@ jobs:
 
             which cargo-bundle || cargo install cargo-bundle
 
-            export MACOSX_DEPLOYMENT_TARGET=10.8
+            export MACOSX_DEPLOYMENT_TARGET=10.12
 
             cargo bundle --bin launcher --profile release-lto --target aarch64-apple-darwin
             mkdir -p app
