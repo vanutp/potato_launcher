@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use log::{debug, info, warn};
+use rand::seq::SliceRandom as _;
+use shared::adaptive_download::download_files;
 use shared::paths::{
     get_authlib_injector_path, get_instance_dir, get_libraries_dir, get_natives_dir,
 };
@@ -266,7 +268,11 @@ pub async fn sync_instance(
 
     info!("Got {} check download entries", check_entries.len());
     progress_bar.set_message(LangMessage::CheckingFiles);
-    let download_entries = files::get_download_entries(check_entries, progress_bar.clone()).await?;
+    let mut download_entries =
+        files::get_download_entries(check_entries, progress_bar.clone()).await?;
+
+    let rng = &mut rand::rngs::OsRng;
+    download_entries.shuffle(rng);
 
     info!("Got {} download entries", download_entries.len());
 
@@ -277,7 +283,7 @@ pub async fn sync_instance(
     debug!("Paths to download: {:?}", paths);
 
     progress_bar.set_message(LangMessage::DownloadingFiles);
-    files::download_files(download_entries, progress_bar).await?;
+    download_files(download_entries, progress_bar).await?;
 
     extract_natives(&libraries, &libraries_dir, &natives_dir)?;
 

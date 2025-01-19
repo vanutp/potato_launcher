@@ -1,4 +1,5 @@
 use shared::{
+    adaptive_download::download_files,
     files::{self, CheckEntry},
     paths::{get_client_jar_path, get_versions_dir, get_versions_extra_dir},
     progress,
@@ -80,7 +81,7 @@ impl CompleteVersionMetadata {
 
         let download_entries =
             files::get_download_entries(check_entries, progress::no_progress_bar()).await?;
-        files::download_files(download_entries, progress::no_progress_bar()).await?;
+        download_files(download_entries, progress::no_progress_bar()).await?;
 
         Self::read_local(version_info, data_dir).await
     }

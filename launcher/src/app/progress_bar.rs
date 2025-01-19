@@ -60,6 +60,7 @@ impl ProgressBar<LangMessage> for GuiProgressBar {
         state.total = length;
         state.progress = 0;
         state.finished = false;
+        self.update_gui_if_needed();
     }
 
     fn inc(&self, amount: u64) {

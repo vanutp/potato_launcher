@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{
+    adaptive_download::download_files,
     files::{self, CheckEntry},
     paths::get_asset_index_path,
     progress,
@@ -55,7 +56,7 @@ impl AssetsMetadata {
         let check_entries = vec![check_entry];
         let download_entries =
             files::get_download_entries(check_entries, progress::no_progress_bar()).await?;
-        files::download_files(download_entries, progress::no_progress_bar()).await?;
+        download_files(download_entries, progress::no_progress_bar()).await?;
         Self::read_local(&asset_index.id, assets_dir).await
     }
 

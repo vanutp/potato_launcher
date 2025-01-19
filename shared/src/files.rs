@@ -61,8 +61,9 @@ pub async fn download_file(client: &Client, url: &str, path: &Path) -> anyhow::R
         .bytes()
         .await?;
 
-    let parent_dir = path.parent().expect("Invalid file path");
-    tokio::fs::create_dir_all(parent_dir).await?;
+    if let Some(parent_dir) = path.parent() {
+        tokio::fs::create_dir_all(parent_dir).await?;
+    }
     let mut file = tokio::fs::File::create(path).await?;
 
     file.write_all(&response).await?;
@@ -73,64 +74,6 @@ pub async fn download_file(client: &Client, url: &str, path: &Path) -> anyhow::R
 pub struct DownloadEntry {
     pub url: String,
     pub path: PathBuf,
-}
-
-pub async fn download_files<M>(
-    download_entries: Vec<DownloadEntry>,
-    progress_bar: Arc<dyn ProgressBar<M> + Send + Sync>,
-) -> anyhow::Result<()> {
-    let max_concurrent_downloads: usize = num_cpus::get() * 2;
-    let client = Client::new();
-
-    let total_size = download_entries.len() as u64;
-
-    let futures = download_entries.into_iter().map(|entry| {
-        let client = client.clone();
-        async move { download_file(&client, &entry.url, &entry.path).await }
-    });
-
-    if let Some(err) =
-        run_tasks_with_progress(futures, progress_bar, total_size, max_concurrent_downloads)
-            .await
-            .err()
-    {
-        error!("Failed to download files: {:#}", err);
-        return Err(err);
-    }
-    Ok(())
-}
-
-pub async fn fetch_file(client: &Client, url: &str) -> anyhow::Result<Vec<u8>> {
-    Ok(client
-        .get(url)
-        .send()
-        .await?
-        .error_for_status()?
-        .bytes()
-        .await?
-        .to_vec())
-}
-
-pub async fn fetch_files<M>(
-    urls: Vec<String>,
-    progress_bar: Arc<dyn ProgressBar<M> + Send + Sync>,
-) -> anyhow::Result<Vec<Vec<u8>>> {
-    let max_concurrent_downloads: usize = num_cpus::get() * 4;
-    let client = Client::new();
-
-    let total_size = urls.len() as u64;
-
-    let futures = urls.into_iter().map(|url| {
-        let client = client.clone();
-        async move {
-            match fetch_file(&client, &url).await {
-                Ok(data) => Ok(data),
-                Err(e) => Err(e),
-            }
-        }
-    });
-
-    run_tasks_with_progress(futures, progress_bar, total_size, max_concurrent_downloads).await
 }
 
 #[derive(Debug)]

@@ -4,8 +4,10 @@ use std::{
 };
 
 use log::{debug, info};
+use rand::seq::SliceRandom as _;
 use shared::{
-    files::{download_files, get_download_entries, CheckEntry},
+    adaptive_download::download_files,
+    files::{get_download_entries, CheckEntry},
     paths::{get_client_jar_path, get_libraries_dir},
     progress::ProgressBar,
     version::{asset_metadata::AssetsMetadata, version_metadata::VersionMetadata},
@@ -82,7 +84,10 @@ pub async fn sync_version(
         .collect();
 
     progress_bar.set_message("Checking files...");
-    let download_entries = get_download_entries(check_entries, progress_bar.clone()).await?;
+    let mut download_entries = get_download_entries(check_entries, progress_bar.clone()).await?;
+
+    let rng = &mut rand::rngs::OsRng;
+    download_entries.shuffle(rng);
 
     progress_bar.reset();
     progress_bar.set_message("Downloading files...");

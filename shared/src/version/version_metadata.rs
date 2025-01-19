@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use tokio::{fs, io::AsyncReadExt as _};
 
 use crate::{
+    adaptive_download::download_files,
     files::{self, CheckEntry},
     paths::get_metadata_path,
     progress,
@@ -469,7 +470,7 @@ impl VersionMetadata {
         let check_entries = vec![check_entry];
         let download_entries =
             files::get_download_entries(check_entries, progress::no_progress_bar()).await?;
-        files::download_files(download_entries, progress::no_progress_bar()).await?;
+        download_files(download_entries, progress::no_progress_bar()).await?;
         Self::read_local(versions_dir, &metadata_info.id).await
     }
 

@@ -32,7 +32,7 @@ pub fn is_read_only_error(e: &anyhow::Error) -> bool {
 
 pub fn is_connect_error(e: &anyhow::Error) -> bool {
     if let Some(e) = e.downcast_ref::<reqwest::Error>() {
-        return e.is_connect() || e.status().map_or(false, |s| s.as_u16() == 523);
+        return e.is_connect() || e.status().is_some_and(|s| s.as_u16() == 523);
         // 523 = Cloudflare Origin is Unreachable
     }
     false
@@ -46,12 +46,12 @@ pub fn validate_xmx(xmx: &str) -> bool {
 
     let xmx = xmx.to_uppercase();
     if xmx.ends_with("M") {
-        if let Ok(xmx) = xmx[..xmx.len() - 1].parse::<u32>() {
-            return (constants::MIN_JAVA_MB..=constants::MAX_JAVA_MB).contains(&xmx);
+        if let Ok(mb) = xmx[..xmx.len() - 1].parse::<u32>() {
+            return (constants::MIN_JAVA_MB..=constants::MAX_JAVA_MB).contains(&mb);
         }
     } else if xmx.ends_with("G") {
-        if let Ok(xmx) = xmx[..xmx.len() - 1].parse::<u32>() {
-            return (constants::MIN_JAVA_MB * 1024..=constants::MAX_JAVA_MB * 1024).contains(&xmx);
+        if let Ok(gb) = xmx[..xmx.len() - 1].parse::<u32>() {
+            return (constants::MIN_JAVA_MB..=constants::MAX_JAVA_MB).contains(&(gb * 1024));
         }
     }
 
