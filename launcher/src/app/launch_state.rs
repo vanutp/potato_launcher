@@ -103,7 +103,7 @@ impl LaunchState {
                 };
             }
             Err(e) => {
-                error!("Error launching Minecraft: {}", e);
+                error!("Error launching Minecraft:\n{:?}", e);
                 self.status = LauncherStatus::Error;
             }
         }
@@ -231,12 +231,10 @@ impl LaunchState {
             }
         } else {
             let mut cancel_clicked = false;
-            ui.add_enabled_ui(!disabled, |ui| {
-                if LaunchState::big_button_clicked(ui, &LangMessage::CancelLaunch.to_string(lang)) {
-                    self.force_launch = false;
-                    cancel_clicked = true;
-                }
-            });
+            if LaunchState::big_button_clicked(ui, &LangMessage::CancelLaunch.to_string(lang)) {
+                self.force_launch = false;
+                cancel_clicked = true;
+            }
             if cancel_clicked {
                 return ForceLaunchResultSelect::Cancel;
             }

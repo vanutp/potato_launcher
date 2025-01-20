@@ -166,11 +166,11 @@ impl InstanceStorage {
             }
 
             if let Err(e) = tokio::fs::rename(&instance_dir, &unique_temp_dir).await {
-                error!("Error moving instance directory: {}", e);
+                error!("Error moving instance directory:\n{:?}", e);
             } else {
                 task::spawn(async move {
                     if let Err(e) = tokio::fs::remove_dir_all(&unique_temp_dir).await {
-                        error!("Error deleting temporary directory: {}", e);
+                        error!("Error deleting temporary directory:\n{:?}", e);
                     }
                 });
             }

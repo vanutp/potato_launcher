@@ -103,7 +103,7 @@ impl UpdateApp {
                 Ok(false) => UpdateStatus::UpToDate,
                 Err(e) if utils::is_connect_error(&e) => UpdateStatus::UpdateErrorOffline,
                 Err(e) => {
-                    error!("Unknown error checking for updates: {:#}", e);
+                    error!("Error checking for updates:\n{:?}", e);
                     UpdateStatus::UpdateError
                 }
             });
@@ -146,7 +146,7 @@ impl UpdateApp {
                         self.download_status = if utils::is_read_only_error(&e) {
                             DownloadStatus::ErrorReadOnly
                         } else {
-                            error!("Error replacing launcher: {:#}", e);
+                            error!("Error replacing launcher:\n{:?}", e);
                             DownloadStatus::DownloadError
                         };
                     } else {
@@ -187,7 +187,7 @@ impl UpdateApp {
                                             DownloadStatus::DownloadErrorOffline
                                         }
                                         Err(e) => {
-                                            error!("Unknown error downloading update: {:#}", e);
+                                            error!("Unknown error downloading update:\n{:?}", e);
                                             DownloadStatus::DownloadError
                                         }
                                     },

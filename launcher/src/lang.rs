@@ -89,6 +89,10 @@ pub enum LangMessage {
     EnterNickname,
     GettingMetadata,
     NoMetadata,
+    MetadataUpToDate,
+    ReadLocalRemoteError,
+    ReadLocalOffline,
+    ErrorGettingMetadata,
 }
 
 impl LangMessage {
@@ -439,6 +443,22 @@ impl LangMessage {
             LangMessage::NoMetadata => match lang {
                 Lang::English => "No metadata".to_string(),
                 Lang::Russian => "Метаданные отсутствуют".to_string(),
+            },
+            LangMessage::MetadataUpToDate => match lang {
+                Lang::English => "Metadata up-to-date".to_string(),
+                Lang::Russian => "Метаданные актуальны".to_string(),
+            },
+            LangMessage::ReadLocalRemoteError => match lang {
+                Lang::English => "Local metadata (fetch error)".to_string(),
+                Lang::Russian => "Локальные метаданные (ошибка загрузки)".to_string(),
+            },
+            LangMessage::ReadLocalOffline => match lang {
+                Lang::English => "Local metadata (offline)".to_string(),
+                Lang::Russian => "Локальные метаданные (офлайн)".to_string(),
+            },
+            LangMessage::ErrorGettingMetadata => match lang {
+                Lang::English => "Error getting metadata".to_string(),
+                Lang::Russian => "Ошибка получения метаданных".to_string(),
             },
         }
     }

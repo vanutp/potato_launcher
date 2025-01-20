@@ -17,6 +17,7 @@ const MAX_CONCURRENCY: usize = 100;
 const MIN_CONCURRENCY: usize = 1;
 const WINDOW_DURATION: Duration = Duration::from_secs(2);
 const UPDATE_CONCURRENCY_EVERY: usize = 5;
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(4);
 
 struct DownloadRecord {
     timestamp: Instant,
@@ -95,20 +96,22 @@ impl SlidingWindow {
 
 async fn download_file(client: &Client, entry: &DownloadEntry) -> anyhow::Result<u128> {
     let start = Instant::now();
-    let response = client
-        .get(&entry.url)
-        .send()
-        .await?
-        .error_for_status()?
-        .bytes()
-        .await?;
-    let latency_ms = start.elapsed().as_millis();
+
+    let response = client.get(&entry.url).send().await?.error_for_status()?;
+    let mut stream = response.bytes_stream();
 
     if let Some(parent_dir) = entry.path.parent() {
         tokio::fs::create_dir_all(parent_dir).await?;
     }
     let mut file = tokio::fs::File::create(&entry.path).await?;
-    file.write_all(&response).await?;
+
+    let per_chunk_timeout = REQUEST_TIMEOUT;
+    while let Some(chunk_result) = tokio::time::timeout(per_chunk_timeout, stream.next()).await? {
+        let chunk = chunk_result?;
+        file.write_all(&chunk).await?;
+    }
+
+    let latency_ms = start.elapsed().as_millis();
 
     Ok(latency_ms)
 }
@@ -116,6 +119,9 @@ async fn download_file(client: &Client, entry: &DownloadEntry) -> anyhow::Result
 fn is_timeout_error(e: &anyhow::Error) -> bool {
     e.downcast_ref::<reqwest::Error>()
         .is_some_and(|e| e.is_timeout())
+        || e.downcast_ref::<tokio::time::error::Elapsed>().is_some()
+        || format!("{:?}", e).contains("connection closed before message completed")
+    // reqwest doesn't let us check for this error directly
 }
 
 /// Download a single file, returning (success, latency_ms).
@@ -127,7 +133,7 @@ async fn do_download(client: &Client, entry: &DownloadEntry) -> anyhow::Result<O
         Err(e) => {
             // If it's a timeout, we return Ok(None), else Err
             if is_timeout_error(&e) {
-                debug!("Timeout: {:?}", e);
+                debug!("Timeout downloading {}", entry.url);
                 return Ok(None);
             } else {
                 return Err(e);
@@ -144,7 +150,7 @@ pub async fn download_files<M>(
 ) -> anyhow::Result<()> {
     progress_bar.set_length(download_entries.len() as u64);
 
-    let client = Client::new();
+    let client = Client::builder().connect_timeout(REQUEST_TIMEOUT).build()?;
 
     let desired_concurrency = Arc::new(AtomicUsize::new(4));
 
@@ -177,7 +183,7 @@ pub async fn download_files<M>(
 
     let mut next_concurrency_update = UPDATE_CONCURRENCY_EVERY;
     loop {
-        let sleep_until = previous_success_time + Duration::from_secs(30);
+        let sleep_until = previous_success_time + Duration::from_secs(60);
 
         let maybe_item = tokio::select! {
             item = active.next() => item,
@@ -209,16 +215,19 @@ pub async fn download_files<M>(
             guard.add_and_calculate(success, latency_ms)
         };
 
+        let current = desired_concurrency.load(Ordering::SeqCst);
         next_concurrency_update -= 1;
         if next_concurrency_update == 0 {
             next_concurrency_update = UPDATE_CONCURRENCY_EVERY;
-
-            let current = desired_concurrency.load(Ordering::SeqCst);
-            let new_value = if success_rate > 0.9 && avg_latency < 2000.0 {
-                (current + 1).min(MAX_CONCURRENCY)
+            let mut new_value = current;
+            if success {
+                if success_rate > 0.9 && avg_latency < 2000.0 {
+                    new_value = (current + 1).min(MAX_CONCURRENCY);
+                }
             } else {
-                (current - (current + 3) / 4).max(MIN_CONCURRENCY)
-            };
+                new_value = (current - (current + 3) / 4).max(MIN_CONCURRENCY);
+            }
+
             if new_value != current {
                 desired_concurrency.store(new_value, Ordering::SeqCst);
                 debug!("New concurrency: {}", new_value);

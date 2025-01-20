@@ -18,6 +18,8 @@ use utils::set_sigint_handler;
 use shared::logs::setup_logger;
 
 fn main() {
+    std::env::set_var("RUST_LIB_BACKTRACE", "1");
+
     set_sigint_handler();
     setup_logger(&get_logs_path());
 

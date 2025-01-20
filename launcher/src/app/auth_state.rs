@@ -80,7 +80,7 @@ fn authenticate(
                     } else if timeout_error {
                         AuthStatus::AuthorizeErrorTimeout
                     } else {
-                        error!("Auth error:\n{:#}", e);
+                        error!("Auth error:\n{:?}", e);
                         AuthStatus::AuthorizeError
                     },
                     auth_data: None,

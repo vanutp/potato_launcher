@@ -60,12 +60,12 @@ fn get_metadata(
                         GetStatus::ReadLocalOffline
                     } else if let Some(local_error) = local_metadata.as_ref().err() {
                         error!(
-                            "Error getting metadata:\n{:#}\nlocal metadata error:\n{:#}",
+                            "Error getting metadata:\n{:?}\nlocal metadata error:\n{:?}",
                             e, local_error
                         );
                         GetStatus::ErrorGetting
                     } else {
-                        error!("Error getting metadata:\n{:#}\n(read local)", e);
+                        error!("Error getting metadata:\n{:?}\n(read local)", e);
                         GetStatus::ReadLocalRemoteError
                     },
                     version_info,
@@ -115,15 +115,29 @@ impl MetadataState {
     }
 
     pub fn render_status(&mut self, ui: &mut egui::Ui, config: &Config) {
-        if matches!(self.status, GetStatus::NoMetadata) {
-            ui.label(
-                if self.get_task.is_some() {
-                    LangMessage::GettingMetadata
-                } else {
-                    LangMessage::NoMetadata
-                }
-                .to_string(config.lang),
-            );
+        match self.status {
+            GetStatus::NoMetadata => {
+                ui.label(
+                    if self.get_task.is_some() {
+                        LangMessage::GettingMetadata
+                    } else {
+                        LangMessage::NoMetadata
+                    }
+                    .to_string(config.lang),
+                );
+            }
+            GetStatus::UpToDate => {
+                ui.label(LangMessage::MetadataUpToDate.to_string(config.lang));
+            }
+            GetStatus::ReadLocalRemoteError => {
+                ui.label(LangMessage::ReadLocalRemoteError.to_string(config.lang));
+            }
+            GetStatus::ReadLocalOffline => {
+                ui.label(LangMessage::ReadLocalOffline.to_string(config.lang));
+            }
+            GetStatus::ErrorGetting => {
+                ui.label(LangMessage::ErrorGettingMetadata.to_string(config.lang));
+            }
         }
     }
 

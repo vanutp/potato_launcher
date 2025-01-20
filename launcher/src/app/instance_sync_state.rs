@@ -91,7 +91,7 @@ impl InstanceSyncState {
                                 if utils::is_connect_error(&e) {
                                     InstanceSyncStatus::SyncErrorOffline
                                 } else {
-                                    error!("Error syncing instance: {:#}", e);
+                                    error!("Error syncing instance:\n{:?}", e);
                                     InstanceSyncStatus::SyncError
                                 }
                             }
@@ -167,20 +167,14 @@ impl InstanceSyncState {
 
     pub fn render_status(&self, ui: &mut egui::Ui, config: &Config) {
         let lang = config.lang;
-        match &self.status {
-            InstanceSyncStatus::NotSynced => {
-                ui.label(LangMessage::InstanceNotSynced.to_string(lang));
-            }
-            InstanceSyncStatus::Synced => {
-                ui.label(LangMessage::InstanceSynced.to_string(lang));
-            }
-            InstanceSyncStatus::SyncError => {
-                ui.label(LangMessage::InstanceSyncError.to_string(lang));
-            }
+        ui.label(match &self.status {
+            InstanceSyncStatus::NotSynced => LangMessage::InstanceNotSynced.to_string(lang),
+            InstanceSyncStatus::Synced => LangMessage::InstanceSynced.to_string(lang),
+            InstanceSyncStatus::SyncError => LangMessage::InstanceSyncError.to_string(lang),
             InstanceSyncStatus::SyncErrorOffline => {
-                ui.label(LangMessage::NoConnectionToSyncServer.to_string(lang));
+                LangMessage::NoConnectionToSyncServer.to_string(lang)
             }
-        }
+        });
     }
 
     pub fn render_windows(

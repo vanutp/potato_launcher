@@ -109,7 +109,7 @@ where
                         if utils::is_connect_error(&e) {
                             NewInstanceMetadataState::OfflineError
                         } else {
-                            error!("Error getting metadata:\n{:#}", e);
+                            error!("Error getting metadata:\n{:?}", e);
                             NewInstanceMetadataState::UnknownError
                         }
                     }
@@ -313,7 +313,7 @@ impl NewInstanceState {
                             return Some(version_info);
                         }
                         Err(e) => {
-                            error!("Error creating instance: {:#}", e);
+                            error!("Error creating instance:\n{:?}", e);
                             self.instance_generate_state = if utils::is_connect_error(&e) {
                                 NewInstanceGenerateState::Offline
                             } else {
