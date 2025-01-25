@@ -66,6 +66,14 @@ jobs:
             export MACOSX_DEPLOYMENT_TARGET=10.12
 
             cargo bundle --bin launcher --profile release-lto --target aarch64-apple-darwin
+
+            plutil -replace NSCameraUsageDescription \
+              -string "A Minecraft mod wants to access your camera." \
+              "target/aarch64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app/Contents/Info.plist"
+            plutil -replace NSMicrophoneUsageDescription \
+              -string "A Minecraft mod wants to access your microphone." \
+              "target/aarch64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app/Contents/Info.plist"
+
             mkdir -p app
             cp -r "target/aarch64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app" "app/$LAUNCHER_NAME.app"
 
