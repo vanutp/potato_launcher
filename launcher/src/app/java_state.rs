@@ -1,3 +1,4 @@
+use egui::RichText;
 use log::error;
 use shared::paths::get_java_dir;
 use std::path::{Path, PathBuf};
@@ -13,6 +14,7 @@ use shared::java;
 use shared::progress::{ProgressBar, Unit};
 
 use super::background_task::{BackgroundTask, BackgroundTaskResult};
+use super::colors;
 use super::progress_bar::GuiProgressBar;
 
 #[derive(Clone, PartialEq)]
@@ -269,35 +271,48 @@ impl JavaState {
         selected_metadata: Option<&CompleteVersionMetadata>,
     ) {
         let lang = config.lang;
+        let dark_mode = ui.style().visuals.dark_mode;
 
-        ui.label(
-            if let Some(selected_metadata) = selected_metadata {
-                match self.status {
-                    JavaDownloadStatus::CheckingJava => LangMessage::CheckingJava,
-                    JavaDownloadStatus::NotDownloaded => {
-                        if self.java_download_task.is_none() {
+        ui.label(if let Some(selected_metadata) = selected_metadata {
+            match self.status {
+                JavaDownloadStatus::CheckingJava => {
+                    RichText::new(LangMessage::CheckingJava.to_string(lang))
+                        .color(colors::in_progress(dark_mode))
+                }
+                JavaDownloadStatus::NotDownloaded => {
+                    if self.java_download_task.is_none() {
+                        RichText::new(
                             LangMessage::NeedJava {
                                 version: selected_metadata.get_java_version().clone(),
                             }
-                        } else {
-                            LangMessage::DownloadingJava
-                        }
+                            .to_string(lang),
+                        )
+                        .color(colors::action(dark_mode))
+                    } else {
+                        RichText::new(LangMessage::DownloadingJava.to_string(lang))
+                            .color(colors::in_progress(dark_mode))
                     }
-                    JavaDownloadStatus::UnknownDownloadError => {
-                        LangMessage::UnknownErrorDownloadingJava
-                    }
-                    JavaDownloadStatus::DownloadErrorOffline => {
-                        LangMessage::NoConnectionToJavaServer
-                    }
-                    JavaDownloadStatus::Downloaded => LangMessage::JavaInstalled {
-                        version: selected_metadata.get_java_version().clone(),
-                    },
                 }
-            } else {
-                LangMessage::UnknownJavaVersion
+                JavaDownloadStatus::UnknownDownloadError => {
+                    RichText::new(LangMessage::UnknownErrorDownloadingJava.to_string(lang))
+                        .color(colors::error(dark_mode))
+                }
+                JavaDownloadStatus::DownloadErrorOffline => {
+                    RichText::new(LangMessage::NoConnectionToJavaServer.to_string(lang))
+                        .color(colors::offline(dark_mode))
+                }
+                JavaDownloadStatus::Downloaded => RichText::new(
+                    LangMessage::JavaInstalled {
+                        version: selected_metadata.get_java_version().clone(),
+                    }
+                    .to_string(lang),
+                )
+                .color(colors::ok(dark_mode)),
             }
-            .to_string(lang),
-        );
+        } else {
+            RichText::new(LangMessage::UnknownJavaVersion.to_string(lang))
+                .color(colors::in_progress(dark_mode))
+        });
 
         self.render_progress_bar_window(ui, lang);
     }

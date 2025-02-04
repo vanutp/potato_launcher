@@ -1,5 +1,6 @@
 mod auth_state;
 mod background_task;
+mod colors;
 mod instance_sync_state;
 mod java_state;
 mod language_selector;

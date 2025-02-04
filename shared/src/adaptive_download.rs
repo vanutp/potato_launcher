@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 use crate::files::DownloadEntry;
 use crate::progress::ProgressBar;
 
-const MAX_CONCURRENCY: usize = 100;
+const MAX_CONCURRENCY: usize = 75;
 const MIN_CONCURRENCY: usize = 1;
 const WINDOW_DURATION: Duration = Duration::from_secs(2);
 const UPDATE_CONCURRENCY_EVERY: usize = 5;
@@ -144,6 +144,12 @@ async fn do_download(client: &Client, entry: &DownloadEntry) -> anyhow::Result<O
     Ok(Some(latency_ms))
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum AdaptiveDownloadError {
+    #[error("Connection timed out")]
+    ConnectionTimeout,
+}
+
 pub async fn download_files<M>(
     download_entries: Vec<DownloadEntry>,
     progress_bar: Arc<dyn ProgressBar<M> + Send + Sync>,
@@ -188,7 +194,7 @@ pub async fn download_files<M>(
         let maybe_item = tokio::select! {
             item = active.next() => item,
             _ = tokio::time::sleep_until(sleep_until.into()) => {
-                return Err(anyhow::anyhow!("Connection timed out"));
+                return Err(AdaptiveDownloadError::ConnectionTimeout.into());
             }
         };
         let Some((result, entry)) = maybe_item else {

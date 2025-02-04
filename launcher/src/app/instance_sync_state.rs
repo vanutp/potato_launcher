@@ -1,3 +1,4 @@
+use egui::RichText;
 use log::error;
 use shared::progress::ProgressBar;
 use std::path::Path;
@@ -11,6 +12,7 @@ use crate::version::complete_version_metadata::CompleteVersionMetadata;
 use crate::version::sync;
 
 use super::background_task::{BackgroundTask, BackgroundTaskResult};
+use super::colors;
 use super::progress_bar::GuiProgressBar;
 
 #[derive(Clone, PartialEq)]
@@ -167,12 +169,24 @@ impl InstanceSyncState {
 
     pub fn render_status(&self, ui: &mut egui::Ui, config: &Config) {
         let lang = config.lang;
+        let dark_mode = ui.style().visuals.dark_mode;
+
         ui.label(match &self.status {
-            InstanceSyncStatus::NotSynced => LangMessage::InstanceNotSynced.to_string(lang),
-            InstanceSyncStatus::Synced => LangMessage::InstanceSynced.to_string(lang),
-            InstanceSyncStatus::SyncError => LangMessage::InstanceSyncError.to_string(lang),
+            InstanceSyncStatus::NotSynced => {
+                RichText::new(LangMessage::InstanceNotSynced.to_string(lang))
+                    .color(colors::action(dark_mode))
+            }
+            InstanceSyncStatus::Synced => {
+                RichText::new(LangMessage::InstanceSynced.to_string(lang))
+                    .color(colors::ok(dark_mode))
+            }
+            InstanceSyncStatus::SyncError => {
+                RichText::new(LangMessage::InstanceSyncError.to_string(lang))
+                    .color(colors::error(dark_mode))
+            }
             InstanceSyncStatus::SyncErrorOffline => {
-                LangMessage::NoConnectionToSyncServer.to_string(lang)
+                RichText::new(LangMessage::NoConnectionToSyncServer.to_string(lang))
+                    .color(colors::offline(dark_mode))
             }
         });
     }

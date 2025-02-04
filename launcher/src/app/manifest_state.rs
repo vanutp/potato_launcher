@@ -4,11 +4,15 @@ use crate::{
     utils,
 };
 
+use egui::RichText;
 use log::error;
 use shared::version::version_manifest::VersionManifest;
 use tokio::runtime::Runtime;
 
-use super::background_task::{BackgroundTask, BackgroundTaskResult};
+use super::{
+    background_task::{BackgroundTask, BackgroundTaskResult},
+    colors,
+};
 
 #[derive(PartialEq)]
 enum FetchStatus {
@@ -113,35 +117,37 @@ impl ManifestState {
         remote_instance_names: &Vec<String>,
     ) -> bool {
         let mut selected_instance_name = config.selected_instance_name.clone();
+        let dark_mode = ui.style().visuals.dark_mode;
 
         ui.horizontal(|ui| {
-            let mut selected_text = selected_instance_name
-                .clone()
-                .unwrap_or_else(|| LangMessage::SelectInstance.to_string(config.lang));
-            match self.status {
-                FetchStatus::NotFetched => {
-                    selected_text = format!(
+            let selected_text = if let Some(instance_text) = config.selected_instance_name.clone() {
+                match self.status {
+                    FetchStatus::NotFetched => RichText::new(format!(
                         "{} ({})",
-                        selected_text,
+                        instance_text,
                         LangMessage::FetchingRemote.to_string(config.lang)
-                    );
-                }
-                FetchStatus::Fetched => {}
-                FetchStatus::FetchErrorOffline => {
-                    selected_text = format!(
+                    ))
+                    .color(colors::in_progress(dark_mode)),
+                    FetchStatus::Fetched => {
+                        RichText::new(instance_text).color(colors::ok(dark_mode))
+                    }
+                    FetchStatus::FetchErrorOffline => RichText::new(format!(
                         "{} ({})",
-                        selected_text,
+                        instance_text,
                         LangMessage::Offline.to_string(config.lang)
-                    );
-                }
-                FetchStatus::FetchError(_) => {
-                    selected_text = format!(
+                    ))
+                    .color(colors::offline(dark_mode)),
+                    FetchStatus::FetchError(_) => RichText::new(format!(
                         "{} ({})",
-                        selected_text,
+                        instance_text,
                         LangMessage::ErrorFetchingRemote.to_string(config.lang)
-                    );
+                    ))
+                    .color(colors::error(dark_mode)),
                 }
-            }
+            } else {
+                RichText::new(LangMessage::SelectInstance.to_string(config.lang))
+                    .color(colors::action(dark_mode))
+            };
 
             egui::ComboBox::from_id_salt("instances")
                 .width(ui.available_width())

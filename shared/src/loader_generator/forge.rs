@@ -348,6 +348,7 @@ pub fn get_full_version(minecraft_version: &str, forge_version: &str) -> String 
     format!("{}-{}", minecraft_version, forge_version)
 }
 
+// workaround for windows weirdness
 fn to_abs_path_str(path: &Path) -> anyhow::Result<String> {
     let canonical = path.canonicalize()?;
     let path_str = canonical.to_string_lossy();
@@ -373,8 +374,8 @@ async fn run_forge_command(
     forge_installer_path: &Path,
     forge_work_dir: &Path,
 ) -> anyhow::Result<()> {
-    let mut cmd = tokio::process::Command::new(&java_path.canonicalize()?);
-    cmd.current_dir(&forge_work_dir.canonicalize()?)
+    let mut cmd = tokio::process::Command::new(&to_abs_path_str(java_path)?);
+    cmd.current_dir(&to_abs_path_str(forge_work_dir)?)
         .arg("-jar")
         .arg(&to_abs_path_str(forge_installer_path)?)
         .arg("--installClient")
@@ -386,9 +387,9 @@ async fn run_forge_command(
         let stderr_str = String::from_utf8_lossy(&output.stderr);
         if stderr_str.contains("'installClient' is not a recognized option") {
             info!("Retrying without '--installClient' argument.");
-            let mut retry_cmd = tokio::process::Command::new(&java_path.canonicalize()?);
+            let mut retry_cmd = tokio::process::Command::new(&to_abs_path_str(java_path)?);
             retry_cmd
-                .current_dir(&forge_work_dir.canonicalize()?)
+                .current_dir(&to_abs_path_str(forge_work_dir)?)
                 .arg("-jar")
                 .arg(&to_abs_path_str(forge_installer_path)?);
             let retry_output = retry_cmd.output().await?;
@@ -403,6 +404,7 @@ async fn run_forge_command(
                 .into());
             }
         } else {
+            error!("Command failed: {:?}", output);
             return Err(
                 std::io::Error::new(std::io::ErrorKind::Other, stderr_str.to_string()).into(),
             );

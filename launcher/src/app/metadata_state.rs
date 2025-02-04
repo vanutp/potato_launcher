@@ -1,5 +1,6 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
+use egui::RichText;
 use log::{error, info};
 use shared::version::version_manifest::VersionInfo;
 use tokio::runtime::Runtime;
@@ -9,7 +10,10 @@ use crate::{
     version::complete_version_metadata::CompleteVersionMetadata,
 };
 
-use super::background_task::{BackgroundTask, BackgroundTaskResult};
+use super::{
+    background_task::{BackgroundTask, BackgroundTaskResult},
+    colors,
+};
 
 #[derive(PartialEq)]
 enum GetStatus {
@@ -115,30 +119,35 @@ impl MetadataState {
     }
 
     pub fn render_status(&mut self, ui: &mut egui::Ui, config: &Config) {
-        match self.status {
-            GetStatus::NoMetadata => {
-                ui.label(
-                    if self.get_task.is_some() {
-                        LangMessage::GettingMetadata
-                    } else {
-                        LangMessage::NoMetadata
-                    }
-                    .to_string(config.lang),
-                );
-            }
+        let dark_mode = ui.style().visuals.dark_mode;
+
+        ui.label(match self.status {
+            GetStatus::NoMetadata => RichText::new(
+                if self.get_task.is_some() {
+                    LangMessage::GettingMetadata
+                } else {
+                    LangMessage::NoMetadata
+                }
+                .to_string(config.lang),
+            )
+            .color(colors::in_progress(dark_mode)),
             GetStatus::UpToDate => {
-                ui.label(LangMessage::MetadataUpToDate.to_string(config.lang));
+                RichText::new(LangMessage::MetadataUpToDate.to_string(config.lang))
+                    .color(colors::ok(dark_mode))
             }
             GetStatus::ReadLocalRemoteError => {
-                ui.label(LangMessage::ReadLocalRemoteError.to_string(config.lang));
+                RichText::new(LangMessage::ReadLocalRemoteError.to_string(config.lang))
+                    .color(colors::partial_error(dark_mode))
             }
             GetStatus::ReadLocalOffline => {
-                ui.label(LangMessage::ReadLocalOffline.to_string(config.lang));
+                RichText::new(LangMessage::ReadLocalOffline.to_string(config.lang))
+                    .color(colors::offline(dark_mode))
             }
             GetStatus::ErrorGetting => {
-                ui.label(LangMessage::ErrorGettingMetadata.to_string(config.lang));
+                RichText::new(LangMessage::ErrorGettingMetadata.to_string(config.lang))
+                    .color(colors::error(dark_mode))
             }
-        }
+        });
     }
 
     pub fn update(&mut self) -> bool {

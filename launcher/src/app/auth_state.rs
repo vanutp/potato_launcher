@@ -1,4 +1,5 @@
 use egui::ComboBox;
+use egui::RichText;
 use egui::Window;
 use image::Luma;
 use log::error;
@@ -26,6 +27,7 @@ use crate::lang::{Lang, LangMessage};
 use crate::utils;
 
 use super::background_task::{BackgroundTask, BackgroundTaskResult};
+use super::colors;
 
 #[derive(Clone, PartialEq)]
 enum AuthStatus {
@@ -454,27 +456,38 @@ impl AuthState {
         format!("{} ({} #{})", username, provider_name, &hex[0..4])
     }
 
-    fn get_combobox_text(nickname: &str, status: &AuthStatus, lang: Lang) -> String {
+    fn get_combobox_text(
+        nickname: &str,
+        status: &AuthStatus,
+        lang: Lang,
+        dark_mode: bool,
+    ) -> RichText {
         match status {
-            AuthStatus::Authorized => nickname.to_string(),
-            AuthStatus::NotAuthorized => format!(
+            AuthStatus::Authorized => RichText::new(nickname).color(colors::ok(dark_mode)),
+            AuthStatus::NotAuthorized => RichText::new(format!(
                 "{} ({})",
                 nickname,
                 LangMessage::Authorizing.to_string(lang)
-            ),
-            AuthStatus::AuthorizeError => format!(
+            ))
+            .color(colors::in_progress(dark_mode)),
+            AuthStatus::AuthorizeError => RichText::new(format!(
                 "{} ({})",
                 nickname,
                 LangMessage::UnknownAuthError.to_string(lang)
-            ),
-            AuthStatus::AuthorizeErrorOffline => {
-                format!("{} ({})", nickname, LangMessage::Offline.to_string(lang))
-            }
-            AuthStatus::AuthorizeErrorTimeout => format!(
+            ))
+            .color(colors::error(dark_mode)),
+            AuthStatus::AuthorizeErrorOffline => RichText::new(format!(
+                "{} ({})",
+                nickname,
+                LangMessage::Offline.to_string(lang)
+            ))
+            .color(colors::offline(dark_mode)),
+            AuthStatus::AuthorizeErrorTimeout => RichText::new(format!(
                 "{} ({})",
                 nickname,
                 LangMessage::AuthTimeout.to_string(lang)
-            ),
+            ))
+            .color(colors::timeout(dark_mode)),
         }
     }
 
@@ -509,6 +522,8 @@ impl AuthState {
             self.last_auth_profile = auth_profile.clone();
         }
 
+        let dark_mode = ui.style().visuals.dark_mode;
+
         let auth_profile = config.get_selected_auth_profile().cloned();
         if let Some(instance_auth_backend) = instance_auth_backend {
             let mut entries = self
@@ -522,9 +537,10 @@ impl AuthState {
                 ComboBox::from_id_salt("select_account")
                     .selected_text(match &selected_username {
                         Some(username) => {
-                            Self::get_combobox_text(username, &self.auth_status, lang)
+                            Self::get_combobox_text(username, &self.auth_status, lang, dark_mode)
                         }
-                        None => LangMessage::SelectAccount.to_string(lang),
+                        None => RichText::new(LangMessage::SelectAccount.to_string(lang))
+                            .color(colors::action(dark_mode)),
                     })
                     .width(ui.available_width())
                     .show_ui(ui, |ui| {
@@ -591,9 +607,10 @@ impl AuthState {
             ComboBox::from_id_salt("select_account")
                 .selected_text(match &selected_account {
                     Some((_, username)) => {
-                        Self::get_combobox_text(username, &self.auth_status, lang)
+                        Self::get_combobox_text(username, &self.auth_status, lang, dark_mode)
                     }
-                    None => LangMessage::SelectAccount.to_string(lang),
+                    None => RichText::new(LangMessage::SelectAccount.to_string(lang))
+                        .color(colors::action(dark_mode)),
                 })
                 .width(ui.available_width())
                 .show_ui(ui, |ui| {
