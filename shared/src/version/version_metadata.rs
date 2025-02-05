@@ -330,7 +330,7 @@ impl Library {
                 }
             }
         } else if let Some(natives) = &self.natives {
-            for native_name in natives.keys() {
+            for native_name in natives.values() {
                 if let Some(download) = self.get_native_download(native_name) {
                     let path = self.get_native_path(libraries_dir, native_name, download);
                     entries.push(download.get_check_entry(&path));
