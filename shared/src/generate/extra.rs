@@ -126,6 +126,7 @@ pub struct ExtraMetadataGenerator {
     include_config: Option<IncludeConfig>,
     extra_forge_libs_paths: Vec<PathBuf>,
     auth_backend: Option<AuthBackend>,
+    recommended_xmx: Option<String>,
 }
 
 impl ExtraMetadataGenerator {
@@ -134,12 +135,14 @@ impl ExtraMetadataGenerator {
         include_config: Option<IncludeConfig>,
         extra_forge_libs_paths: Vec<PathBuf>,
         auth_backend: Option<AuthBackend>,
+        recommended_xmx: Option<String>,
     ) -> Self {
         Self {
             version_name,
             include_config,
             extra_forge_libs_paths,
             auth_backend,
+            recommended_xmx,
         }
     }
 
@@ -156,6 +159,7 @@ impl ExtraMetadataGenerator {
             resources_url_base: None,
             auth_backend: self.auth_backend,
             extra_forge_libs: vec![],
+            recommended_xmx: self.recommended_xmx,
         };
 
         let mut include_mapping = HashMap::new();

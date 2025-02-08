@@ -1,4 +1,4 @@
-use log::debug;
+use log::{debug, warn};
 use maplit::hashmap;
 use shared::paths::{
     get_authlib_injector_path, get_client_jar_path, get_instance_dir, get_libraries_dir,
@@ -12,6 +12,7 @@ use tokio::process::{Child, Command as TokioCommand};
 use crate::auth::base::get_auth_provider;
 use crate::auth::user_info::AuthData;
 use crate::config::runtime_config::Config;
+use crate::constants;
 use crate::version::complete_version_metadata::CompleteVersionMetadata;
 use crate::version::os;
 
@@ -145,6 +146,17 @@ pub async fn launch(
         "user_properties".to_string() => "{}".to_string(),
     };
 
+    let xmx = config.xmx.get(version_metadata.get_name()).map_or_else(
+        || {
+            warn!(
+                "No Xmx value found for version {}",
+                version_metadata.get_name()
+            );
+            format!("{}M", constants::XMX_DEFAULT)
+        },
+        |s| s.clone(),
+    );
+
     let mut java_options = [
         GC_OPTIONS
             .iter()
@@ -152,7 +164,7 @@ pub async fn launch(
             .collect::<Vec<_>>(),
         vec![
             "-Xms512M".to_string(),
-            format!("-Xmx{}", config.xmx),
+            format!("-Xmx{}", xmx),
             "-Duser.language=en".to_string(),
             "-Dfile.encoding=UTF-8".to_string(),
         ],

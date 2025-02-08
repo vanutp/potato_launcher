@@ -41,6 +41,7 @@ anyhow = { version = "1.0.94", features = ["backtrace"] }
 uuid = { version = "1.11.0", features = ["v3"] }
 clap = "4.5.23"
 rand = "0.8.5"
+sys-info = "0.9.1"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = ["fileapi", "winbase"] }

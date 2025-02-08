@@ -55,6 +55,7 @@ The `spec.json` file is used to define the specifications for generating instanc
 - **auth_backend**: Authentication data for accessing protected resources (optional).
   - **type**: The authentication provider name (e.g., "telegram" for [this telegram format](https://foxlab.dev/minecraft/tgauth-backend)).
   - Any additional fields for the selected authentication provider.
+- **recommended_xmx**: The recommended maximum amount of RAM to allocate to the client JVM (for example, "8192M").
 - **exec_before**: A command to execute before processing this version (optional).
 - **exec_after**: A command to execute after processing this version (optional).
 

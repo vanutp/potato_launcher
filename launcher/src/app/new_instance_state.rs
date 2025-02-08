@@ -230,6 +230,7 @@ fn create_new_instance(
             None,
             generator_result.extra_libs_paths,
             None,
+            None,
         );
         let _ = extra_generator.generate(&launcher_dir).await?;
 
