@@ -1,5 +1,5 @@
 use futures::stream::{FuturesUnordered, StreamExt};
-use log::debug;
+use log::{debug, warn};
 use reqwest::Client;
 use std::collections::VecDeque;
 use std::sync::{
@@ -18,6 +18,7 @@ const MIN_CONCURRENCY: usize = 1;
 const WINDOW_DURATION: Duration = Duration::from_secs(2);
 const UPDATE_CONCURRENCY_EVERY: usize = 5;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(4);
+const MAX_TIMEOUTS_AT_MIN_CONCURRENCY: usize = 2;
 
 struct DownloadRecord {
     timestamp: Instant,
@@ -185,26 +186,17 @@ pub async fn download_files<M>(
 
     spawn_if_possible(&mut active, &mut cur_entries);
 
-    let mut previous_success_time = Instant::now();
+    let mut timeouts_at_min_concurrency = 0;
 
     let mut next_concurrency_update = UPDATE_CONCURRENCY_EVERY;
     loop {
-        let sleep_until = previous_success_time + Duration::from_secs(60);
-
-        let maybe_item = tokio::select! {
-            item = active.next() => item,
-            _ = tokio::time::sleep_until(sleep_until.into()) => {
-                return Err(AdaptiveDownloadError::ConnectionTimeout.into());
-            }
-        };
-        let Some((result, entry)) = maybe_item else {
+        let Some((result, entry)) = active.next().await else {
             break;
         };
 
         let (success, latency_ms) = match result {
             Ok(Some(latency_ms)) => {
                 progress_bar.inc(1);
-                previous_success_time = Instant::now();
                 (true, latency_ms)
             }
             Ok(None) => {
@@ -231,10 +223,20 @@ pub async fn download_files<M>(
                     new_value = (current + 1).min(MAX_CONCURRENCY);
                 }
             } else {
+                if current == MIN_CONCURRENCY {
+                    timeouts_at_min_concurrency += 1;
+                    if timeouts_at_min_concurrency >= MAX_TIMEOUTS_AT_MIN_CONCURRENCY {
+                        return Err(AdaptiveDownloadError::ConnectionTimeout.into());
+                    }
+                    warn!("Timeouts at min concurrency: {}", timeouts_at_min_concurrency);
+                }
                 new_value = (current - (current + 3) / 4).max(MIN_CONCURRENCY);
             }
 
             if new_value != current {
+                if new_value == MIN_CONCURRENCY {
+                    timeouts_at_min_concurrency = 0;
+                }
                 desired_concurrency.store(new_value, Ordering::SeqCst);
                 debug!("New concurrency: {}", new_value);
             }
