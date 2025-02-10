@@ -93,13 +93,7 @@ impl LauncherApp {
                 ui.add_space(5.0);
                 ui.horizontal(|ui| {
                     let selected_metadata = self.metadata_state.get_version_metadata(&self.config);
-                    let selected_metadata_ref = selected_metadata.as_deref();
-                    self.settings_state.render_ui(
-                        ui,
-                        &self.runtime,
-                        &mut self.config,
-                        selected_metadata_ref,
-                    );
+                    self.settings_state.render_settings(ui, &mut self.config);
 
                     self.instance_sync_state.render_sync_button(
                         ui,
@@ -192,6 +186,14 @@ impl LauncherApp {
                     self.metadata_state.reset(false);
                 }
 
+                let selected_instance = self.metadata_state.get_version_metadata(&self.config);
+                self.settings_state.render_instance_settings(
+                    ui,
+                    &self.runtime,
+                    &mut self.config,
+                    selected_instance.as_deref(),
+                );
+
                 let selected_version_changed = self.manifest_state.render_combo_box(
                     ui,
                     &mut self.config,
@@ -208,12 +210,10 @@ impl LauncherApp {
         self.auth_state.update(&self.runtime, &mut self.config);
 
         ui.vertical_centered(|ui| {
-            let selected_instance = self.metadata_state.get_version_metadata(&self.config);
-            if selected_instance.is_some() {
+            if !self.metadata_state.render_status(ui, &self.config) {
                 self.instance_sync_state.render_status(ui, &self.config);
-            } else {
-                self.metadata_state.render_status(ui, &self.config);
             }
+            let selected_instance = self.metadata_state.get_version_metadata(&self.config);
             self.instance_sync_state.render_windows(
                 ui,
                 &self.runtime,
@@ -257,6 +257,12 @@ impl LauncherApp {
                         &self.config,
                         ctx,
                     );
+                    if !self.config.xmx.contains_key(version_metadata.get_name()) {
+                        self.config.xmx.insert(
+                            version_metadata.get_name().to_string(),
+                            utils::format_xmx(version_metadata.get_recommended_xmx()),
+                        );
+                    }
                 }
             }
 
@@ -290,8 +296,7 @@ impl LauncherApp {
 
                 let params = RenderUiParams {
                     online: !self.auth_state.offline()
-                        && self.manifest_state.online()
-                        && self.metadata_state.online(),
+                        && self.manifest_state.online(),
                     disabled: self.instance_sync_state.is_syncing()
                         || self.manifest_state.is_fetching()
                         || self.metadata_state.is_getting(),

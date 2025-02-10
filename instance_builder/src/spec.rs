@@ -60,6 +60,8 @@ pub struct Version {
 
     pub auth_backend: Option<AuthBackend>,
 
+    pub recommended_xmx: Option<String>,
+
     pub exec_before: Option<String>,
     pub exec_after: Option<String>,
 }
@@ -217,6 +219,7 @@ impl VersionsSpec {
                 include_config,
                 result.extra_libs_paths,
                 version.auth_backend,
+                version.recommended_xmx,
             );
             let extra_generator_result = extra_generator.generate(work_dir).await?;
             mapping.extend(extra_generator_result.include_mapping.into_iter().map(

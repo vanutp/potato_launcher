@@ -32,9 +32,10 @@ pub enum LangMessage {
     NoConnectionToJavaServer,
     UnknownJavaVersion,
     Settings,
+    InstanceSettings,
     SelectedJavaPath,
     NoJavaPath,
-    JavaXMX,
+    AllocatedMemory,
     SelectJavaPath,
     Launch,
     LaunchError,
@@ -89,10 +90,10 @@ pub enum LangMessage {
     EnterNickname,
     GettingMetadata,
     NoMetadata,
-    MetadataUpToDate,
     ReadLocalRemoteError,
     ReadLocalOffline,
     ErrorGettingMetadata,
+    InvalidJavaInstallation,
 }
 
 impl LangMessage {
@@ -203,6 +204,10 @@ impl LangMessage {
                 Lang::English => "Settings".to_string(),
                 Lang::Russian => "Настройки".to_string(),
             },
+            LangMessage::InstanceSettings => match lang {
+                Lang::English => "Instance settings".to_string(),
+                Lang::Russian => "Настройки версии".to_string(),
+            },
             LangMessage::SelectedJavaPath => match lang {
                 Lang::English => "Selected Java path:".to_string(),
                 Lang::Russian => "Выбранный путь к Java:".to_string(),
@@ -211,9 +216,9 @@ impl LangMessage {
                 Lang::English => "No Java path selected".to_string(),
                 Lang::Russian => "Путь к Java не выбран".to_string(),
             },
-            LangMessage::JavaXMX => match lang {
-                Lang::English => "Java Xmx".to_string(),
-                Lang::Russian => "Java Xmx".to_string(),
+            LangMessage::AllocatedMemory => match lang {
+                Lang::English => "Allocated memory".to_string(),
+                Lang::Russian => "Выделенная память".to_string(),
             },
             LangMessage::SelectJavaPath => match lang {
                 Lang::English => "Select Java path".to_string(),
@@ -444,10 +449,6 @@ impl LangMessage {
                 Lang::English => "No metadata".to_string(),
                 Lang::Russian => "Метаданные отсутствуют".to_string(),
             },
-            LangMessage::MetadataUpToDate => match lang {
-                Lang::English => "Metadata up-to-date".to_string(),
-                Lang::Russian => "Метаданные актуальны".to_string(),
-            },
             LangMessage::ReadLocalRemoteError => match lang {
                 Lang::English => "Local metadata (fetch error)".to_string(),
                 Lang::Russian => "Локальные метаданные (ошибка загрузки)".to_string(),
@@ -459,6 +460,10 @@ impl LangMessage {
             LangMessage::ErrorGettingMetadata => match lang {
                 Lang::English => "Error getting metadata".to_string(),
                 Lang::Russian => "Ошибка получения метаданных".to_string(),
+            },
+            LangMessage::InvalidJavaInstallation => match lang {
+                Lang::English => "Invalid Java Installation".to_string(),
+                Lang::Russian => "Неверная установка Java".to_string(),
             },
         }
     }

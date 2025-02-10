@@ -87,6 +87,8 @@ pub struct ExtraVersionMetadata {
 
     #[serde(default)]
     pub extra_forge_libs: Vec<Library>,
+
+    pub recommended_xmx: Option<String>,
 }
 
 impl ExtraVersionMetadata {

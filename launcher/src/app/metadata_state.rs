@@ -118,7 +118,7 @@ impl MetadataState {
         ));
     }
 
-    pub fn render_status(&mut self, ui: &mut egui::Ui, config: &Config) {
+    pub fn render_status(&mut self, ui: &mut egui::Ui, config: &Config) -> bool {
         let dark_mode = ui.style().visuals.dark_mode;
 
         ui.label(match self.status {
@@ -132,8 +132,7 @@ impl MetadataState {
             )
             .color(colors::in_progress(dark_mode)),
             GetStatus::UpToDate => {
-                RichText::new(LangMessage::MetadataUpToDate.to_string(config.lang))
-                    .color(colors::ok(dark_mode))
+                return false;
             }
             GetStatus::ReadLocalRemoteError => {
                 RichText::new(LangMessage::ReadLocalRemoteError.to_string(config.lang))
@@ -148,6 +147,8 @@ impl MetadataState {
                     .color(colors::error(dark_mode))
             }
         });
+
+        true
     }
 
     pub fn update(&mut self) -> bool {

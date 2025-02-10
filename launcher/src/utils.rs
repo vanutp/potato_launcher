@@ -2,7 +2,7 @@ use log::info;
 use serde::Deserialize;
 
 use crate::config::build_config;
-use crate::constants;
+use crate::constants::XMX_DEFAULT;
 use std::fs;
 use std::path::PathBuf;
 
@@ -35,26 +35,6 @@ pub fn is_connect_error(e: &anyhow::Error) -> bool {
         return e.is_connect() || e.status().is_some_and(|s| s.as_u16() == 523);
         // 523 = Cloudflare Origin is Unreachable
     }
-    false
-}
-
-pub fn validate_xmx(xmx: &str) -> bool {
-    let xmx = xmx.trim();
-    if xmx.is_empty() {
-        return false;
-    }
-
-    let xmx = xmx.to_uppercase();
-    if xmx.ends_with("M") {
-        if let Ok(mb) = xmx[..xmx.len() - 1].parse::<u32>() {
-            return (constants::MIN_JAVA_MB..=constants::MAX_JAVA_MB).contains(&mb);
-        }
-    } else if xmx.ends_with("G") {
-        if let Ok(gb) = xmx[..xmx.len() - 1].parse::<u32>() {
-            return (constants::MIN_JAVA_MB..=constants::MAX_JAVA_MB).contains(&(gb * 1024));
-        }
-    }
-
     false
 }
 
@@ -107,4 +87,44 @@ pub fn is_valid_minecraft_username(username: &str) -> bool {
         }
     }
     true
+}
+
+lazy_static::lazy_static! {
+    static ref total_memory: Option<u64> = sys_info::mem_info().ok().map(|mem_info| mem_info.total);
+}
+
+pub fn get_total_memory() -> Option<u64> {
+    *total_memory
+}
+
+pub fn map_range(value: f64, from_min: f64, from_max: f64, to_min: f64, to_max: f64) -> f64 {
+    (value - from_min) / (from_max - from_min) * (to_max - to_min) + to_min
+}
+
+pub fn format_xmx(xmx: Option<&str>) -> String {
+    let mut xmx_mb = XMX_DEFAULT;
+    if let Some(xmx) = xmx {
+        if xmx.ends_with('M') || xmx.ends_with('m') {
+            let xmx = xmx.trim_end_matches(['M', 'm']);
+            if let Ok(xmx) = xmx.parse::<u64>() {
+                xmx_mb = xmx;
+            }
+        } else if xmx.ends_with('G') || xmx.ends_with('g') {
+            let xmx = xmx.trim_end_matches(['G', 'g']);
+            if let Ok(xmx) = xmx.parse::<u64>() {
+                xmx_mb = xmx * 1024;
+            }
+        } else if let Ok(xmx) = xmx.parse::<u64>() {
+            xmx_mb = xmx;
+        }
+    }
+
+    if let Some(memory) = get_total_memory() {
+        let memory_mb = memory / 1024;
+        if xmx_mb > memory_mb {
+            xmx_mb = memory_mb;
+        }
+    }
+
+    format!("{}M", xmx_mb)
 }
