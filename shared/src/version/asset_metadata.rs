@@ -64,6 +64,7 @@ impl AssetsMetadata {
         &self,
         assets_dir: &Path,
         resources_url_base: &str,
+        check_hashes: bool,
     ) -> anyhow::Result<Vec<CheckEntry>> {
         let mut download_entries = vec![];
 
@@ -79,7 +80,11 @@ impl AssetsMetadata {
                     .join("objects")
                     .join(&object.hash[..2])
                     .join(&object.hash),
-                remote_sha1: None, // do not check sha1 for assets since it's in the path
+                remote_sha1: if check_hashes {
+                    Some(object.hash.clone())
+                } else {
+                    None
+                },
             }
         }));
 

@@ -10,7 +10,7 @@ use tokio::fs;
 use shared::{
     files::sync_mapping,
     generate::{
-        extra::{ExtraMetadataGenerator, IncludeConfig},
+        extra::{ExtraMetadataGenerator, IncludeConfig, IncludeRule},
         manifest::get_version_info,
     },
     loader_generator::{
@@ -51,10 +51,7 @@ pub struct Version {
     pub loader_version: Option<String>,
 
     #[serde(default)]
-    pub include: Vec<String>,
-
-    #[serde(default)]
-    pub include_no_overwrite: Vec<String>,
+    pub include: Vec<IncludeRule>,
 
     pub include_from: Option<String>,
 
@@ -202,14 +199,13 @@ impl VersionsSpec {
             let include_config = if let Some(include_from) = version.include_from {
                 Some(IncludeConfig {
                     include: version.include,
-                    include_no_overwrite: version.include_no_overwrite,
                     include_from,
                     download_server_base: self.download_server_base.clone(),
                     resources_url_base,
                 })
             } else {
-                if !version.include.is_empty() || !version.include_no_overwrite.is_empty() {
-                    warn!("Ignoring include and include_no_overwrite, include_from is not set");
+                if !version.include.is_empty() {
+                    warn!("Ignoring include, include_from is not set");
                 }
                 None
             };

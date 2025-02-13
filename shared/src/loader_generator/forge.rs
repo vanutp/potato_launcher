@@ -17,6 +17,7 @@ use async_trait::async_trait;
 use log::{debug, error, info, warn};
 use reqwest::Client;
 use serde::Deserialize;
+use tokio::io::AsyncWriteExt as _;
 
 use super::generator::{GeneratorResult, VersionGenerator};
 
@@ -189,8 +190,18 @@ async fn download_forge_installer(
         ),
     };
     let forge_installer_path = work_dir.join(filename);
+
     let client = Client::new();
-    files::download_file(&client, &forge_installer_url, &forge_installer_path).await?;
+    let response = client
+        .get(&forge_installer_url)
+        .send()
+        .await?
+        .error_for_status()?
+        .bytes()
+        .await?;
+    let mut file = tokio::fs::File::create(&forge_installer_path).await?;
+    file.write_all(&response).await?;
+
     Ok(forge_installer_path)
 }
 

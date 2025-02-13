@@ -8,21 +8,29 @@ The `spec.json` file is used to define the specifications for generating instanc
 {
   "download_server_base": "string",
   "resources_url_base": "string",
+  "replace_download_urls": "boolean",
   "versions": [
     {
       "name": "string",
       "minecraft_version": "string",
       "loader_name": "string",
       "loader_version": "string",
-      "include": ["string"],
-      "include_no_overwrite": ["string"],
       "include_from": "string",
-      "replace_download_urls": "boolean",
+      "include": [
+        {
+          "path": "string",
+          "overwrite": "boolean",
+          "recursive": "boolean",
+          "delete_extra": "boolean"
+        },
+        ...
+      ],
       "auth_backend": {
         "type": "string",
         "data_field1": "data_value1",
         "other_data_fields": "other_data_values"
       },
+      "recommended_xmx": "string",
       "exec_before": "string",
       "exec_after": "string"
     }
@@ -40,17 +48,20 @@ The `spec.json` file is used to define the specifications for generating instanc
 - **resources_url_base**: The base URL for assets (optional). Should be equal to `<download_server_base>/assets/objects` if the generated folder structure is not changed after upload.
 - **replace_download_urls**: A boolean indicating whether to replace download URLs (e.g., of vanilla libraries or assets).
 - **versions**: An array of version specifications (see below for details).
-- **exec_before_all**: A bash command to execute before processing all versions (optional).
-- **exec_after_all**: A bash command to execute after processing all versions (optional). Can be used to automatically deploy the generated files in any possible way (e.g., by `rsync`'ing them to the server with `nginx`).
+- **exec_before_all**: A console command to execute before processing all versions (optional).
+- **exec_after_all**: A console command to execute after processing all versions (optional). This is useful for automatically deploying the generated files (for example, by `rsync`'ing them to a server with `nginx`).
 
 ### Version Fields
 
-- **name**: The name of the version.
+- **name**: The name of the instance.
 - **minecraft_version**: The Minecraft version for this instance.
 - **loader_name**: The name of the mod loader ("vanilla", "fabric", "forge" or "neoforge"; "vanilla" by default).
 - **loader_version**: The version of the mod loader (optional; latest for fabric and `recommended` for forge if not set).
-- **include**: A list of additional files or directories to include in the instance (optional; e.g., mods).
-- **include_no_overwrite**: A list of files or directories to include without overwriting existing files (optional; e.g., configs).
+- **include**: An array of inclusion rules. Each rule is an object specifying:
+  - **path**: The file or directory (relative to the include_from directory) to include.
+  - **overwrite**: (Optional) A boolean indicating if the included file(s) should always be overwritten, defaults to `true`.
+  - **recursive**: (Optional) When including a directory, whether the inclusion should be recursive. Has no effect on files or with `overwrite: true`. The default value is `false`.
+  - **delete_extra**: (Optional) If set to true along with `overwrite: true`, extra files in the target directory (that are not specified in the objects list) will be deleted.
 - **include_from**: A directory from which to include files (optional).
 - **auth_backend**: Authentication data for accessing protected resources (optional).
   - **type**: The authentication provider name (e.g., "telegram" for [this telegram format](https://foxlab.dev/minecraft/tgauth-backend)).

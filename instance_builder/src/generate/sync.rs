@@ -54,7 +54,7 @@ pub async fn sync_version(
         let assets_dir = get_assets_dir(output_dir);
         let assets_metadata = AssetsMetadata::read_or_download(asset_index, &assets_dir).await?;
         let asset_check_entries =
-            assets_metadata.get_check_entries(&assets_dir, RESOURCES_URL_BASE)?;
+            assets_metadata.get_check_entries(&assets_dir, RESOURCES_URL_BASE, true)?;
 
         let mut already_have = 0;
         for entry in &asset_check_entries {

@@ -68,19 +68,34 @@ impl AuthBackend {
     }
 }
 
+fn yes() -> bool {
+    true
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct Include {
+    pub path: String,
+
+    #[serde(default = "yes")]
+    pub overwrite: bool,
+
+    #[serde(default = "yes")]
+    pub delete_extra: bool,
+
+    #[serde(default)]
+    pub recursive: bool,
+
+    #[serde(default)]
+    pub objects: Vec<Object>,
+}
+
 #[derive(Deserialize, Serialize)]
 pub struct ExtraVersionMetadata {
     #[serde(default)]
     pub auth_backend: Option<AuthBackend>,
 
     #[serde(default)]
-    pub include: Vec<String>,
-
-    #[serde(default)]
-    pub include_no_overwrite: Vec<String>,
-
-    #[serde(default)]
-    pub objects: Vec<Object>,
+    pub include: Vec<Include>,
 
     #[serde(default)]
     pub resources_url_base: Option<String>,

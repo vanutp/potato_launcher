@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Mutex;
 
-use crate::files::DownloadEntry;
+use crate::files::{self, DownloadEntry};
 use crate::progress::ProgressBar;
 
 const MAX_CONCURRENCY: usize = 75;
@@ -104,13 +104,26 @@ async fn download_file(client: &Client, entry: &DownloadEntry) -> anyhow::Result
     if let Some(parent_dir) = entry.path.parent() {
         tokio::fs::create_dir_all(parent_dir).await?;
     }
-    let mut file = tokio::fs::File::create(&entry.path).await?;
 
-    let per_chunk_timeout = REQUEST_TIMEOUT;
-    while let Some(chunk_result) = tokio::time::timeout(per_chunk_timeout, stream.next()).await? {
-        let chunk = chunk_result?;
-        file.write_all(&chunk).await?;
+    // write to a temporary file first
+    let tmp_path = entry.path.with_extension("tmp");
+    {
+        let mut file = tokio::fs::File::create(&tmp_path).await?;
+
+        let per_chunk_timeout = REQUEST_TIMEOUT;
+        while let Some(chunk_result) =
+            tokio::time::timeout(per_chunk_timeout, stream.next()).await?
+        {
+            let chunk = chunk_result?;
+            file.write_all(&chunk).await?;
+        }
+        file.flush().await?;
     }
+    // then atomically rename it to the target path
+    if entry.path.exists() {
+        files::remove_file_or_dir(&entry.path).await?;
+    }
+    tokio::fs::rename(tmp_path, &entry.path).await?;
 
     let latency_ms = start.elapsed().as_millis();
 
@@ -228,7 +241,10 @@ pub async fn download_files<M>(
                     if timeouts_at_min_concurrency >= MAX_TIMEOUTS_AT_MIN_CONCURRENCY {
                         return Err(AdaptiveDownloadError::ConnectionTimeout.into());
                     }
-                    warn!("Timeouts at min concurrency: {}", timeouts_at_min_concurrency);
+                    warn!(
+                        "Timeouts at min concurrency: {}",
+                        timeouts_at_min_concurrency
+                    );
                 }
                 new_value = (current - (current + 3) / 4).max(MIN_CONCURRENCY);
             }

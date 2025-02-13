@@ -194,6 +194,8 @@ impl CompleteVersionMetadata {
     }
 
     pub fn get_recommended_xmx(&self) -> Option<&str> {
-        self.extra.as_ref().and_then(|extra| extra.recommended_xmx.as_deref())
+        self.extra
+            .as_ref()
+            .and_then(|extra| extra.recommended_xmx.as_deref())
     }
 }

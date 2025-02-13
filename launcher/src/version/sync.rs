@@ -10,6 +10,7 @@ use shared::paths::{
 };
 use shared::version::asset_metadata::AssetsMetadata;
 use std::fs;
+use tokio::fs as tokio_fs;
 use zip::ZipArchive;
 
 use shared::files::{self, CheckEntry};
@@ -22,63 +23,59 @@ use crate::lang::LangMessage;
 use super::complete_version_metadata::CompleteVersionMetadata;
 use super::os;
 
-fn get_objects_entries(
+async fn get_objects_entries(
     extra_version_metadata: &ExtraVersionMetadata,
     force_overwrite: bool,
     instance_dir: &Path,
 ) -> anyhow::Result<Vec<CheckEntry>> {
-    let objects = &extra_version_metadata.objects;
     let include = &extra_version_metadata.include;
-    let include_no_overwrite = &extra_version_metadata.include_no_overwrite;
 
-    let get_instance_files = |x| files::get_files_in_dir(&instance_dir.join(x)).ok();
-    let no_overwrite_iter = include_no_overwrite
-        .iter()
-        .filter_map(get_instance_files)
-        .flatten();
-    let mut to_overwrite: HashSet<PathBuf> = include
-        .iter()
-        .filter_map(get_instance_files)
-        .flatten()
-        .collect();
-    let mut no_overwrite = HashSet::new();
-    if !force_overwrite {
-        no_overwrite.extend(no_overwrite_iter);
-    } else {
-        to_overwrite.extend(no_overwrite_iter);
-    }
+    let mut check_entries = vec![];
+    let mut used_paths = HashSet::new();
+    for rule in include {
+        let objects = &rule.objects;
 
-    // Remove files that are in both no_overwrite and overwrite
-    // e.g. config folder is in no_overwrite but config/<filename>.json is in overwrite
-    no_overwrite.retain(|x| !to_overwrite.contains(x));
+        let objects_paths = rule
+            .objects
+            .iter()
+            .map(|object| instance_dir.join(&object.path))
+            .collect::<HashSet<_>>();
 
-    // delete extra to_overwrite files
-    let objects_hashset: HashSet<PathBuf> =
-        objects.iter().map(|x| instance_dir.join(&x.path)).collect();
-    let _ = to_overwrite
-        .iter()
-        .map(|x| {
-            if !objects_hashset.contains(x) {
-                fs::remove_file(x).unwrap();
+        if rule.overwrite && rule.delete_extra || force_overwrite {
+            let rule_path = instance_dir.join(&rule.path);
+            let files_in_dir = files::get_files_ignore_paths(&rule_path, &used_paths)?;
+            for file in files_in_dir {
+                if !objects_paths.contains(&file) {
+                    tokio_fs::remove_file(file).await?;
+                }
             }
-        })
-        .collect::<Vec<()>>();
-
-    let mut download_entries = vec![];
-    for object in objects.iter() {
-        let object_path = instance_dir.join(&object.path);
-
-        if no_overwrite.contains(&object_path) {
-            continue;
         }
-        download_entries.push(CheckEntry {
-            url: object.url.clone(),
-            remote_sha1: Some(object.sha1.clone()),
-            path: object_path,
-        });
+
+        if rule.overwrite {
+            check_entries.extend(objects.iter().map(|object| CheckEntry {
+                url: object.url.clone(),
+                remote_sha1: Some(object.sha1.clone()),
+                path: instance_dir.join(&object.path),
+            }));
+        } else if rule.recursive || !instance_dir.join(&rule.path).exists() {
+            check_entries.extend(objects.iter().filter_map(|object| {
+                let path = instance_dir.join(&object.path);
+                if !path.exists() {
+                    Some(CheckEntry {
+                        url: object.url.clone(),
+                        remote_sha1: Some(object.sha1.clone()),
+                        path,
+                    })
+                } else {
+                    None
+                }
+            }));
+        }
+
+        used_paths.extend(objects_paths);
     }
 
-    Ok(download_entries)
+    Ok(check_entries)
 }
 
 async fn fetch_hashes(
@@ -252,7 +249,7 @@ pub async fn sync_instance(
     check_entries.extend(get_libraries_entries(&libraries, &libraries_dir).await?);
 
     if let Some(extra) = version_metadata.get_extra() {
-        check_entries.extend(get_objects_entries(extra, force_overwrite, &instance_dir)?);
+        check_entries.extend(get_objects_entries(extra, force_overwrite, &instance_dir).await?);
     }
 
     if let Some(authlib_injector) = get_authlib_injector_entry(version_metadata, launcher_dir) {
@@ -262,9 +259,11 @@ pub async fn sync_instance(
     let asset_index = version_metadata.get_asset_index()?;
     let asset_metadata = AssetsMetadata::read_or_download(asset_index, assets_dir).await?;
 
-    check_entries.extend(
-        asset_metadata.get_check_entries(assets_dir, version_metadata.get_resources_url_base())?,
-    );
+    check_entries.extend(asset_metadata.get_check_entries(
+        assets_dir,
+        version_metadata.get_resources_url_base(),
+        force_overwrite,
+    )?);
 
     info!("Got {} check download entries", check_entries.len());
     progress_bar.set_message(LangMessage::CheckingFiles);

@@ -1,11 +1,10 @@
 use log::error;
-use reqwest::Client;
 use sha1::{Digest, Sha1};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs;
-use tokio::io::{AsyncReadExt as _, AsyncWriteExt};
+use tokio::io::AsyncReadExt as _;
 use walkdir::WalkDir;
 
 use crate::progress::{run_tasks_with_progress, ProgressBar};
@@ -18,6 +17,25 @@ pub fn get_files_in_dir(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
         let entries = std::fs::read_dir(path)?;
         for entry in entries.flatten() {
             files.extend(get_files_in_dir(&entry.path())?);
+        }
+    }
+    Ok(files)
+}
+
+pub fn get_files_ignore_paths(
+    path: &Path,
+    ignore_paths: &HashSet<PathBuf>,
+) -> anyhow::Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+    if path.is_file() {
+        files.push(path.to_path_buf());
+    } else if path.is_dir() {
+        let entries = std::fs::read_dir(path)?;
+        for entry in entries.flatten() {
+            let entry_path = entry.path();
+            if !ignore_paths.contains(&entry_path) {
+                files.extend(get_files_ignore_paths(&entry_path, ignore_paths)?);
+            }
         }
     }
     Ok(files)
@@ -52,29 +70,12 @@ pub async fn hash_files<M>(
     run_tasks_with_progress(tasks, progress_bar, tasks_count, num_cpus::get()).await
 }
 
-pub async fn download_file(client: &Client, url: &str, path: &Path) -> anyhow::Result<()> {
-    let response = client
-        .get(url)
-        .send()
-        .await?
-        .error_for_status()?
-        .bytes()
-        .await?;
-
-    if let Some(parent_dir) = path.parent() {
-        tokio::fs::create_dir_all(parent_dir).await?;
+pub async fn remove_file_or_dir(path: &Path) -> anyhow::Result<()> {
+    if path.is_file() {
+        fs::remove_file(path).await?;
+    } else if path.is_dir() {
+        fs::remove_dir_all(path).await?;
     }
-
-    // write to a temporary file first
-    let tmp_path = path.with_extension("tmp");
-    {
-        let mut file = tokio::fs::File::create(&tmp_path).await?;
-        file.write_all(&response).await?;
-        file.flush().await?;
-    }
-    // then atomically rename it to the target path
-    tokio::fs::rename(tmp_path, path).await?;
-
     Ok(())
 }
 
@@ -104,7 +105,7 @@ pub async fn get_download_entries<M>(
     let to_hash: Vec<_> = check_entries
         .iter()
         .filter_map(|entry| {
-            if entry.path.exists() && entry.remote_sha1.is_some() {
+            if entry.path.is_file() && entry.remote_sha1.is_some() {
                 Some(entry.path.clone())
             } else {
                 None
@@ -121,7 +122,7 @@ pub async fn get_download_entries<M>(
     let mut download_entries = HashMap::new();
     for entry in check_entries {
         let mut need_download = false;
-        if !entry.path.exists() {
+        if !entry.path.is_file() {
             need_download = true;
         } else if let Some(remote_sha1) = &entry.remote_sha1 {
             if remote_sha1
@@ -174,7 +175,7 @@ pub enum CopyFilesError {
     InvalidPath,
 }
 
-// copy files mapped files and directories
+// copy mapped files and directories
 // and delete all other files and directores in the target directory
 // mapping: target -> source
 pub async fn sync_mapping(

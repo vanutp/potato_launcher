@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -10,25 +10,27 @@ use crate::{
     progress::{self, NoProgressBar, ProgressBar as _},
     utils::{url_from_path, url_from_rel_path},
     version::{
-        extra_version_metadata::{AuthBackend, ExtraVersionMetadata, Object},
+        extra_version_metadata::{AuthBackend, ExtraVersionMetadata, Include, Object},
         version_metadata::Library,
     },
 };
 use log::info;
+use serde::Deserialize;
 
 async fn get_objects(
     copy_from: &Path,
     from: &Path,
     download_server_base: &str,
     version_name: &str,
+    existing_paths: &HashSet<PathBuf>,
 ) -> anyhow::Result<Vec<Object>> {
-    let files_in_dir = files::get_files_in_dir(from)?;
+    let files = files::get_files_ignore_paths(from, &existing_paths)?;
 
-    let rel_paths = files_in_dir
+    let rel_paths = files
         .iter()
         .map(|p| p.strip_prefix(copy_from))
         .collect::<Result<Vec<_>, _>>()?;
-    let hashes = files::hash_files(files_in_dir.clone(), progress::no_progress_bar()).await?;
+    let hashes = files::hash_files(files.clone(), progress::no_progress_bar()).await?;
 
     let mut objects = vec![];
     for (rel_path, hash) in rel_paths.iter().zip(hashes.iter()) {
@@ -113,9 +115,26 @@ pub struct GeneratorResult {
     pub extra_metadata: ExtraVersionMetadata,
 }
 
+fn yes() -> bool {
+    true
+}
+
+#[derive(Deserialize)]
+pub struct IncludeRule {
+    pub path: String,
+
+    #[serde(default = "yes")]
+    pub overwrite: bool,
+
+    #[serde(default = "yes")]
+    pub delete_extra: bool,
+
+    #[serde(default)]
+    pub recursive: bool,
+}
+
 pub struct IncludeConfig {
-    pub include: Vec<String>,
-    pub include_no_overwrite: Vec<String>,
+    pub include: Vec<IncludeRule>,
     pub include_from: String,
     pub download_server_base: String,
     pub resources_url_base: Option<String>,
@@ -154,8 +173,6 @@ impl ExtraMetadataGenerator {
 
         let mut extra_metadata = ExtraVersionMetadata {
             include: vec![],
-            include_no_overwrite: vec![],
-            objects: vec![],
             resources_url_base: None,
             auth_backend: self.auth_backend,
             extra_forge_libs: vec![],
@@ -172,32 +189,34 @@ impl ExtraMetadataGenerator {
             )
             .await?;
 
-            let mut objects = vec![];
             let copy_from = PathBuf::from(&include_config.include_from);
 
-            for include in include_config
-                .include
-                .iter()
-                .chain(include_config.include_no_overwrite.iter())
-            {
-                let from = copy_from.join(include);
+            let mut include = vec![];
+            let mut existing_paths = HashSet::new();
+            for rule in include_config.include.iter() {
+                let from = copy_from.join(&rule.path);
 
-                objects.extend(
-                    get_objects(
-                        &copy_from,
-                        &from,
-                        &include_config.download_server_base,
-                        &self.version_name,
-                    )
-                    .await?,
-                );
-                include_mapping.insert(include.clone(), from);
+                let objects = get_objects(
+                    &copy_from,
+                    &from,
+                    &include_config.download_server_base,
+                    &self.version_name,
+                    &existing_paths,
+                )
+                .await?;
+                include_mapping.insert(rule.path.clone(), from.clone());
+
+                include.push(Include {
+                    path: rule.path.clone(),
+                    overwrite: rule.overwrite,
+                    delete_extra: rule.delete_extra,
+                    recursive: rule.recursive,
+                    objects,
+                });
+                existing_paths.insert(from);
             }
 
-            extra_metadata.objects = objects;
-
-            extra_metadata.include = include_config.include;
-            extra_metadata.include_no_overwrite = include_config.include_no_overwrite;
+            extra_metadata.include = include;
             extra_metadata.resources_url_base = include_config.resources_url_base;
             extra_metadata.extra_forge_libs = extra_forge_libs;
         }
