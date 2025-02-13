@@ -64,9 +64,17 @@ pub async fn download_file(client: &Client, url: &str, path: &Path) -> anyhow::R
     if let Some(parent_dir) = path.parent() {
         tokio::fs::create_dir_all(parent_dir).await?;
     }
-    let mut file = tokio::fs::File::create(path).await?;
 
-    file.write_all(&response).await?;
+    // write to a temporary file first
+    let tmp_path = path.with_extension("tmp");
+    {
+        let mut file = tokio::fs::File::create(&tmp_path).await?;
+        file.write_all(&response).await?;
+        file.flush().await?;
+    }
+    // then atomically rename it to the target path
+    tokio::fs::rename(tmp_path, path).await?;
+
     Ok(())
 }
 
