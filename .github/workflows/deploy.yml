@@ -45,46 +45,38 @@ jobs:
             mv "target/release-lto/launcher" "build/${DATA_LAUNCHER_NAME}"
             echo "$VERSION" > build/version_linux.txt
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            mkdir -p icon.iconset
-            PNG_PATH="launcher/assets/$DATA_LAUNCHER_NAME.png"
-            sips -z 16 16     "$PNG_PATH" --out icon.iconset/icon_16x16.png
-            sips -z 32 32     "$PNG_PATH" --out icon.iconset/icon_16x16@2x.png
-            sips -z 32 32     "$PNG_PATH" --out icon.iconset/icon_32x32.png
-            sips -z 64 64     "$PNG_PATH" --out icon.iconset/icon_32x32@2x.png
-            sips -z 64 64     "$PNG_PATH" --out icon.iconset/icon_64x64.png
-            sips -z 128 128   "$PNG_PATH" --out icon.iconset/icon_64x64@2x.png
-            sips -z 128 128   "$PNG_PATH" --out icon.iconset/icon_128x128.png
-            sips -z 256 256   "$PNG_PATH" --out icon.iconset/icon_128x128@2x.png
-            sips -z 256 256   "$PNG_PATH" --out icon.iconset/icon_256x256.png
-            sips -z 512 512   "$PNG_PATH" --out icon.iconset/icon_256x256@2x.png
-            sips -z 512 512   "$PNG_PATH" --out icon.iconset/icon_512x512.png
-            sips -z 1024 1024 "$PNG_PATH" --out icon.iconset/icon_512x512@2x.png
-            iconutil -c icns icon.iconset -o launcher/assets/icon.icns
+            cp "launcher/assets/$DATA_LAUNCHER_NAME.png" "launcher/assets/icon.png"
 
             which cargo-bundle || cargo install cargo-bundle
+            rustup target add x86_64-apple-darwin aarch64-apple-darwin
 
+            # Build Intel binary directly (with older deployment target)
             export MACOSX_DEPLOYMENT_TARGET=10.12
-
+            cargo build --bin launcher --profile release-lto --target x86_64-apple-darwin
+            
+            # Build ARM binary as part of bundle (with newer deployment target)
+            export MACOSX_DEPLOYMENT_TARGET=11.0
             cargo bundle --bin launcher --profile release-lto --target aarch64-apple-darwin
 
+            mkdir -p app
+            mv "target/aarch64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app" "app/$LAUNCHER_NAME.app"
+
+            # Update permission descriptions (required for simple voice chat and some other mods)
             plutil -replace NSCameraUsageDescription \
               -string "A Minecraft mod wants to access your camera." \
-              "target/aarch64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app/Contents/Info.plist"
+              "app/$LAUNCHER_NAME.app/Contents/Info.plist"
             plutil -replace NSMicrophoneUsageDescription \
               -string "A Minecraft mod wants to access your microphone." \
-              "target/aarch64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app/Contents/Info.plist"
+              "app/$LAUNCHER_NAME.app/Contents/Info.plist"
 
-            mkdir -p app
-            cp -r "target/aarch64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app" "app/$LAUNCHER_NAME.app"
-
-            rustup target add x86_64-apple-darwin
-            cargo bundle --bin launcher --profile release-lto --target x86_64-apple-darwin
-
+            # Create universal binary
             lipo -create -output "app/$LAUNCHER_NAME.app/Contents/MacOS/launcher" \
-              "target/x86_64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app/Contents/MacOS/launcher" \
-              "target/aarch64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app/Contents/MacOS/launcher"
+              "target/x86_64-apple-darwin/release-lto/launcher" \
+              "app/$LAUNCHER_NAME.app/Contents/MacOS/launcher"
 
             codesign --force --deep --sign - "app/$LAUNCHER_NAME.app"
+
+            ln -s /Applications app/Applications
 
             DMG_FILENAME="${LAUNCHER_NAME}.dmg"
 
