@@ -24,10 +24,12 @@ pub fn get_vanilla_version_info(
 }
 
 pub fn url_from_rel_path(rel_path: &Path, download_server_base: &str) -> anyhow::Result<String> {
+    let path_str = rel_path.to_string_lossy().replace('\\', "/");
+
     Ok(format!(
         "{}/{}",
-        download_server_base,
-        rel_path.to_string_lossy()
+        download_server_base.trim_end_matches('/'),
+        path_str
     ))
 }
 

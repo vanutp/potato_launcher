@@ -39,7 +39,7 @@ async fn get_objects(
             download_server_base,
         )?;
         objects.push(Object {
-            path: rel_path.to_string_lossy().to_string(),
+            path: rel_path.to_string_lossy().to_string().replace('\\', "/"),
             sha1: hash.clone(),
             url,
         });
@@ -75,7 +75,7 @@ async fn get_extra_forge_libs(
             let parts = path
                 .strip_prefix(&libraries_dir)?
                 .components()
-                .map(|x| x.as_os_str().to_string_lossy())
+                .map(|x| x.as_os_str().to_string_lossy().replace('\\', "/"))
                 .collect::<Vec<_>>();
             let version = parts[parts.len() - 2].to_string();
             let name = parts[parts.len() - 3].to_string();
