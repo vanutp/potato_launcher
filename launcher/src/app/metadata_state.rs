@@ -69,7 +69,7 @@ fn get_metadata(
                         );
                         GetStatus::ErrorGetting
                     } else {
-                        error!("Error getting metadata:\n{:?}\n(read local)", e);
+                        error!("Error getting metadata (reading local instead):\n{:?}", e);
                         GetStatus::ReadLocalRemoteError
                     },
                     version_info,

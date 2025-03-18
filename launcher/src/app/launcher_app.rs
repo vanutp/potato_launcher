@@ -295,7 +295,7 @@ impl LauncherApp {
                 let selected_instance = self.metadata_state.get_version_metadata(&self.config);
 
                 let params = RenderUiParams {
-                    online: !self.auth_state.offline() && self.manifest_state.online(),
+                    online: !self.auth_state.offline(),
                     disabled: self.instance_sync_state.is_syncing()
                         || self.manifest_state.is_fetching()
                         || self.metadata_state.is_getting(),

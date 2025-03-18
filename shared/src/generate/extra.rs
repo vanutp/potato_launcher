@@ -24,7 +24,7 @@ async fn get_objects(
     version_name: &str,
     existing_paths: &HashSet<PathBuf>,
 ) -> anyhow::Result<Vec<Object>> {
-    let files = files::get_files_ignore_paths(from, &existing_paths)?;
+    let files = files::get_files_ignore_paths(from, existing_paths)?;
 
     let rel_paths = files
         .iter()
