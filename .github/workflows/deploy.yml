@@ -68,6 +68,9 @@ jobs:
             plutil -replace NSMicrophoneUsageDescription \
               -string "A Minecraft mod wants to access your microphone." \
               "app/$LAUNCHER_NAME.app/Contents/Info.plist"
+            plutil -insert NSEnableAutomaticCustomizeTouchBarMenuItem \
+              -bool false \
+              "app/$LAUNCHER_NAME.app/Contents/Info.plist"
 
             # Create universal binary
             lipo -create -output "app/$LAUNCHER_NAME.app/Contents/MacOS/launcher" \
