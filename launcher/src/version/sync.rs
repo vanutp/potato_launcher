@@ -51,7 +51,7 @@ async fn get_objects_entries(
             }
         }
 
-        if rule.overwrite {
+        if rule.overwrite || force_overwrite {
             check_entries.extend(objects.iter().map(|object| CheckEntry {
                 url: object.url.clone(),
                 remote_sha1: Some(object.sha1.clone()),
