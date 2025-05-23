@@ -1,3 +1,4 @@
+use futures::stream::{FuturesUnordered, StreamExt};
 use log::error;
 use sha1::{Digest, Sha1};
 use std::collections::{HashMap, HashSet};
@@ -210,20 +211,35 @@ pub async fn sync_mapping(
 
     remove_empty_dirs(target_dir).await?;
 
-    let fut = mappings_files.iter().map(|(target, source)| async move {
+    // Helper function for file copying operation
+    async fn copy_file_if_needed(target: PathBuf, source: PathBuf) -> anyhow::Result<()> {
         fs::create_dir_all(target.parent().ok_or(CopyFilesError::InvalidPath)?).await?;
         if target.is_dir() {
             fs::remove_dir(&target).await?;
         }
-        if !target.exists() || hash_file(source).await? != hash_file(target).await? {
+        if !target.exists() || hash_file(&source).await? != hash_file(&target).await? {
             fs::copy(&source, &target).await?;
         }
-        anyhow::Result::<()>::Ok(())
-    });
+        Ok(())
+    }
 
-    let results = futures::future::join_all(fut).await;
-    for result in results {
+    const MAX_CONCURRENT_FILE_OPERATIONS: usize = 50;
+
+    let mut tasks = FuturesUnordered::new();
+    let mut mapping_iter = mappings_files.iter();
+
+    for _ in 0..MAX_CONCURRENT_FILE_OPERATIONS.min(mappings_files.len()) {
+        if let Some((target, source)) = mapping_iter.next() {
+            tasks.push(copy_file_if_needed(target.clone(), source.clone()));
+        }
+    }
+
+    while let Some(result) = tasks.next().await {
         result?;
+
+        if let Some((target, source)) = mapping_iter.next() {
+            tasks.push(copy_file_if_needed(target.clone(), source.clone()));
+        }
     }
 
     Ok(())

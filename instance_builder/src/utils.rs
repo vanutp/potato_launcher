@@ -24,7 +24,7 @@ pub async fn exec_string_command(command: &str) -> anyhow::Result<()> {
     }
     let status = cmd.status().await?;
     if !status.success() {
-        return Err(std::io::Error::new(std::io::ErrorKind::Other, "Command failed").into());
+        return Err(anyhow::anyhow!("Command failed"));
     }
     Ok(())
 }

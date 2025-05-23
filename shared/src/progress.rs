@@ -1,8 +1,6 @@
-use futures::future::join_all;
+use futures::stream::{FuturesUnordered, StreamExt};
 use std::future::Future;
-use std::sync::{Arc, Mutex};
-use tokio::sync::Semaphore;
-use tokio_util::sync::CancellationToken;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Unit {
@@ -55,61 +53,199 @@ where
 {
     progress_bar.set_length(total_size);
 
-    let first_error = Arc::new(Mutex::new(None));
-    let cancellation_token = CancellationToken::new();
+    let mut active_tasks = FuturesUnordered::new();
+    let mut task_iter = tasks;
+    let mut results = Vec::new();
 
-    let semaphore = Arc::new(Semaphore::new(max_concurrent_tasks));
-    let futures = tasks.map(|task| {
-        let semaphore = semaphore.clone();
-        let progress_bar = Arc::clone(&progress_bar);
-        let first_error = Arc::clone(&first_error);
-        let cancellation_token = cancellation_token.clone();
+    for _ in 0..max_concurrent_tasks {
+        if let Some(task) = task_iter.next() {
+            active_tasks.push(task);
+        }
+    }
 
-        async move {
-            let _permit = semaphore.acquire().await.unwrap();
-
-            if first_error.lock().unwrap().is_some() {
-                return None;
+    while let Some(result) = active_tasks.next().await {
+        match result {
+            Ok(value) => {
+                progress_bar.inc(1);
+                results.push(value);
             }
-
-            match task.await {
-                Ok(result) => {
-                    progress_bar.inc(1);
-                    Some(result)
-                }
-                Err(e) => {
-                    let mut first_error = first_error.lock().unwrap();
-                    if first_error.is_none() {
-                        *first_error = Some(e);
-                        cancellation_token.cancel();
-                    }
-                    None
-                }
+            Err(e) => {
+                progress_bar.finish();
+                return Err(e);
             }
         }
-    });
 
-    tokio::select! {
-        results = join_all(futures) => {
-            progress_bar.finish();
-            let mut first_error = first_error.lock().unwrap();
-            if let Some(e) = first_error.take() {
-                Err(e)
+        if let Some(task) = task_iter.next() {
+            active_tasks.push(task);
+        }
+    }
+
+    progress_bar.finish();
+    Ok(results)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::Duration;
+    use tokio::time::sleep;
+
+    struct TestProgressBar {
+        length: AtomicUsize,
+        increments: AtomicUsize,
+        finished: AtomicUsize,
+    }
+
+    impl TestProgressBar {
+        fn new() -> Self {
+            Self {
+                length: AtomicUsize::new(0),
+                increments: AtomicUsize::new(0),
+                finished: AtomicUsize::new(0),
+            }
+        }
+
+        fn get_length(&self) -> usize {
+            self.length.load(Ordering::SeqCst)
+        }
+
+        fn get_increments(&self) -> usize {
+            self.increments.load(Ordering::SeqCst)
+        }
+
+        fn get_finished_count(&self) -> usize {
+            self.finished.load(Ordering::SeqCst)
+        }
+    }
+
+    impl ProgressBar<String> for TestProgressBar {
+        fn set_message(&self, _: String) {
+            // do nothing
+        }
+
+        fn set_length(&self, length: u64) {
+            self.length.store(length as usize, Ordering::SeqCst);
+        }
+
+        fn inc(&self, amount: u64) {
+            self.increments.fetch_add(amount as usize, Ordering::SeqCst);
+        }
+
+        fn finish(&self) {
+            self.finished.fetch_add(1, Ordering::SeqCst);
+        }
+
+        fn set_unit(&self, _unit: Unit) {}
+    }
+
+    #[tokio::test]
+    async fn test_basic_functionality() {
+        let progress_bar = Arc::new(TestProgressBar::new());
+
+        let tasks = (0..5).map(|i| async move { anyhow::Result::<i32>::Ok(i) });
+
+        let results = run_tasks_with_progress(tasks, progress_bar.clone(), 5, 3)
+            .await
+            .unwrap();
+
+        assert_eq!(results.len(), 5);
+        let mut sorted_results = results;
+        sorted_results.sort();
+        assert_eq!(sorted_results, vec![0, 1, 2, 3, 4]);
+
+        assert_eq!(progress_bar.get_length(), 5);
+        assert_eq!(progress_bar.get_increments(), 5);
+        assert_eq!(progress_bar.get_finished_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_concurrency_limiting() {
+        let active_count = Arc::new(AtomicUsize::new(0));
+        let max_concurrent = Arc::new(AtomicUsize::new(0));
+        let progress_bar = Arc::new(TestProgressBar::new());
+
+        let tasks = (0..10).map(|i| {
+            let active_count = active_count.clone();
+            let max_concurrent = max_concurrent.clone();
+            async move {
+                let current = active_count.fetch_add(1, Ordering::SeqCst) + 1;
+
+                max_concurrent.fetch_max(current, Ordering::SeqCst);
+
+                sleep(Duration::from_millis(10)).await;
+
+                active_count.fetch_sub(1, Ordering::SeqCst);
+
+                anyhow::Result::<i32>::Ok(i)
+            }
+        });
+
+        let results = run_tasks_with_progress(
+            tasks,
+            progress_bar,
+            10,
+            3,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(results.len(), 10);
+
+        assert!(max_concurrent.load(Ordering::SeqCst) <= 3);
+
+        assert!(max_concurrent.load(Ordering::SeqCst) >= 2);
+    }
+
+    #[tokio::test]
+    async fn test_error_handling() {
+        let progress_bar = Arc::new(TestProgressBar::new());
+
+        let tasks = (0..5).map(|i| async move {
+            if i == 2 {
+                anyhow::Result::<i32>::Err(anyhow::Error::msg("Task failed"))
             } else {
-                let results: Result<Vec<_>, _> = results.into_iter().map(|x| {
-                    x.ok_or_else(|| anyhow::Error::msg("Task failed but no error was set"))
-                }).collect();
-                results
+                anyhow::Result::<i32>::Ok(i)
             }
-        }
-        _ = cancellation_token.cancelled() => {
-            progress_bar.finish();
-            let mut first_error = first_error.lock().unwrap();
-            if let Some(e) = first_error.take() {
-                Err(e)
-            } else {
-                Err(anyhow::Error::msg("Got cancelled but no error was set"))
-            }
-        }
+        });
+
+        let result = run_tasks_with_progress(tasks, progress_bar.clone(), 5, 3).await;
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Task failed");
+
+        assert_eq!(progress_bar.get_finished_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_empty_tasks() {
+        let progress_bar = Arc::new(TestProgressBar::new());
+
+        let tasks = (0..0).map(|i| async move { anyhow::Result::<i32>::Ok(i) });
+
+        let results = run_tasks_with_progress(tasks, progress_bar.clone(), 0, 3)
+            .await
+            .unwrap();
+
+        assert_eq!(results.len(), 0);
+        assert_eq!(progress_bar.get_length(), 0);
+        assert_eq!(progress_bar.get_increments(), 0);
+        assert_eq!(progress_bar.get_finished_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_single_task() {
+        let progress_bar = Arc::new(TestProgressBar::new());
+
+        let tasks = std::iter::once(async { anyhow::Result::<i32>::Ok(42) });
+
+        let results = run_tasks_with_progress(tasks, progress_bar.clone(), 1, 3)
+            .await
+            .unwrap();
+
+        assert_eq!(results, vec![42]);
+        assert_eq!(progress_bar.get_length(), 1);
+        assert_eq!(progress_bar.get_increments(), 1);
+        assert_eq!(progress_bar.get_finished_count(), 1);
     }
 }

@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 use crate::files::{self, DownloadEntry};
 use crate::progress::ProgressBar;
 
-const MAX_CONCURRENCY: usize = 75;
+const MAX_CONCURRENCY: usize = 50;
 const MIN_CONCURRENCY: usize = 1;
 const WINDOW_DURATION: Duration = Duration::from_secs(2);
 const UPDATE_CONCURRENCY_EVERY: usize = 5;

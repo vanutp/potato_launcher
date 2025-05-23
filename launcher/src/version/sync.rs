@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use futures::stream::StreamExt;
 use log::{debug, info, warn};
 use rand::seq::SliceRandom as _;
 use shared::adaptive_download::download_files;
@@ -83,22 +84,31 @@ async fn fetch_hashes(
 ) -> anyhow::Result<HashMap<PathBuf, String>> {
     let client = reqwest::Client::new();
 
-    let mut futures = vec![];
-    for (path, url) in sha1_urls {
-        let client = client.clone();
-        let future = async move {
-            let response = client.get(&url).send().await?.error_for_status()?;
-            let bytes = response.bytes().await?;
-            let sha1 = String::from_utf8(bytes.to_vec())?;
-            Ok((path, sha1))
-        };
-        futures.push(future);
+    async fn fetch_single_hash(
+        client: reqwest::Client,
+        path: PathBuf,
+        url: String,
+    ) -> anyhow::Result<(PathBuf, String)> {
+        let response = client.get(&url).send().await?.error_for_status()?;
+        let bytes = response.bytes().await?;
+        let sha1 = String::from_utf8(bytes.to_vec())?;
+        Ok((path, sha1))
     }
 
-    let results: Vec<Result<(PathBuf, String), anyhow::Error>> =
-        futures::future::join_all(futures).await;
+    const MAX_CONCURRENT_HASH_FETCHES: usize = 20;
+
+    let mut tasks = futures::stream::FuturesUnordered::new();
+    let mut urls_iter = sha1_urls.into_iter();
+
+    for _ in 0..MAX_CONCURRENT_HASH_FETCHES {
+        if let Some((path, url)) = urls_iter.next() {
+            tasks.push(fetch_single_hash(client.clone(), path, url));
+        }
+    }
+
     let mut hashes = HashMap::new();
-    for result in results {
+
+    while let Some(result) = tasks.next().await {
         match result {
             Ok((path, sha1)) => {
                 hashes.insert(path, sha1);
@@ -114,6 +124,10 @@ async fn fetch_hashes(
                     return Err(e);
                 }
             }
+        }
+
+        if let Some((path, url)) = urls_iter.next() {
+            tasks.push(fetch_single_hash(client.clone(), path, url));
         }
     }
 

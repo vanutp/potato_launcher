@@ -405,20 +405,14 @@ async fn run_forge_command(
                 .arg(&to_abs_path_str(forge_installer_path)?);
             let retry_output = retry_cmd.output().await?;
             if !retry_output.status.success() {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!(
-                        "Command failed: {:?}",
-                        String::from_utf8_lossy(&output.stderr)
-                    ),
-                )
-                .into());
+                return Err(anyhow::anyhow!(
+                    "Command failed: {:?}",
+                    String::from_utf8_lossy(&output.stderr)
+                ));
             }
         } else {
             error!("Command failed: {:?}", output);
-            return Err(
-                std::io::Error::new(std::io::ErrorKind::Other, stderr_str.to_string()).into(),
-            );
+            return Err(anyhow::anyhow!(stderr_str.to_string()));
         }
     }
 
