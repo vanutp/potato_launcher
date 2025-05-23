@@ -246,7 +246,7 @@ pub async fn download_files<M>(
                         timeouts_at_min_concurrency
                     );
                 }
-                new_value = (current - (current + 3) / 4).max(MIN_CONCURRENCY);
+                new_value = (current - current.div_ceil(4)).max(MIN_CONCURRENCY);
             }
 
             if new_value != current {

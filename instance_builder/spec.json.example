@@ -2,6 +2,7 @@
     "download_server_base": "https://<your_domain>/<some path>",
     "resources_url_base": "https://<your_domain>/<some path>/assets/objects",
     "replace_download_urls": true,
+    "version_manifest_url": "https://<your_domain>/<some path>/version_manifest.json",
     "versions": [
         {
             "name": "Monifactory",

@@ -9,6 +9,7 @@ The `spec.json` file is used to define the specifications for generating instanc
   "download_server_base": "string",
   "resources_url_base": "string",
   "replace_download_urls": "boolean",
+  "version_manifest_url": "string",
   "versions": [
     {
       "name": "string",
@@ -47,6 +48,7 @@ The `spec.json` file is used to define the specifications for generating instanc
 - **download_server_base**: The base URL where the instance will be deployed. All files in the generated folder (`generated` by default) must be accessible by `<download_server_base>/<file_relative_path>` after deployment. For example, the version manifest has to be at `<download_server_base>/version_manifest.json`.
 - **resources_url_base**: The base URL for assets (optional). Should be equal to `<download_server_base>/assets/objects` if the generated folder structure is not changed after upload.
 - **replace_download_urls**: A boolean indicating whether to replace download URLs (e.g., of vanilla libraries or assets).
+- **version_manifest_url**: The URL to fetch a remote version manifest from (optional). If specified, the instance builder will fetch the existing manifest from this URL and merge the local versions with it, preserving any versions that exist in the remote manifest but not in the local specification.
 - **versions**: An array of version specifications (see below for details).
 - **exec_before_all**: A console command to execute before processing all versions (optional).
 - **exec_after_all**: A console command to execute after processing all versions (optional). This is useful for automatically deploying the generated files (for example, by `rsync`'ing them to a server with `nginx`).

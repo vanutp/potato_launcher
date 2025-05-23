@@ -180,7 +180,7 @@ impl Download {
     }
 
     pub fn get_filename(&self) -> &str {
-        self.url.split('/').last().unwrap_or(&self.url)
+        self.url.split('/').next_back().unwrap_or(&self.url)
     }
 }
 

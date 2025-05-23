@@ -71,6 +71,8 @@ pub struct VersionsSpec {
     #[serde(default)]
     pub replace_download_urls: bool,
 
+    pub version_manifest_url: Option<String>,
+
     pub versions: Vec<Version>,
     pub exec_before_all: Option<String>,
     pub exec_after_all: Option<String>,
@@ -95,7 +97,27 @@ impl VersionsSpec {
         info!("Fetching version manifest");
         let vanilla_manifest = VersionManifest::fetch(VANILLA_MANIFEST_URL).await?;
 
-        let mut version_manifest = VersionManifest { versions: vec![] };
+        let mut version_manifest = if let Some(version_manifest_url) = &self.version_manifest_url {
+            info!(
+                "Fetching remote version manifest from: {}",
+                version_manifest_url
+            );
+            match VersionManifest::fetch(version_manifest_url).await {
+                Ok(manifest) => {
+                    info!(
+                        "Successfully fetched remote manifest with {} versions",
+                        manifest.versions.len()
+                    );
+                    manifest
+                }
+                Err(e) => {
+                    warn!("Failed to fetch remote version manifest: {}. Starting with empty manifest.", e);
+                    VersionManifest { versions: vec![] }
+                }
+            }
+        } else {
+            VersionManifest { versions: vec![] }
+        };
         let mut synced_metadata = HashSet::new();
         let mut mapping = HashMap::new();
 
@@ -236,6 +258,10 @@ impl VersionsSpec {
                 Some(self.download_server_base.as_str()),
             )
             .await?;
+
+            version_manifest
+                .versions
+                .retain(|v| v.get_name() != version_info.get_name());
             version_manifest.versions.push(version_info);
 
             mapping.extend(get_mapping(output_dir, work_dir, &workdir_paths_to_copy)?);

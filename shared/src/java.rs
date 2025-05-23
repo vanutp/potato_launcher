@@ -341,7 +341,7 @@ pub async fn download_java<M>(
         let url = Url::parse(version_url)?;
         let filename = url
             .path_segments()
-            .and_then(|segments| segments.last())
+            .and_then(|mut segments| segments.next_back())
             .ok_or(JavaDownloadError::NoFileNameInURL)?
             .strip_suffix(&format!(".{}", archive_type))
             .ok_or(JavaDownloadError::NoFileExtensionInURL)?;
