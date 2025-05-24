@@ -5,6 +5,7 @@ use eframe::egui;
 use eframe::run_native;
 use log::error;
 use log::info;
+use shared::utils::is_connect_error;
 use tokio::runtime::Runtime;
 
 use crate::app::progress_bar::GuiProgressBar;
@@ -101,7 +102,7 @@ impl UpdateApp {
             let _ = need_update_sender.send(match need_update().await {
                 Ok(true) => UpdateStatus::NeedUpdate,
                 Ok(false) => UpdateStatus::UpToDate,
-                Err(e) if utils::is_connect_error(&e) => UpdateStatus::UpdateErrorOffline,
+                Err(e) if is_connect_error(&e) => UpdateStatus::UpdateErrorOffline,
                 Err(e) => {
                     error!("Error checking for updates:\n{:?}", e);
                     UpdateStatus::UpdateError
@@ -183,7 +184,7 @@ impl UpdateApp {
                                         Err(e) if utils::is_read_only_error(&e) => {
                                             DownloadStatus::ErrorReadOnly
                                         }
-                                        Err(e) if utils::is_connect_error(&e) => {
+                                        Err(e) if is_connect_error(&e) => {
                                             DownloadStatus::DownloadErrorOffline
                                         }
                                         Err(e) => {

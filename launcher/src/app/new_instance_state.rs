@@ -14,14 +14,13 @@ use shared::loader_generator::generator::VersionGenerator;
 use shared::loader_generator::vanilla::VanillaGenerator;
 use shared::paths::get_instance_dir;
 use shared::progress::NoProgressBar;
-use shared::utils::{get_vanilla_version_info, VANILLA_MANIFEST_URL};
+use shared::utils::{get_vanilla_version_info, is_connect_error, VANILLA_MANIFEST_URL};
 use shared::version::version_manifest::{VersionInfo, VersionManifest};
 use tokio::runtime::Runtime;
 
 use crate::{
     config::runtime_config::Config,
     lang::{Lang, LangMessage},
-    utils,
 };
 
 use super::background_task::{BackgroundTask, BackgroundTaskResult};
@@ -106,7 +105,7 @@ where
                 *self = match result {
                     Ok(metadata) => NewInstanceMetadataState::Fetched(metadata),
                     Err(e) => {
-                        if utils::is_connect_error(&e) {
+                        if is_connect_error(&e) {
                             NewInstanceMetadataState::OfflineError
                         } else {
                             error!("Error getting metadata:\n{:?}", e);
@@ -315,7 +314,7 @@ impl NewInstanceState {
                         }
                         Err(e) => {
                             error!("Error creating instance:\n{:?}", e);
-                            self.instance_generate_state = if utils::is_connect_error(&e) {
+                            self.instance_generate_state = if is_connect_error(&e) {
                                 NewInstanceGenerateState::Offline
                             } else {
                                 NewInstanceGenerateState::UnknownError

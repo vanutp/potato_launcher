@@ -1,11 +1,11 @@
 use crate::{
     config::{build_config, runtime_config::Config},
     lang::LangMessage,
-    utils,
 };
 
 use egui::RichText;
 use log::error;
+use shared::utils::is_connect_error;
 use shared::version::version_manifest::VersionManifest;
 use tokio::runtime::Runtime;
 
@@ -42,7 +42,7 @@ where
                 manifest: Some(manifest),
             },
             Err(e) => ManifestFetchResult {
-                status: if utils::is_connect_error(&e) {
+                status: if is_connect_error(&e) {
                     FetchStatus::FetchErrorOffline
                 } else {
                     error!("Error fetching version manifest:\n{:?}", e);

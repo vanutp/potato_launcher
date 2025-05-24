@@ -4,6 +4,7 @@ use egui::Window;
 use image::Luma;
 use log::error;
 use qrcode::QrCode;
+use shared::utils::is_connect_error;
 use shared::version::extra_version_metadata::AuthBackend;
 use shared::version::extra_version_metadata::ElyByAuthBackend;
 use shared::version::extra_version_metadata::TelegramAuthBackend;
@@ -24,7 +25,7 @@ use crate::auth::user_info::AuthData;
 use crate::config::runtime_config::AuthProfile;
 use crate::config::runtime_config::Config;
 use crate::lang::{Lang, LangMessage};
-use crate::utils;
+use crate::utils::is_valid_minecraft_username;
 
 use super::background_task::{BackgroundTask, BackgroundTaskResult};
 use super::colors;
@@ -65,7 +66,7 @@ fn authenticate(
 
             Err(e) => {
                 let mut connect_error = false;
-                if utils::is_connect_error(&e) {
+                if is_connect_error(&e) {
                     connect_error = true;
                 }
                 let mut timeout_error = false;
@@ -240,7 +241,7 @@ impl AuthState {
 
                         if ui
                             .add_enabled(
-                                utils::is_valid_minecraft_username(&self.offline_nickname),
+                                is_valid_minecraft_username(&self.offline_nickname),
                                 egui::Button::new(LangMessage::AddAccount.to_string(lang)),
                             )
                             .clicked()

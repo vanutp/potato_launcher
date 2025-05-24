@@ -1,13 +1,13 @@
 use egui::RichText;
 use log::error;
 use shared::progress::ProgressBar;
+use shared::utils::is_connect_error;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 use crate::config::runtime_config::Config;
 use crate::lang::{Lang, LangMessage};
-use crate::utils;
 use crate::version::complete_version_metadata::CompleteVersionMetadata;
 use crate::version::sync;
 
@@ -90,7 +90,7 @@ impl InstanceSyncState {
                         self.status = match result {
                             Ok(()) => InstanceSyncStatus::Synced,
                             Err(e) => {
-                                if utils::is_connect_error(&e) {
+                                if is_connect_error(&e) {
                                     InstanceSyncStatus::SyncErrorOffline
                                 } else {
                                     error!("Error syncing instance:\n{:?}", e);

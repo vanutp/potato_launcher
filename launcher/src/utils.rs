@@ -30,14 +30,6 @@ pub fn is_read_only_error(e: &anyhow::Error) -> bool {
     false
 }
 
-pub fn is_connect_error(e: &anyhow::Error) -> bool {
-    if let Some(e) = e.downcast_ref::<reqwest::Error>() {
-        return e.is_connect() || e.status().is_some_and(|s| s.as_u16() == 523);
-        // 523 = Cloudflare Origin is Unreachable
-    }
-    false
-}
-
 pub fn get_icon_data() -> egui::IconData {
     let image = image::load_from_memory(build_config::LAUNCHER_ICON)
         .expect("Failed to open icon path")

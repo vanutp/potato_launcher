@@ -1,13 +1,13 @@
 use egui::RichText;
 use log::error;
 use shared::paths::get_java_dir;
+use shared::utils::is_connect_error;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 use crate::config::runtime_config::Config;
 use crate::lang::{Lang, LangMessage};
-use crate::utils;
 use crate::version::complete_version_metadata::CompleteVersionMetadata;
 
 use shared::java;
@@ -89,7 +89,7 @@ fn download_java(
                 java_installation: Some(java_installation),
             },
             Err(e) => JavaDownloadResult {
-                status: if utils::is_connect_error(&e) {
+                status: if is_connect_error(&e) {
                     JavaDownloadStatus::DownloadErrorOffline
                 } else {
                     error!("Error downloading Java:\n{:?}", e);

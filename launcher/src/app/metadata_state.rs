@@ -2,11 +2,12 @@ use std::{collections::HashMap, path::Path, sync::Arc};
 
 use egui::RichText;
 use log::{error, info};
+use shared::utils::is_connect_error;
 use shared::version::version_manifest::VersionInfo;
 use tokio::runtime::Runtime;
 
 use crate::{
-    config::runtime_config::Config, lang::LangMessage, utils,
+    config::runtime_config::Config, lang::LangMessage,
     version::complete_version_metadata::CompleteVersionMetadata,
 };
 
@@ -59,7 +60,7 @@ fn get_metadata(
                 let local_metadata =
                     CompleteVersionMetadata::read_local(&version_info, &data_dir).await;
                 MetadataFetchResult {
-                    status: if utils::is_connect_error(&e) {
+                    status: if is_connect_error(&e) {
                         info!("Metadata offline mode");
                         GetStatus::ReadLocalOffline
                     } else if let Some(local_error) = local_metadata.as_ref().err() {

@@ -12,6 +12,7 @@ use tokio::sync::Mutex;
 
 use crate::files::{self, DownloadEntry};
 use crate::progress::ProgressBar;
+use crate::utils::is_connect_error;
 
 const MAX_CONCURRENCY: usize = 50;
 const MIN_CONCURRENCY: usize = 1;
@@ -106,9 +107,14 @@ async fn download_file(client: &Client, entry: &DownloadEntry) -> anyhow::Result
     }
 
     // write to a temporary file first
-    let tmp_path = entry.path.with_extension("tmp");
+    let mut tmp_path = entry.path.as_os_str().to_owned();
+    tmp_path.push(".tmp");
+    let tmp_path = std::path::PathBuf::from(tmp_path);
+
     {
-        let mut file = tokio::fs::File::create(&tmp_path).await?;
+        let mut file = tokio::fs::File::create(&tmp_path)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to create temp file {:?}: {}", tmp_path, e))?;
 
         let per_chunk_timeout = REQUEST_TIMEOUT;
         while let Some(chunk_result) =
@@ -119,11 +125,24 @@ async fn download_file(client: &Client, entry: &DownloadEntry) -> anyhow::Result
         }
         file.flush().await?;
     }
+
+    if !tmp_path.exists() {
+        return Err(anyhow::anyhow!(
+            "Temporary file {:?} does not exist after creation",
+            tmp_path
+        ));
+    }
+
     // then atomically rename it to the target path
     if entry.path.exists() {
         files::remove_file_or_dir(&entry.path).await?;
     }
-    tokio::fs::rename(tmp_path, &entry.path).await?;
+
+    tokio::fs::rename(&tmp_path, &entry.path)
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!("Failed to rename {:?} to {:?}: {}", tmp_path, entry.path, e)
+        })?;
 
     let latency_ms = start.elapsed().as_millis();
 
@@ -146,10 +165,11 @@ async fn do_download(client: &Client, entry: &DownloadEntry) -> anyhow::Result<O
         Ok(r) => r,
         Err(e) => {
             // If it's a timeout, we return Ok(None), else Err
-            if is_timeout_error(&e) {
+            if is_timeout_error(&e) || is_connect_error(&e) {
                 debug!("Timeout downloading {}", entry.url);
                 return Ok(None);
             } else {
+                debug!("Error downloading {}: {:?}", entry.url, e);
                 return Err(e);
             }
         }
