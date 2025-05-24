@@ -24,6 +24,8 @@ use crate::lang::LangMessage;
 use super::complete_version_metadata::CompleteVersionMetadata;
 use super::os;
 
+const COMPLETION_MARKER_FILE: &str = ".download_complete";
+
 async fn get_objects_entries(
     extra_version_metadata: &ExtraVersionMetadata,
     force_overwrite: bool,
@@ -58,7 +60,13 @@ async fn get_objects_entries(
                 remote_sha1: Some(object.sha1.clone()),
                 path: instance_dir.join(&object.path),
             }));
-        } else if rule.recursive || !instance_dir.join(&rule.path).exists() {
+        } else if rule.recursive
+            || !instance_dir.join(&rule.path).exists()
+            || !instance_dir
+                .join(&rule.path)
+                .join(COMPLETION_MARKER_FILE)
+                .exists()
+        {
             check_entries.extend(objects.iter().filter_map(|object| {
                 let path = instance_dir.join(&object.path);
                 if !path.exists() {
@@ -241,6 +249,24 @@ fn get_authlib_injector_entry(
     })
 }
 
+async fn mark_download_complete(
+    version_metadata: &CompleteVersionMetadata,
+    instance_dir: &Path,
+) -> anyhow::Result<()> {
+    let extra = version_metadata.get_extra();
+    if let Some(extra) = extra {
+        for rule in &extra.include {
+            let path = instance_dir.join(&rule.path);
+            if !rule.overwrite && !rule.recursive && path.is_dir() {
+                let completion_marker_path = path.join(COMPLETION_MARKER_FILE);
+                tokio_fs::write(completion_marker_path, b"").await?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn sync_instance(
     version_metadata: &CompleteVersionMetadata,
     force_overwrite: bool,
@@ -299,6 +325,8 @@ pub async fn sync_instance(
     download_files(download_entries, progress_bar).await?;
 
     extract_natives(&libraries, &libraries_dir, &natives_dir)?;
+
+    mark_download_complete(version_metadata, &instance_dir).await?;
 
     Ok(())
 }

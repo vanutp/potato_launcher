@@ -42,6 +42,14 @@ pub fn no_progress_bar() -> Arc<dyn ProgressBar<i32> + Send + Sync> {
     Arc::new(NoProgressBar)
 }
 
+async fn create_indexed_task<T, Fut>(index: usize, task: Fut) -> (usize, anyhow::Result<T>)
+where
+    Fut: Future<Output = anyhow::Result<T>>,
+{
+    let result = task.await;
+    (index, result)
+}
+
 pub async fn run_tasks_with_progress<M, T, Fut>(
     tasks: impl Iterator<Item = Fut>,
     progress_bar: Arc<dyn ProgressBar<M> + Send + Sync>,
@@ -54,20 +62,20 @@ where
     progress_bar.set_length(total_size);
 
     let mut active_tasks = FuturesUnordered::new();
-    let mut task_iter = tasks;
+    let mut task_iter = tasks.enumerate();
     let mut results = Vec::new();
 
     for _ in 0..max_concurrent_tasks {
-        if let Some(task) = task_iter.next() {
-            active_tasks.push(task);
+        if let Some((index, task)) = task_iter.next() {
+            active_tasks.push(create_indexed_task(index, task));
         }
     }
 
-    while let Some(result) = active_tasks.next().await {
+    while let Some((index, result)) = active_tasks.next().await {
         match result {
             Ok(value) => {
                 progress_bar.inc(1);
-                results.push(value);
+                results.push((index, value));
             }
             Err(e) => {
                 progress_bar.finish();
@@ -75,13 +83,15 @@ where
             }
         }
 
-        if let Some(task) = task_iter.next() {
-            active_tasks.push(task);
+        if let Some((index, task)) = task_iter.next() {
+            active_tasks.push(create_indexed_task(index, task));
         }
     }
 
     progress_bar.finish();
-    Ok(results)
+
+    results.sort_by_key(|(index, _)| *index);
+    Ok(results.into_iter().map(|(_, value)| value).collect())
 }
 
 #[cfg(test)]
@@ -150,9 +160,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(results.len(), 5);
-        let mut sorted_results = results;
-        sorted_results.sort();
-        assert_eq!(sorted_results, vec![0, 1, 2, 3, 4]);
+        assert_eq!(results, vec![0, 1, 2, 3, 4]);
 
         assert_eq!(progress_bar.get_length(), 5);
         assert_eq!(progress_bar.get_increments(), 5);
@@ -181,16 +189,12 @@ mod tests {
             }
         });
 
-        let results = run_tasks_with_progress(
-            tasks,
-            progress_bar,
-            10,
-            3,
-        )
-        .await
-        .unwrap();
+        let results = run_tasks_with_progress(tasks, progress_bar, 10, 3)
+            .await
+            .unwrap();
 
         assert_eq!(results.len(), 10);
+        assert_eq!(results, (0..10).collect::<Vec<_>>());
 
         assert!(max_concurrent.load(Ordering::SeqCst) <= 3);
 
@@ -246,6 +250,26 @@ mod tests {
         assert_eq!(results, vec![42]);
         assert_eq!(progress_bar.get_length(), 1);
         assert_eq!(progress_bar.get_increments(), 1);
+        assert_eq!(progress_bar.get_finished_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_order_preservation_with_different_completion_times() {
+        let progress_bar = Arc::new(TestProgressBar::new());
+
+        let tasks = (0..5).map(|i| async move {
+            let delay_ms = 50 - (i as u64 * 10);
+            sleep(Duration::from_millis(delay_ms)).await;
+            anyhow::Result::<i32>::Ok(i)
+        });
+
+        let results = run_tasks_with_progress(tasks, progress_bar.clone(), 5, 3)
+            .await
+            .unwrap();
+
+        assert_eq!(results, vec![0, 1, 2, 3, 4]);
+        assert_eq!(progress_bar.get_length(), 5);
+        assert_eq!(progress_bar.get_increments(), 5);
         assert_eq!(progress_bar.get_finished_count(), 1);
     }
 }
