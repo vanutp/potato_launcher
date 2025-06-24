@@ -1,5 +1,8 @@
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
 
 defaults:
   run:
@@ -7,6 +10,7 @@ defaults:
 
 jobs:
   build:
+    if: ${{ github.ref == 'refs/heads/master' && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ${{ matrix.os }}
     env:
       HAS_SSH_KEY: ${{ secrets.SSH_KEY != '' }}
