@@ -25,7 +25,7 @@
             xorg.xrandr
             libpulseaudio
             libGL
-            glfw
+            glfw3-minecraft
             openal
 
             wayland
