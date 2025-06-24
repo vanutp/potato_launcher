@@ -1,13 +1,12 @@
+use super::language_selector::LanguageSelector;
+use crate::config::build_config::USE_NATIVE_GLFW_DEFAULT;
 use crate::config::runtime_config::Config;
 use crate::constants::{XMX_DEFAULT, XMX_MAX, XMX_MIN, XMX_STEP};
 use crate::lang::LangMessage;
 use crate::utils;
 use crate::version::complete_version_metadata::CompleteVersionMetadata;
-
 use shared::java;
 use tokio::runtime::Runtime;
-
-use super::language_selector::LanguageSelector;
 
 fn get_xmx_max() -> f64 {
     utils::get_total_memory().map_or(XMX_MAX, |total| total / 1024) as f64
@@ -19,6 +18,7 @@ pub struct SettingsState {
     instance_settings_opened: bool,
     picked_java_path: Option<String>,
     xmx_slider_value: f64,
+    use_native_glfw: bool,
 }
 
 fn map_xmx_slider_value(value: f64) -> String {
@@ -42,6 +42,7 @@ impl SettingsState {
             instance_settings_opened: false,
             picked_java_path: None,
             xmx_slider_value: 0.0,
+            use_native_glfw: false,
         }
     }
 
@@ -98,12 +99,37 @@ impl SettingsState {
                     .get(selected_metadata.get_name())
                     .unwrap_or(&XMX_DEFAULT.to_string()),
             );
+            self.use_native_glfw = *config
+                .use_native_glfw
+                .get(selected_metadata.get_name())
+                .unwrap_or(&USE_NATIVE_GLFW_DEFAULT);
         }
 
         if let Some(selected_metadata) = selected_metadata {
             self.render_instance_settings_window(ui, runtime, config, selected_metadata);
         } else {
             self.instance_settings_opened = false;
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn render_use_native_glfw_checkbox(
+        &mut self,
+        ui: &mut egui::Ui,
+        config: &mut Config,
+        selected_metadata: &CompleteVersionMetadata,
+    ) {
+        let old_use_native_glfw = self.use_native_glfw;
+        ui.checkbox(
+            &mut self.use_native_glfw,
+            LangMessage::UseNativeGlfw.to_string(config.lang),
+        );
+        if old_use_native_glfw != self.use_native_glfw {
+            config.use_native_glfw.insert(
+                selected_metadata.get_name().to_string(),
+                self.use_native_glfw,
+            );
+            config.save();
         }
     }
 
@@ -117,7 +143,6 @@ impl SettingsState {
         let lang = config.lang;
         let mut settings_opened = self.instance_settings_opened;
 
-        let mut update_status = false;
         egui::Window::new(LangMessage::InstanceSettings.to_string(lang))
             .open(&mut settings_opened)
             .show(ui.ctx(), |ui| {
@@ -143,7 +168,6 @@ impl SettingsState {
                                 path.display().to_string(),
                             );
                             config.save();
-                            update_status = true;
                         } else {
                             self.picked_java_path =
                                 LangMessage::InvalidJavaInstallation.to_string(lang).into();
@@ -180,8 +204,10 @@ impl SettingsState {
                         map_xmx_slider_value(self.xmx_slider_value),
                     );
                     config.save();
-                    update_status = true;
                 }
+
+                #[cfg(target_os = "linux")]
+                self.render_use_native_glfw_checkbox(ui, config, selected_metadata);
             });
 
         self.instance_settings_opened = settings_opened;

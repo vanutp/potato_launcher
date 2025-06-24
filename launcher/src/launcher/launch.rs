@@ -9,16 +9,14 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use tokio::process::{Child, Command as TokioCommand};
 
+use super::compat;
 use crate::auth::base::get_auth_provider;
 use crate::auth::user_info::AuthData;
 use crate::config::runtime_config::Config;
 use crate::constants;
 use crate::version::complete_version_metadata::CompleteVersionMetadata;
 use crate::version::os;
-
 use shared::version::version_metadata;
-
-use super::compat;
 
 const GC_OPTIONS: &[&str] = &[
     "-XX:+UnlockExperimentalVMOptions",
@@ -186,6 +184,18 @@ pub async fn launch(
                 ),
             );
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    if *config
+        .use_native_glfw
+        .get(version_metadata.get_name())
+        .unwrap_or(&crate::config::build_config::USE_NATIVE_GLFW_DEFAULT)
+    {
+        use crate::launcher::compat::linux_find_native_glfw;
+        let glfw_path = linux_find_native_glfw()?;
+        log::info!("Using GLFW at {}", glfw_path);
+        java_options.push("-Dorg.lwjgl.glfw.libname=".to_string() + &glfw_path);
     }
 
     let arguments = version_metadata.get_arguments()?;

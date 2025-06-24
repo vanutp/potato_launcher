@@ -8,8 +8,13 @@ pub enum Lang {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum LangMessage {
-    AuthMessage { url: String },
-    DeviceAuthMessage { url: String, code: String },
+    AuthMessage {
+        url: String,
+    },
+    DeviceAuthMessage {
+        url: String,
+        code: String,
+    },
     AuthTimeout,
     UnknownAuthError,
     AuthorizeUsing(String),
@@ -26,8 +31,12 @@ pub enum LangMessage {
     InstanceSyncError,
     CheckingJava,
     DownloadingJava,
-    JavaInstalled { version: String },
-    NeedJava { version: String },
+    JavaInstalled {
+        version: String,
+    },
+    NeedJava {
+        version: String,
+    },
     UnknownErrorDownloadingJava,
     NoConnectionToJavaServer,
     UnknownJavaVersion,
@@ -37,6 +46,8 @@ pub enum LangMessage {
     NoJavaPath,
     AllocatedMemory,
     SelectJavaPath,
+    #[cfg(target_os = "linux")]
+    UseNativeGlfw,
     Launch,
     LaunchError,
     ProcessErrorCode(String),
@@ -223,6 +234,11 @@ impl LangMessage {
             LangMessage::SelectJavaPath => match lang {
                 Lang::English => "Select Java path".to_string(),
                 Lang::Russian => "Выберите путь к Java".to_string(),
+            },
+            #[cfg(target_os = "linux")]
+            LangMessage::UseNativeGlfw => match lang {
+                Lang::English => "Use native GLFW".to_string(),
+                Lang::Russian => "Использовать нативную версию GLFW".to_string(),
             },
             LangMessage::Launch => match lang {
                 Lang::English => "Launch".to_string(),

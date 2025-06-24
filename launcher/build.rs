@@ -27,6 +27,14 @@ fn main() {
             }
         }
     }
+    let use_native_glfw_default = env::var("USE_NATIVE_GLFW_DEFAULT")
+        .unwrap_or_else(|_| "false".to_string())
+        .parse::<bool>()
+        .expect("USE_NATIVE_GLFW_DEFAULT must be a boolean");
+    config_content.push_str(&format!(
+        "pub const USE_NATIVE_GLFW_DEFAULT: bool = {};\n",
+        use_native_glfw_default
+    ));
     fs::write(dest_path, config_content).unwrap();
 
     let data_launcher_name = env::var("LAUNCHER_NAME")
