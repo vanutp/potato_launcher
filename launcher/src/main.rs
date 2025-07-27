@@ -18,7 +18,12 @@ use utils::set_sigint_handler;
 use shared::logs::setup_logger;
 
 fn main() {
-    std::env::set_var("RUST_LIB_BACKTRACE", "1");
+    unsafe {
+        std::env::set_var("RUST_LIB_BACKTRACE", "1");
+        // for some reason this is needed on macOS for minecraft process not to crash with
+        // "Assertion failed: (count <= len && "snprintf() output has been truncated"), function LOAD_ERROR, file dispatch.c, line 74."
+        std::env::remove_var("DYLD_FALLBACK_LIBRARY_PATH");
+    }
 
     set_sigint_handler();
     setup_logger(&get_logs_path());

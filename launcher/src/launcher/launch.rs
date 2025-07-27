@@ -218,10 +218,6 @@ pub async fn launch(
         .args(&minecraft_options)
         .current_dir(minecraft_dir_short);
 
-    // for some reason this is needed on macOS for minecraft process not to crash with
-    // "Assertion failed: (count <= len && "snprintf() output has been truncated"), function LOAD_ERROR, file dispatch.c, line 74."
-    std::env::remove_var("DYLD_FALLBACK_LIBRARY_PATH");
-
     let file =
         std::fs::File::create(get_logs_dir(&launcher_dir).join("latest_minecraft_launch.log"))?;
     cmd.stdout(file.try_clone()?);

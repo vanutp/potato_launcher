@@ -28,7 +28,9 @@ pub fn get_logs_path(logs_dir: &Path) -> PathBuf {
 }
 
 fn main() -> anyhow::Result<()> {
-    std::env::set_var("RUST_LIB_BACKTRACE", "1");
+    unsafe {
+        std::env::set_var("RUST_LIB_BACKTRACE", "1");
+    }
 
     let matches = Command::new("generate-instance")
         .about("Generates instances based on a specification file")
