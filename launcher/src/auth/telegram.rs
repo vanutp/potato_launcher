@@ -123,7 +123,7 @@ impl AuthProvider for TGAuthProvider {
         let resp: UserInfo = self
             .client
             .get(format!("{}/login/profile", self.base_url))
-            .header("Authorization", format!("Bearer {}", token))
+            .header("Authorization", format!("Bearer {token}"))
             .send()
             .await?
             .error_for_status()?

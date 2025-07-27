@@ -7,23 +7,22 @@ fn main() {
     let optional_envs = ["AUTO_UPDATE_BASE", "VERSION"];
 
     let out_dir = env::var("OUT_DIR").unwrap();
-    let dest_path = format!("{}/generated.rs", out_dir);
+    let dest_path = format!("{out_dir}/generated.rs");
 
     let mut config_content = String::new();
     for env in build_envs.iter() {
-        let value = env::var(env).unwrap_or_else(|_| panic!("{} is not set", env));
-        config_content.push_str(&format!("pub const {}: &str = \"{}\";\n", env, value));
+        let value = env::var(env).unwrap_or_else(|_| panic!("{env} is not set"));
+        config_content.push_str(&format!("pub const {env}: &str = \"{value}\";\n"));
     }
     for env in optional_envs.iter() {
         match env::var(env) {
             Ok(value) => {
                 config_content.push_str(&format!(
-                    "pub const {}: Option<&str> = Some(\"{}\");\n",
-                    env, value
+                    "pub const {env}: Option<&str> = Some(\"{value}\");\n"
                 ));
             }
             Err(_) => {
-                config_content.push_str(&format!("pub const {}: Option<&str> = None;\n", env));
+                config_content.push_str(&format!("pub const {env}: Option<&str> = None;\n"));
             }
         }
     }
@@ -32,8 +31,7 @@ fn main() {
         .parse::<bool>()
         .expect("USE_NATIVE_GLFW_DEFAULT must be a boolean");
     config_content.push_str(&format!(
-        "pub const USE_NATIVE_GLFW_DEFAULT: bool = {};\n",
-        use_native_glfw_default
+        "pub const USE_NATIVE_GLFW_DEFAULT: bool = {use_native_glfw_default};\n"
     ));
     fs::write(dest_path, config_content).unwrap();
 
@@ -44,7 +42,7 @@ fn main() {
     let mut res = winres::WindowsResource::new();
 
     if cfg!(target_os = "windows") {
-        res.set_icon(&format!("assets/{}.ico", data_launcher_name));
+        res.set_icon(&format!("assets/{data_launcher_name}.ico"));
         res.compile().unwrap();
     }
 
@@ -53,13 +51,10 @@ fn main() {
         env::var("CARGO_MANIFEST_DIR").unwrap().replace("\\", "/"),
         data_launcher_name
     );
-    let icon_out = format!("{}/icon_file_bytes.rs", out_dir);
+    let icon_out = format!("{out_dir}/icon_file_bytes.rs");
     fs::write(
         &icon_out,
-        format!(
-            "pub const LAUNCHER_ICON: &[u8] = include_bytes!(\"{}\");",
-            icon_src
-        ),
+        format!("pub const LAUNCHER_ICON: &[u8] = include_bytes!(\"{icon_src}\");"),
     )
     .unwrap();
 }

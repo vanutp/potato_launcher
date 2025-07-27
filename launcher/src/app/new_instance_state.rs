@@ -14,7 +14,7 @@ use shared::loader_generator::generator::VersionGenerator;
 use shared::loader_generator::vanilla::VanillaGenerator;
 use shared::paths::get_instance_dir;
 use shared::progress::NoProgressBar;
-use shared::utils::{get_vanilla_version_info, is_connect_error, VANILLA_MANIFEST_URL};
+use shared::utils::{VANILLA_MANIFEST_URL, get_vanilla_version_info, is_connect_error};
 use shared::version::version_manifest::{VersionInfo, VersionManifest};
 use tokio::runtime::Runtime;
 
@@ -108,7 +108,7 @@ where
                         if is_connect_error(&e) {
                             NewInstanceMetadataState::OfflineError
                         } else {
-                            error!("Error getting metadata:\n{:?}", e);
+                            error!("Error getting metadata:\n{e:?}");
                             NewInstanceMetadataState::UnknownError
                         }
                     }
@@ -313,7 +313,7 @@ impl NewInstanceState {
                             return Some(version_info);
                         }
                         Err(e) => {
-                            error!("Error creating instance:\n{:?}", e);
+                            error!("Error creating instance:\n{e:?}");
                             self.instance_generate_state = if is_connect_error(&e) {
                                 NewInstanceGenerateState::Offline
                             } else {
@@ -471,7 +471,7 @@ impl NewInstanceState {
                         if self.instance_loader == FORGE_LOADER {
                             for latest_type in latest_types.iter() {
                                 if let Some(promotion) = all_metadata.forge_promotions.get_latest_version(&self.instance_version, latest_type) {
-                                    version_name.insert(promotion.to_string(), format!("{} ({})", promotion, latest_type));
+                                    version_name.insert(promotion.to_string(), format!("{promotion} ({latest_type})"));
                                 }
                             }
                         }

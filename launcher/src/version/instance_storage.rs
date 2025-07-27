@@ -143,10 +143,7 @@ impl InstanceStorage {
             instance.status = InstanceStatus::UpToDate;
             self.safe_save(config).await;
         } else {
-            warn!(
-                "Tried to mark non-existent version as downloaded: {}",
-                version_name
-            );
+            warn!("Tried to mark non-existent version as downloaded: {version_name}");
             return;
         }
     }
@@ -157,7 +154,7 @@ impl InstanceStorage {
             let unique_temp_dir;
             let mut i = 0;
             loop {
-                let temp_dir = get_temp_dir().join(format!("{}_{}", version_name, i));
+                let temp_dir = get_temp_dir().join(format!("{version_name}_{i}"));
                 if !temp_dir.exists() {
                     unique_temp_dir = temp_dir;
                     break;
@@ -166,11 +163,11 @@ impl InstanceStorage {
             }
 
             if let Err(e) = tokio::fs::rename(&instance_dir, &unique_temp_dir).await {
-                error!("Error moving instance directory:\n{:?}", e);
+                error!("Error moving instance directory:\n{e:?}");
             } else {
                 task::spawn(async move {
                     if let Err(e) = tokio::fs::remove_dir_all(&unique_temp_dir).await {
-                        error!("Error deleting temporary directory:\n{:?}", e);
+                        error!("Error deleting temporary directory:\n{e:?}");
                     }
                 });
             }

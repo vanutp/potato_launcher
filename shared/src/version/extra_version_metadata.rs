@@ -61,7 +61,7 @@ impl AuthBackend {
             "microsoft" => AuthBackend::Microsoft,
             "offline" => AuthBackend::Offline,
             _ => {
-                warn!("Unknown auth backend id: {}", id);
+                warn!("Unknown auth backend id: {id}");
                 AuthBackend::Microsoft
             }
         }

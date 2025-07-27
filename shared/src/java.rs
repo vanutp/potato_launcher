@@ -76,7 +76,7 @@ fn check_arch(_: &str) -> bool {
 
 async fn does_match(java: &JavaInstallation, required_version: &str) -> bool {
     if !(java.version.starts_with(&required_version.to_string())
-        || java.version.starts_with(&format!("1.{}", required_version)))
+        || java.version.starts_with(&format!("1.{required_version}")))
     {
         return false;
     }
@@ -261,8 +261,7 @@ fn get_java_download_params(required_version: &str, archive_type: &str) -> anyho
     };
 
     let params = format!(
-        "java_version={}&os={}&arch={}&archive_type={}&java_package_type=jre&javafx_bundled=false&latest=true&release_status=ga",
-        required_version, os, arch, archive_type
+        "java_version={required_version}&os={os}&arch={arch}&archive_type={archive_type}&java_package_type=jre&javafx_bundled=false&latest=true&release_status=ga"
     );
 
     Ok(params)
@@ -287,10 +286,7 @@ pub async fn download_java<M>(
     for archive_type in ["tar.gz", "zip"] {
         let query_str = get_java_download_params(required_version, archive_type)?;
 
-        let versions_url = format!(
-            "https://api.azul.com/metadata/v1/zulu/packages/?{}",
-            query_str
-        );
+        let versions_url = format!("https://api.azul.com/metadata/v1/zulu/packages/?{query_str}");
 
         let response = client.get(&versions_url).send().await?;
         let body = response.text().await?;
@@ -309,7 +305,7 @@ pub async fn download_java<M>(
             .ok_or(JavaDownloadError::NoDownloadURL)?;
         let response = client.get(version_url).send().await?;
 
-        let java_download_path = get_temp_dir().join(format!("java_download.{}", archive_type));
+        let java_download_path = get_temp_dir().join(format!("java_download.{archive_type}"));
         let mut file = fs::File::create(&java_download_path)?;
 
         let total_size = response.content_length().unwrap_or(0);
@@ -343,7 +339,7 @@ pub async fn download_java<M>(
             .path_segments()
             .and_then(|mut segments| segments.next_back())
             .ok_or(JavaDownloadError::NoFileNameInURL)?
-            .strip_suffix(&format!(".{}", archive_type))
+            .strip_suffix(&format!(".{archive_type}"))
             .ok_or(JavaDownloadError::NoFileExtensionInURL)?;
         fs::rename(java_dir.join(filename), &target_dir)?;
 

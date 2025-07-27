@@ -65,12 +65,11 @@ fn get_metadata(
                         GetStatus::ReadLocalOffline
                     } else if let Some(local_error) = local_metadata.as_ref().err() {
                         error!(
-                            "Error getting metadata:\n{:?}\nlocal metadata error:\n{:?}",
-                            e, local_error
+                            "Error getting metadata:\n{e:?}\nlocal metadata error:\n{local_error:?}"
                         );
                         GetStatus::ErrorGetting
                     } else {
-                        error!("Error getting metadata (reading local instead):\n{:?}", e);
+                        error!("Error getting metadata (reading local instead):\n{e:?}");
                         GetStatus::ReadLocalRemoteError
                     },
                     version_info,

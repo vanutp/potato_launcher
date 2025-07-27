@@ -121,10 +121,10 @@ impl LangMessage {
             },
             LangMessage::DeviceAuthMessage { url: _, code } => match lang {
                 Lang::English => {
-                    format!("Authorize in the browser window.\nOr open the link manually and enter the code: {}", code)
+                    format!("Authorize in the browser window.\nOr open the link manually and enter the code: {code}")
                 }
                 Lang::Russian => {
-                    format!("Авторизуйтесь в открывшемся окне браузера.\nИли откройте ссылку вручную и введите код: {}", code)
+                    format!("Авторизуйтесь в открывшемся окне браузера.\nИли откройте ссылку вручную и введите код: {code}")
                 }
             },
             LangMessage::AuthTimeout => match lang {
@@ -136,8 +136,8 @@ impl LangMessage {
                 Lang::Russian => "Ошибка авторизации".to_string(),
             },
             LangMessage::AuthorizeUsing(app_name) => match lang {
-                Lang::English => format!("Authorize using {}", app_name),
-                Lang::Russian => format!("Авторизуйтесь через {}", app_name),
+                Lang::English => format!("Authorize using {app_name}"),
+                Lang::Russian => format!("Авторизуйтесь через {app_name}"),
             },
             LangMessage::Authorizing => match lang {
                 Lang::English => "Authorizing...".to_string(),
@@ -192,12 +192,12 @@ impl LangMessage {
                 Lang::Russian => "Загрузка Java...".to_string(),
             },
             LangMessage::JavaInstalled { version } => match lang {
-                Lang::English => format!("Java {} installed", version),
-                Lang::Russian => format!("Java {} установлена", version),
+                Lang::English => format!("Java {version} installed"),
+                Lang::Russian => format!("Java {version} установлена"),
             },
             LangMessage::NeedJava { version } => match lang {
-                Lang::English => format!("Java {} not installed", version),
-                Lang::Russian => format!("Java {} не установлена", version),
+                Lang::English => format!("Java {version} not installed"),
+                Lang::Russian => format!("Java {version} не установлена"),
             },
             LangMessage::UnknownErrorDownloadingJava => match lang {
                 Lang::English => "Error downloading Java".to_string(),
@@ -249,8 +249,8 @@ impl LangMessage {
                 Lang::Russian => "Ошибка запуска".to_string(),
             },
             LangMessage::ProcessErrorCode(e) => match lang {
-                Lang::English => format!("Process exited with code: {}", e),
-                Lang::Russian => format!("Процесс завершился с кодом: {}", e),
+                Lang::English => format!("Process exited with code: {e}"),
+                Lang::Russian => format!("Процесс завершился с кодом: {e}"),
             },
             LangMessage::Running => match lang {
                 Lang::English => "Running...".to_string(),

@@ -98,7 +98,7 @@ impl GuiProgressBar {
         let progress_string = if let Some(unit_name) = unit_name {
             let progress = progress_bar_state.progress as f32 / unit_size;
             let total = progress_bar_state.total as f32 / unit_size;
-            format!("{:.2} / {:.2} {}", progress, total, unit_name)
+            format!("{progress:.2} / {total:.2} {unit_name}")
         } else {
             format!(
                 "{} / {}",

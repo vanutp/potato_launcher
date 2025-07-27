@@ -93,13 +93,13 @@ async fn get_extra_forge_libs(
                 .strip_suffix(".jar")
                 .unwrap()
                 .to_string();
-            let filename_without_suffix = format!("{}-{}", name, version);
+            let filename_without_suffix = format!("{name}-{version}");
             let suffix = filename
                 .strip_prefix(&filename_without_suffix)
                 .ok_or(ExtraForgeLibsError::BadLibraryName(filename.clone()))?;
             let suffix = suffix.replace("-", ":");
 
-            let name = format!("{}:{}:{}{}", group, name, version, suffix);
+            let name = format!("{group}:{name}:{version}{suffix}");
 
             Ok(Library::from_download(name, url, hash.clone()))
         })

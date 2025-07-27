@@ -144,7 +144,7 @@ impl AuthProvider for MicrosoftAuthProvider {
         let client = Client::new();
         let resp: MinecraftProfileResponse = client
             .get("https://api.minecraftservices.com/minecraft/profile")
-            .header("Authorization", format!("Bearer {}", token))
+            .header("Authorization", format!("Bearer {token}"))
             .send()
             .await?
             .error_for_status()?

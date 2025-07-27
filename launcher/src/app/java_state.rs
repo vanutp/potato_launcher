@@ -92,7 +92,7 @@ fn download_java(
                 status: if is_connect_error(&e) {
                     JavaDownloadStatus::DownloadErrorOffline
                 } else {
-                    error!("Error downloading Java:\n{:?}", e);
+                    error!("Error downloading Java:\n{e:?}");
                     JavaDownloadStatus::UnknownDownloadError
                 },
                 java_installation: None,

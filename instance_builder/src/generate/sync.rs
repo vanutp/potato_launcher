@@ -7,7 +7,7 @@ use log::{debug, info};
 use rand::seq::SliceRandom as _;
 use shared::{
     adaptive_download::download_files,
-    files::{get_download_entries, CheckEntry},
+    files::{CheckEntry, get_download_entries},
     paths::{get_client_jar_path, get_libraries_dir},
     progress::ProgressBar,
     version::{asset_metadata::AssetsMetadata, version_metadata::VersionMetadata},
@@ -23,7 +23,7 @@ pub fn get_libraries_check_downloads(
     for library in &version_metadata.libraries {
         entries.extend(library.get_check_entries(libraries_dir, None));
     }
-    debug!("Library check entries: {:?}", entries);
+    debug!("Library check entries: {entries:?}");
     entries
 }
 

@@ -1,5 +1,5 @@
-use std::sync::mpsc;
 use std::sync::Arc;
+use std::sync::mpsc;
 
 use eframe::egui;
 use eframe::run_native;
@@ -104,7 +104,7 @@ impl UpdateApp {
                 Ok(false) => UpdateStatus::UpToDate,
                 Err(e) if is_connect_error(&e) => UpdateStatus::UpdateErrorOffline,
                 Err(e) => {
-                    error!("Error checking for updates:\n{:?}", e);
+                    error!("Error checking for updates:\n{e:?}");
                     UpdateStatus::UpdateError
                 }
             });
@@ -147,7 +147,7 @@ impl UpdateApp {
                         self.download_status = if utils::is_read_only_error(&e) {
                             DownloadStatus::ErrorReadOnly
                         } else {
-                            error!("Error replacing launcher:\n{:?}", e);
+                            error!("Error replacing launcher:\n{e:?}");
                             DownloadStatus::DownloadError
                         };
                     } else {
@@ -188,7 +188,7 @@ impl UpdateApp {
                                             DownloadStatus::DownloadErrorOffline
                                         }
                                         Err(e) => {
-                                            error!("Unknown error downloading update:\n{:?}", e);
+                                            error!("Unknown error downloading update:\n{e:?}");
                                             DownloadStatus::DownloadError
                                         }
                                     },

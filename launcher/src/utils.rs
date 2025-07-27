@@ -118,5 +118,5 @@ pub fn format_xmx(xmx: Option<&str>) -> String {
         }
     }
 
-    format!("{}M", xmx_mb)
+    format!("{xmx_mb}M")
 }

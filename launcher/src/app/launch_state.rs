@@ -1,5 +1,5 @@
 use std::{
-    process::{exit, ExitStatus},
+    process::{ExitStatus, exit},
     sync::Arc,
 };
 
@@ -103,7 +103,7 @@ impl LaunchState {
                 };
             }
             Err(e) => {
-                error!("Error launching Minecraft:\n{:?}", e);
+                error!("Error launching Minecraft:\n{e:?}");
                 self.status = LauncherStatus::Error;
             }
         }

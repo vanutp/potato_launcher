@@ -72,7 +72,7 @@ pub fn get_versions_dir(data_dir: &Path) -> PathBuf {
 }
 
 pub fn get_rel_metadata_path(version_id: &str) -> PathBuf {
-    PathBuf::from(version_id).join(format!("{}.json", version_id))
+    PathBuf::from(version_id).join(format!("{version_id}.json"))
 }
 
 pub fn get_metadata_path(versions_dir: &Path, version_id: &str) -> PathBuf {
@@ -83,7 +83,7 @@ pub fn get_client_jar_path(data_dir: &Path, id: &str) -> PathBuf {
     parent_created(
         get_versions_dir(data_dir)
             .join(id)
-            .join(format!("{}.jar", id)),
+            .join(format!("{id}.jar")),
     )
 }
 
@@ -96,7 +96,7 @@ pub fn get_versions_extra_dir(data_dir: &Path) -> PathBuf {
 }
 
 pub fn get_rel_extra_metadata_path(version_name: &str) -> PathBuf {
-    PathBuf::from(format!("{}.json", version_name))
+    PathBuf::from(format!("{version_name}.json"))
 }
 
 pub fn get_extra_metadata_path(versions_extra_dir: &Path, version_name: &str) -> PathBuf {
@@ -107,7 +107,7 @@ pub fn get_asset_index_path(assets_dir: &Path, asset_index: &str) -> PathBuf {
     parent_created(
         assets_dir
             .join("indexes")
-            .join(format!("{}.json", asset_index)),
+            .join(format!("{asset_index}.json")),
     )
 }
 

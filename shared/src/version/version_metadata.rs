@@ -38,7 +38,7 @@ impl Os {
             }
         }
         if let Some(expected_name) = &self.name {
-            if expected_name != os_name && expected_name != &format!("{}-{}", os_name, arch) {
+            if expected_name != os_name && expected_name != &format!("{os_name}-{arch}") {
                 return false;
             }
         }
@@ -230,12 +230,9 @@ impl Library {
         let suffix = if suffix.is_empty() {
             "".to_string()
         } else {
-            format!("-{}", suffix)
+            format!("-{suffix}")
         };
-        format!(
-            "{}/{}/{}/{}-{}{}.jar",
-            pkg_path, name, version, name, version, suffix
-        )
+        format!("{pkg_path}/{name}/{version}/{name}-{version}{suffix}.jar")
     }
 
     pub fn get_library_path(&self, libraries_dir: &Path) -> Option<PathBuf> {

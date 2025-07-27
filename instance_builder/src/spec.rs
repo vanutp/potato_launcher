@@ -23,7 +23,7 @@ use shared::{
         get_extra_metadata_path, get_instance_dir, get_metadata_path, get_versions_dir,
         get_versions_extra_dir,
     },
-    utils::{get_vanilla_version_info, VANILLA_MANIFEST_URL},
+    utils::{VANILLA_MANIFEST_URL, get_vanilla_version_info},
     version::{
         asset_metadata::AssetsMetadata, extra_version_metadata::AuthBackend,
         version_manifest::VersionManifest,
@@ -98,10 +98,7 @@ impl VersionsSpec {
         let vanilla_manifest = VersionManifest::fetch(VANILLA_MANIFEST_URL).await?;
 
         let mut version_manifest = if let Some(version_manifest_url) = &self.version_manifest_url {
-            info!(
-                "Fetching remote version manifest from: {}",
-                version_manifest_url
-            );
+            info!("Fetching remote version manifest from: {version_manifest_url}");
             match VersionManifest::fetch(version_manifest_url).await {
                 Ok(manifest) => {
                     info!(
@@ -111,7 +108,9 @@ impl VersionsSpec {
                     manifest
                 }
                 Err(e) => {
-                    warn!("Failed to fetch remote version manifest: {}. Starting with empty manifest.", e);
+                    warn!(
+                        "Failed to fetch remote version manifest: {e}. Starting with empty manifest."
+                    );
                     VersionManifest { versions: vec![] }
                 }
             }
@@ -274,7 +273,7 @@ impl VersionsSpec {
         }
 
         info!("Copying {} files to output directory", mapping.len());
-        debug!("Paths to copy: {:?}", mapping);
+        debug!("Paths to copy: {mapping:?}");
         sync_mapping(output_dir, &mapping).await?;
 
         let manifest_path = get_manifest_path(output_dir);

@@ -57,7 +57,7 @@ impl ForgeMavenMetadata {
             .rev()
             .filter_map(|version| {
                 version
-                    .strip_prefix(&format!("{}-", minecraft_version))
+                    .strip_prefix(&format!("{minecraft_version}-"))
                     .map(|forge_version| forge_version.to_string())
             })
             .collect()
@@ -67,7 +67,7 @@ impl ForgeMavenMetadata {
         self.versions
             .get(minecraft_version)
             .is_some_and(|versions| {
-                versions.contains(&format!("{}-{}", minecraft_version, forge_version))
+                versions.contains(&format!("{minecraft_version}-{forge_version}"))
             })
     }
 }
@@ -166,7 +166,7 @@ impl ForgePromotions {
         version_type: &str,
     ) -> Option<String> {
         self.promos
-            .get(&format!("{}-{}", minecraft_version, version_type))
+            .get(&format!("{minecraft_version}-{version_type}"))
             .cloned()
     }
 }
@@ -181,13 +181,10 @@ async fn download_forge_installer(
     work_dir: &Path,
     loader: &Loader,
 ) -> anyhow::Result<PathBuf> {
-    let filename = format!("{:?}-{}-installer.jar", loader, full_version);
+    let filename = format!("{loader:?}-{full_version}-installer.jar");
     let forge_installer_url = match loader {
-        Loader::Forge => format!("{}{}/{}", FORGE_INSTALLER_BASE_URL, full_version, filename),
-        Loader::Neoforge => format!(
-            "{}{}/{}",
-            NEOFORGE_INSTALLER_BASE_URL, full_version, filename
-        ),
+        Loader::Forge => format!("{FORGE_INSTALLER_BASE_URL}{full_version}/{filename}"),
+        Loader::Neoforge => format!("{NEOFORGE_INSTALLER_BASE_URL}{full_version}/{filename}"),
     };
     let forge_installer_path = work_dir.join(filename);
 
@@ -286,7 +283,7 @@ pub async fn get_forge_version(
                 Some(version) => version.to_string(),
                 None => {
                     const FORGE_DEFAULT: &str = "recommended";
-                    info!("Version not set, using \"{}\"", FORGE_DEFAULT);
+                    info!("Version not set, using \"{FORGE_DEFAULT}\"");
                     forge_promotions
                         .get_latest_version(minecraft_version, FORGE_DEFAULT)
                         .ok_or(ForgeError::ForgeVersionNotFound(
@@ -300,7 +297,7 @@ pub async fn get_forge_version(
             if forge_maven_metadata.has_version(minecraft_version, &forge_version) {
                 return Ok(forge_version);
             }
-            let version_with_suffix = format!("{}-{}", forge_version, minecraft_version);
+            let version_with_suffix = format!("{forge_version}-{minecraft_version}");
             if forge_maven_metadata.has_version(minecraft_version, &version_with_suffix) {
                 return Ok(version_with_suffix);
             }
@@ -328,10 +325,7 @@ pub async fn get_forge_version(
     };
 
     let forge_version = loader_version.as_deref().unwrap_or("default");
-    error!(
-        "{} version {} not found for minecraft {}",
-        loader, forge_version, minecraft_version
-    );
+    error!("{loader} version {forge_version} not found for minecraft {minecraft_version}");
     Err(
         ForgeError::ForgeVersionNotFound(forge_version.to_string(), minecraft_version.to_string())
             .into(),
@@ -356,7 +350,7 @@ pub fn trick_forge(forge_work_dir: &Path, minecraft_version: &str) -> anyhow::Re
 }
 
 pub fn get_full_version(minecraft_version: &str, forge_version: &str) -> String {
-    format!("{}-{}", minecraft_version, forge_version)
+    format!("{minecraft_version}-{forge_version}")
 }
 
 // workaround for windows weirdness
@@ -391,7 +385,7 @@ async fn run_forge_command(
         .arg(&to_abs_path_str(forge_installer_path)?)
         .arg("--installClient")
         .arg(".");
-    info!("Running forge installer: {:?}", cmd);
+    info!("Running forge installer: {cmd:?}");
 
     let output = cmd.output().await?;
     if !output.status.success() {
@@ -411,7 +405,7 @@ async fn run_forge_command(
                 ));
             }
         } else {
-            error!("Command failed: {:?}", output);
+            error!("Command failed: {output:?}");
             return Err(anyhow::anyhow!(stderr_str.to_string()));
         }
     }
@@ -471,10 +465,7 @@ pub async fn install_forge<M>(
         )
         .await?;
     } else {
-        info!(
-            "Forge {} already present, skipping installation",
-            forge_version
-        );
+        info!("Forge {forge_version} already present, skipping installation");
     }
 
     let launcher_profiles_path = forge_work_dir.join("launcher_profiles.json");
@@ -535,7 +526,7 @@ impl VersionGenerator for ForgeGenerator {
         let versions_dir_to = get_versions_dir(work_dir);
 
         info!("Copying version metadata");
-        let metadata_from = versions_dir_from.join(&id).join(format!("{}.json", id));
+        let metadata_from = versions_dir_from.join(&id).join(format!("{id}.json"));
         let metadata_to = get_metadata_path(&versions_dir_to, &id);
         std::fs::copy(metadata_from, metadata_to)?;
 

@@ -49,7 +49,7 @@ pub fn is_connect_error(e: &anyhow::Error) -> bool {
     }
 
     // Check for connection-related error messages that cannot be checked by reqwest
-    let error_str = format!("{:?}", e);
+    let error_str = format!("{e:?}");
     error_str.contains("peer closed connection without sending TLS close_notify")
         || error_str.contains("connection closed")
         || error_str.contains("connection reset")

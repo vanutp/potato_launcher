@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 
 use crate::lang::LangMessage;
 
@@ -48,7 +48,7 @@ impl AuthMessageProvider {
             state.auth_message = Some(message);
             self.ctx.request_repaint();
         } else {
-            panic!("Expected AuthMessage, got {:?}", message);
+            panic!("Expected AuthMessage, got {message:?}");
         }
     }
 

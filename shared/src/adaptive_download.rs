@@ -153,7 +153,7 @@ fn is_timeout_error(e: &anyhow::Error) -> bool {
     e.downcast_ref::<reqwest::Error>()
         .is_some_and(|e| e.is_timeout())
         || e.downcast_ref::<tokio::time::error::Elapsed>().is_some()
-        || format!("{:?}", e).contains("connection closed before message completed")
+        || format!("{e:?}").contains("connection closed before message completed")
     // reqwest doesn't let us check for this error directly
 }
 
@@ -261,10 +261,7 @@ pub async fn download_files<M>(
                     if timeouts_at_min_concurrency >= MAX_TIMEOUTS_AT_MIN_CONCURRENCY {
                         return Err(AdaptiveDownloadError::ConnectionTimeout.into());
                     }
-                    warn!(
-                        "Timeouts at min concurrency: {}",
-                        timeouts_at_min_concurrency
-                    );
+                    warn!("Timeouts at min concurrency: {timeouts_at_min_concurrency}");
                 }
                 new_value = (current - current.div_ceil(4)).max(MIN_CONCURRENCY);
             }
@@ -274,7 +271,7 @@ pub async fn download_files<M>(
                     timeouts_at_min_concurrency = 0;
                 }
                 desired_concurrency.store(new_value, Ordering::SeqCst);
-                debug!("New concurrency: {}", new_value);
+                debug!("New concurrency: {new_value}");
             }
         }
 

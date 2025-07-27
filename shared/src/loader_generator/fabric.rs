@@ -29,7 +29,7 @@ pub struct FabricVersionsMeta {
 
 impl FabricVersionsMeta {
     pub async fn fetch(game_version: &str) -> anyhow::Result<Self> {
-        let fabric_manifest_url = format!("{}{}", FABRIC_META_BASE_URL, game_version);
+        let fabric_manifest_url = format!("{FABRIC_META_BASE_URL}{game_version}");
         let client = Client::new();
         let response = client
             .get(&fabric_manifest_url)
@@ -59,10 +59,8 @@ async fn download_fabric_metadata(
     loader_version: &str,
     output_dir: &Path,
 ) -> anyhow::Result<VersionMetadata> {
-    let fabric_metadata_url = format!(
-        "{}{}/{}/profile/json",
-        FABRIC_META_BASE_URL, minecraft_version, loader_version
-    );
+    let fabric_metadata_url =
+        format!("{FABRIC_META_BASE_URL}{minecraft_version}/{loader_version}/profile/json");
     let version_metadata = VersionMetadata::fetch(&fabric_metadata_url).await?;
     let versions_dir = get_versions_dir(output_dir);
     version_metadata.save(&versions_dir).await?;
@@ -121,10 +119,7 @@ impl VersionGenerator for FabricGenerator {
                         .ok_or(FabricGeneratorError::NoVersionsFound(
                             minecraft_version.to_string(),
                         ))?;
-                info!(
-                    "Loader version not specified, using latest version: {}",
-                    version
-                );
+                info!("Loader version not specified, using latest version: {version}");
                 version.to_string()
             }
         };

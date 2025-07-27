@@ -39,9 +39,9 @@ fn replace_launch_config_variables(
     argument: String,
     variables: &HashMap<String, String>,
 ) -> String {
-    variables.iter().fold(argument, |acc, (k, v)| {
-        acc.replace(&format!("${{{}}}", k), v)
-    })
+    variables
+        .iter()
+        .fold(argument, |acc, (k, v)| acc.replace(&format!("${{{k}}}"), v))
 }
 
 fn process_args(
@@ -194,7 +194,7 @@ pub async fn launch(
     {
         use crate::launcher::compat::linux_find_native_glfw;
         let glfw_path = linux_find_native_glfw()?;
-        log::info!("Using GLFW at {}", glfw_path);
+        log::info!("Using GLFW at {glfw_path}");
         java_options.push("-Dorg.lwjgl.glfw.libname=".to_string() + &glfw_path);
     }
 
@@ -208,12 +208,9 @@ pub async fn launch(
         .get(version_metadata.get_name())
         .ok_or_else(|| LaunchError::JavaPathNotFound(version_metadata.get_name().to_string()))?;
 
-    debug!(
-        "Launching java {} with arguments {:?}",
-        java_path, java_options
-    );
+    debug!("Launching java {java_path} with arguments {java_options:?}");
     debug!("Main class: {}", version_metadata.get_main_class());
-    debug!("Game arguments: {:?}", minecraft_options);
+    debug!("Game arguments: {minecraft_options:?}");
 
     let mut cmd = TokioCommand::new(java_path);
     cmd.args(&java_options)

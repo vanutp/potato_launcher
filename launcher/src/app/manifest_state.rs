@@ -45,7 +45,7 @@ where
                 status: if is_connect_error(&e) {
                     FetchStatus::FetchErrorOffline
                 } else {
-                    error!("Error fetching version manifest:\n{:?}", e);
+                    error!("Error fetching version manifest:\n{e:?}");
                     FetchStatus::FetchError(e.to_string())
                 },
                 manifest: None,

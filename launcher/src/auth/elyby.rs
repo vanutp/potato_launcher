@@ -226,7 +226,7 @@ impl AuthProvider for ElyByAuthProvider {
                         return Ok(AuthState::UserInfo(AuthResultData {
                             access_token: token,
                             refresh_token: None,
-                        }))
+                        }));
                     }
                     TokenResult::InvalidCode => continue,
                     TokenResult::Error(e) => return Err(e),
@@ -245,7 +245,7 @@ impl AuthProvider for ElyByAuthProvider {
         let client = Client::new();
         let resp: UserInfo = client
             .get("https://account.ely.by/api/account/v1/info")
-            .header("Authorization", format!("Bearer {}", token))
+            .header("Authorization", format!("Bearer {token}"))
             .send()
             .await?
             .error_for_status()?

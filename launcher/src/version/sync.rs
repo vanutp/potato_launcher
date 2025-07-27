@@ -319,7 +319,7 @@ pub async fn sync_instance(
         .iter()
         .map(|x| x.path.clone())
         .collect::<Vec<_>>();
-    debug!("Paths to download: {:?}", paths);
+    debug!("Paths to download: {paths:?}");
 
     progress_bar.set_message(LangMessage::DownloadingFiles);
     download_files(download_entries, progress_bar).await?;

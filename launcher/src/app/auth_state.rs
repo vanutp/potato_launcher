@@ -15,8 +15,8 @@ use std::io::Cursor;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
-use crate::auth::auth_flow::perform_auth;
 use crate::auth::auth_flow::AuthMessageProvider;
+use crate::auth::auth_flow::perform_auth;
 use crate::auth::auth_storage::AuthDataSource;
 use crate::auth::auth_storage::AuthStorage;
 use crate::auth::auth_storage::StorageEntry;
@@ -83,7 +83,7 @@ fn authenticate(
                     } else if timeout_error {
                         AuthStatus::AuthorizeErrorTimeout
                     } else {
-                        error!("Auth error:\n{:?}", e);
+                        error!("Auth error:\n{e:?}");
                         AuthStatus::AuthorizeError
                     },
                     auth_data: None,
@@ -453,7 +453,7 @@ impl AuthState {
         id.hash(&mut hasher);
         let hash = hasher.finish();
 
-        let hex = format!("{:X}", hash);
+        let hex = format!("{hash:X}");
         format!("{} ({} #{})", username, provider_name, &hex[0..4])
     }
 

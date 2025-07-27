@@ -15,7 +15,7 @@ lazy_static::lazy_static! {
 }
 #[cfg(target_os = "linux")]
 lazy_static::lazy_static! {
-    static ref VERSION_URL: Option<String> = build_config::get_auto_update_base().map(|url| format!("{}/version_linux.txt", url));
+    static ref VERSION_URL: Option<String> = build_config::get_auto_update_base().map(|url| format!("{url}/version_linux.txt"));
 }
 #[cfg(target_os = "macos")]
 lazy_static::lazy_static! {

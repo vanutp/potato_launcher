@@ -12,7 +12,7 @@ mod vendor;
 mod version;
 
 use clap::{Arg, ArgAction, Command};
-use config::runtime_config::{get_logs_path, Config};
+use config::runtime_config::{Config, get_logs_path};
 use utils::set_sigint_handler;
 
 use shared::logs::setup_logger;

@@ -32,9 +32,7 @@ impl AssetsMetadata {
 
     pub async fn get_path(assets_dir: &Path, asset_id: &str) -> anyhow::Result<PathBuf> {
         tokio::fs::create_dir_all(assets_dir.join("indexes")).await?;
-        Ok(assets_dir
-            .join("indexes")
-            .join(format!("{}.json", asset_id)))
+        Ok(assets_dir.join("indexes").join(format!("{asset_id}.json")))
     }
 
     pub async fn read_local(asset_id: &str, assets_dir: &Path) -> anyhow::Result<Self> {

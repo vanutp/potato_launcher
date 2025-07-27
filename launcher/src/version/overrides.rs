@@ -95,7 +95,7 @@ fn with_mojang_patches(libraries: &Vec<Library>) -> Vec<Library> {
 pub fn with_overrides(libraries: &Vec<Library>, version_id: &str) -> Vec<Library> {
     let main_version = LWJGL_VERSION_MATCHES.get(version_id);
     if let Some(main_version) = main_version {
-        info!("Found main lwjgl version: {}", main_version);
+        info!("Found main lwjgl version: {main_version}");
     } else {
         info!("No main lwjgl version found");
     }
@@ -115,7 +115,7 @@ pub fn with_overrides(libraries: &Vec<Library>, version_id: &str) -> Vec<Library
 
         for override_ in &LIBRARY_OVERRIDES.overrides {
             if &override_.version == main_version {
-                info!("Adding override libraries for version {}", main_version);
+                info!("Adding override libraries for version {main_version}");
                 result.extend(override_.libraries.clone());
             }
         }

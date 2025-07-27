@@ -93,7 +93,7 @@ impl InstanceSyncState {
                                 if is_connect_error(&e) {
                                     InstanceSyncStatus::SyncErrorOffline
                                 } else {
-                                    error!("Error syncing instance:\n{:?}", e);
+                                    error!("Error syncing instance:\n{e:?}");
                                     InstanceSyncStatus::SyncError
                                 }
                             }
