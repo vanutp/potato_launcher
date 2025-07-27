@@ -60,7 +60,7 @@ jobs:
             
             # Build ARM binary as part of bundle (with newer deployment target)
             export MACOSX_DEPLOYMENT_TARGET=11.0
-            cargo bundle --bin launcher --profile release-lto --target aarch64-apple-darwin
+            cargo bundle --package launcher --bin launcher --profile release-lto --target aarch64-apple-darwin
 
             mkdir -p app
             mv "target/aarch64-apple-darwin/release-lto/bundle/osx/Potato Launcher.app" "app/$LAUNCHER_NAME.app"
