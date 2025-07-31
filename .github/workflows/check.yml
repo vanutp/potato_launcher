@@ -1,4 +1,4 @@
-name: CI
+name: Check
 
 on:
   push:
@@ -9,8 +9,8 @@ defaults:
     shell: bash
 
 jobs:
-  check:
-    name: Check & Lint
+  lint:
+    name: Lint
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

@@ -1,3 +1,4 @@
+use egui::ViewportBuilder;
 use log::info;
 use serde::Deserialize;
 
@@ -30,17 +31,20 @@ pub fn is_read_only_error(e: &anyhow::Error) -> bool {
     false
 }
 
-pub fn get_icon_data() -> egui::IconData {
-    let image = image::load_from_memory(build_config::LAUNCHER_ICON)
+pub fn add_icon(builder: ViewportBuilder) -> ViewportBuilder {
+    let Some(icon_bytes) = build_config::LAUNCHER_ICON else {
+        return builder;
+    };
+    let image = image::load_from_memory(icon_bytes)
         .expect("Failed to open icon path")
         .into_rgba8();
     let (width, height) = image.dimensions();
     let rgba = image.into_raw();
-    egui::IconData {
+    builder.with_icon(egui::IconData {
         width,
         height,
         rgba,
-    }
+    })
 }
 
 #[derive(Deserialize)]

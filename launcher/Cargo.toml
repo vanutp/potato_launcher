@@ -54,6 +54,3 @@ libc = "0.2.174"
 winres = "0.1.12"
 
 [package.metadata.bundle.bin.launcher]
-name = "Potato Launcher"
-identifier = "com.petr1furious.potato_launcher"
-icon = ["launcher/assets/icon.png"]

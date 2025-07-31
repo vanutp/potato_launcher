@@ -65,9 +65,7 @@ pub fn run_gui(config: &runtime_config::Config) {
     }
 
     let native_options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size((300.0, 150.0))
-            .with_icon(utils::get_icon_data()),
+        viewport: utils::add_icon(egui::ViewportBuilder::default().with_inner_size((300.0, 150.0))),
         ..Default::default()
     };
 

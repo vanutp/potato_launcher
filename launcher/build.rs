@@ -1,7 +1,33 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::path::Path;
 
 fn main() {
+    let dotenv_path = Path::new("../build.env");
+    let dotenv_contents = if dotenv_path.exists() {
+        let contents = fs::read_to_string(dotenv_path).unwrap();
+        let mut res = HashMap::new();
+        for line in contents.lines() {
+            if line.is_empty() {
+                continue;
+            }
+            let (key, value) = line.split_once('=').unwrap();
+            res.insert(key.to_string(), value.to_string());
+        }
+        res
+    } else {
+        HashMap::new()
+    };
+
+    let get_env = move |key: &str| {
+        env::var(key)
+            .ok()
+            .filter(|value| !value.is_empty())
+            .or_else(|| dotenv_contents.get(key).cloned())
+            .filter(|value| !value.is_empty())
+    };
+
     let build_envs = ["LAUNCHER_NAME", "VERSION_MANIFEST_URL"];
 
     let optional_envs = ["AUTO_UPDATE_BASE", "VERSION"];
@@ -11,23 +37,23 @@ fn main() {
 
     let mut config_content = String::new();
     for env in build_envs.iter() {
-        let value = env::var(env).unwrap_or_else(|_| panic!("{env} is not set"));
+        let value = get_env(env).unwrap_or_else(|| panic!("{env} is not set"));
         config_content.push_str(&format!("pub const {env}: &str = \"{value}\";\n"));
     }
     for env in optional_envs.iter() {
-        match env::var(env) {
-            Ok(value) => {
+        match get_env(env) {
+            Some(value) => {
                 config_content.push_str(&format!(
                     "pub const {env}: Option<&str> = Some(\"{value}\");\n"
                 ));
             }
-            Err(_) => {
+            None => {
                 config_content.push_str(&format!("pub const {env}: Option<&str> = None;\n"));
             }
         }
     }
-    let use_native_glfw_default = env::var("USE_NATIVE_GLFW_DEFAULT")
-        .unwrap_or_else(|_| "false".to_string())
+    let use_native_glfw_default = get_env("USE_NATIVE_GLFW_DEFAULT")
+        .unwrap_or_else(|| "false".to_string())
         .parse::<bool>()
         .expect("USE_NATIVE_GLFW_DEFAULT must be a boolean");
     config_content.push_str(&format!(
@@ -35,26 +61,29 @@ fn main() {
     ));
     fs::write(dest_path, config_content).unwrap();
 
-    let data_launcher_name = env::var("LAUNCHER_NAME")
-        .unwrap()
-        .to_lowercase()
-        .replace(" ", "_");
-    let mut res = winres::WindowsResource::new();
-
-    if cfg!(target_os = "windows") {
-        res.set_icon(&format!("assets/{data_launcher_name}.ico"));
-        res.compile().unwrap();
-    }
-
-    let icon_src = format!(
-        "{}/assets/{}.png",
+    let icon_path = format!(
+        "{}/assets/icon.png",
         env::var("CARGO_MANIFEST_DIR").unwrap().replace("\\", "/"),
-        data_launcher_name
     );
-    let icon_out = format!("{out_dir}/icon_file_bytes.rs");
+    let icon_out_file = format!("{out_dir}/icon_file_bytes.rs");
+    let icon_value = if Path::new(&icon_path).exists() {
+        format!("Some(include_bytes!(\"{icon_path}\"))")
+    } else {
+        "None".to_string()
+    };
     fs::write(
-        &icon_out,
-        format!("pub const LAUNCHER_ICON: &[u8] = include_bytes!(\"{icon_src}\");"),
+        &icon_out_file,
+        format!("pub const LAUNCHER_ICON: Option<&[u8]> = {icon_value};"),
     )
     .unwrap();
+
+    #[cfg(target_os = "windows")]
+    {
+        let windows_icon_path = "assets/icon.ico";
+        if Path::new(windows_icon_path).exists() {
+            let mut res = winres::WindowsResource::new();
+            res.set_icon(windows_icon_path);
+            res.compile().unwrap();
+        }
+    }
 }

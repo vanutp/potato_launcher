@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="launcher/assets/potato_launcher.png" alt="Potato Launcher logo" width="200"/>
+  <img src="packaging/potato_launcher.png" alt="Potato Launcher logo" width="200"/>
 </p>
 
 # Potato Launcher
