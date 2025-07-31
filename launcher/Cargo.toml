@@ -13,7 +13,7 @@ egui = "0.32.0"
 egui_extras = { version = "0.32.0", features = ["image"] }
 flate2 = "1.1.2"
 futures = "0.3.31"
-image = { version = "0.25.6", features = ["png"] }
+image = { version = "0.25.6", features = ["png"], default-features = false }
 lazy_static = "1.5.0"
 maplit = "1.0.2"
 num_cpus = "1.17.0"
