@@ -15,3 +15,8 @@ target/
 # icons are generated during build
 launcher/assets/*
 !launcher/assets/.gitkeep
+
+# nix
+.direnv/
+result
+.envrc
