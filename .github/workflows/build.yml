@@ -161,10 +161,94 @@ jobs:
           name: launcher-${{ matrix.os }}
           path: build/*
 
+  flatpak:
+    name: Build Flatpak package
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    container:
+      image: ghcr.io/andyholmes/flatter/freedesktop:24.08
+      options: --privileged
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install configure.py dependencies
+        run: dnf install -y python3 python3-tomlkit python3-httpx ImageMagick
+
+      - name: Install flatpak-cargo-generator dependencies
+        run: dnf install -y python3-aiohttp python3-toml wget
+      - name: Run flatpak-cargo-generator
+        run: |
+          wget -O packaging/flatpak/flatpak-cargo-generator.py https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/a1eb29c5f3038413ffafd4fea34e62c361c109ad/cargo/flatpak-cargo-generator.py
+          python packaging/flatpak/flatpak-cargo-generator.py Cargo.lock -o packaging/flatpak/cargo-sources.json
+
+      - name: Generate manifest
+        env:
+          VERSION: ${{ github.sha }}
+          LAUNCHER_NAME: ${{ vars.LAUNCHER_NAME }}
+          VERSION_MANIFEST_URL: ${{ vars.VERSION_MANIFEST_URL }}
+          AUTO_UPDATE_BASE: ${{ vars.AUTO_UPDATE_BASE }}
+          LAUNCHER_APP_ID: ${{ vars.LAUNCHER_APP_ID }}
+          LAUNCHER_ICON: ${{ vars.LAUNCHER_ICON }}
+          LAUNCHER_DESCRIPTION: ${{ vars.LAUNCHER_DESCRIPTION }}
+          LAUNCHER_KEYWORDS: ${{ vars.LAUNCHER_KEYWORDS }}
+          GPG_PUBLIC_KEY: ${{ vars.GPG_PUBLIC_KEY }}
+        run: |
+          python packaging/configure.py
+          cd packaging/flatpak
+          python generate.py
+
+      - name: Setup GPG
+        env:
+          # kostyl, because `if` doesn't work with secrets for some reason
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        if: ${{ github.ref == 'refs/heads/master' && env.GPG_PRIVATE_KEY }}
+        id: gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Install Rust SDK
+        # idk how to do it better
+        run: flatpak install runtime/org.freedesktop.Sdk.Extension.rust-stable/x86_64/24.08 --noninteractive
+
+      - name: Build Flatpak package
+        id: flatpak
+        uses: andyholmes/flatter@main
+        with:
+          files: |
+            packaging/flatpak/manifest.yml
+          arch: x86_64
+          gpg-sign: ${{ steps.gpg.outputs.fingerprint }}
+          upload-bundles: true
+
+      - name: Set up SSH
+        if: ${{ env.UPLOAD_TO_SERVER }}
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_KEY }}
+          known_hosts: no
+
+      - name: Upload to server
+        if: ${{ env.UPLOAD_TO_SERVER }}
+        env:
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_ADDR: ${{ secrets.SERVER_ADDR }}
+          SERVER_PATH: ${{ secrets.SERVER_PATH }}
+        run: |
+          TARGET="$SERVER_USER@$SERVER_ADDR:$SERVER_PATH"
+          rsync -av --delete -e "ssh $SSH_OPTS" ${{ steps.flatpak.outputs.repository }}/ $TARGET/flatpak
+          FLATPAKREF_FILENAME=packaging/flatpak/*.flatpakref
+          if [ -e $FLATPAKREF_FILENAME ]; then
+            scp $SSH_OPTS $FLATPAKREF_FILENAME $TARGET/
+          fi
+          scp $SSH_OPTS *.flatpak $TARGET/
+
   post-deploy:
     name: Run post-deploy script
     runs-on: ubuntu-latest
-    needs: [binaries]
+    needs: [binaries, flatpak]
     if: ${{ always() }}
 
     steps:
