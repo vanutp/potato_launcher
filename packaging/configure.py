@@ -31,7 +31,7 @@ def process_icons() -> bool:
 
     if source_icon.startswith('http://') or source_icon.startswith('https://'):
         with NamedTemporaryFile(delete=False) as temp_file:
-            resp = httpx.get(source_icon)
+            resp = httpx.get(source_icon, follow_redirects=True)
             resp.raise_for_status()
             temp_file.write(resp.content)
             source_icon = temp_file.name
