@@ -5,12 +5,16 @@
 .DS_Store
 
 instance_builder/*.json
+!instance_builder/spec.example.json
 instance_builder/generated/
 instance_builder/workdir/
 
 .cargo/config.toml
 target/
 **/__pycache__/
+docs/node_modules/
+docs/.vitepress/cache/
+docs/dist/
 
 # icons are generated during build
 launcher/assets/*
