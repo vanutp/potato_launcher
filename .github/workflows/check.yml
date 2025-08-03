@@ -56,3 +56,13 @@ jobs:
 
       - name: Run tests
         run: cargo test --workspace
+
+  nix:
+    name: Check Nix package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@v32
+      - name: Build Nix package
+        run: nix build .

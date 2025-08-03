@@ -48,7 +48,7 @@ rustPlatform.buildRustPackage {
   ];
   src = ./../..;
   # TODO: auto update this
-  cargoHash = "sha256-xR9esX9eLS2q2Ghoynn9KOKm4+JVxgZbUX6GY2+jjz4=";
+  cargoHash = "sha256-K1fAjJHhr5PZ22VWW2x4Wg1E9MkTlVwSLCANHHh5Ve0=";
 
   USE_NATIVE_GLFW_DEFAULT = "true";
   nativeBuildInputs = [ makeWrapper ];
