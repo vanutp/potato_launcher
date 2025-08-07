@@ -2,7 +2,6 @@ use std::sync::Arc;
 use std::sync::mpsc;
 
 use eframe::egui;
-use eframe::run_native;
 use log::error;
 use log::info;
 use shared::utils::is_connect_error;
@@ -10,7 +9,6 @@ use tokio::runtime::Runtime;
 
 use crate::app::progress_bar::GuiProgressBar;
 use crate::config::build_config;
-use crate::config::runtime_config;
 use crate::lang::Lang;
 use crate::lang::LangMessage;
 use crate::launcher::update::download_new_launcher;
@@ -37,6 +35,27 @@ enum DownloadStatus {
     ErrorReadOnly,
 }
 
+pub const UPDATE_APP_SIZE: egui::Vec2 = egui::Vec2::new(300.0, 150.0);
+
+pub fn should_check_updates() -> bool {
+    if std::env::var("CARGO").is_ok() {
+        info!("Running from cargo, skipping auto-update");
+        return false;
+    }
+
+    if build_config::get_version().is_none() {
+        info!("Version not set, skipping auto-update");
+        return false;
+    }
+
+    if build_config::get_auto_update_base().is_none() {
+        info!("Auto update URL not set, skipping auto-update");
+        return false;
+    }
+
+    true
+}
+
 pub struct UpdateApp {
     runtime: Runtime,
     lang: Lang,
@@ -46,36 +65,6 @@ pub struct UpdateApp {
     update_status: UpdateStatus,
     download_status: DownloadStatus,
     exit_on_close: bool,
-}
-
-pub fn run_gui(config: &runtime_config::Config) {
-    if std::env::var("CARGO").is_ok() {
-        info!("Running from cargo, skipping auto-update");
-        return;
-    }
-
-    if build_config::get_version().is_none() {
-        info!("Version not set, skipping auto-update");
-        return;
-    }
-
-    if build_config::get_auto_update_base().is_none() {
-        info!("Auto update URL not set, skipping auto-update");
-        return;
-    }
-
-    let native_options = eframe::NativeOptions {
-        viewport: utils::add_icon(egui::ViewportBuilder::default().with_inner_size((300.0, 150.0))),
-        ..Default::default()
-    };
-
-    let lang = config.lang;
-    run_native(
-        &format!("{} Updater", build_config::get_launcher_name()),
-        native_options,
-        Box::new(move |cc| Ok(Box::new(UpdateApp::new(lang, &cc.egui_ctx)))),
-    )
-    .unwrap();
 }
 
 impl eframe::App for UpdateApp {
@@ -91,7 +80,7 @@ impl eframe::App for UpdateApp {
 }
 
 impl UpdateApp {
-    fn new(lang: Lang, ctx: &egui::Context) -> Self {
+    pub fn new(lang: Lang, ctx: &egui::Context) -> Self {
         let runtime = Runtime::new().unwrap();
 
         let (need_update_sender, need_update_receiver) = mpsc::channel();
@@ -133,8 +122,11 @@ impl UpdateApp {
             .clicked()
         {
             self.exit_on_close = false;
-            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
         }
+    }
+
+    pub fn should_proceed_to_launcher(&self) -> bool {
+        !self.exit_on_close
     }
 
     fn ui(&mut self, ctx: &egui::Context) {
@@ -196,7 +188,6 @@ impl UpdateApp {
                         }
                         UpdateStatus::UpToDate => {
                             self.exit_on_close = false;
-                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                         }
                         UpdateStatus::UpdateError => {}
                         UpdateStatus::UpdateErrorOffline => {}

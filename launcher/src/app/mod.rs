@@ -11,3 +11,4 @@ mod metadata_state;
 mod new_instance_state;
 pub mod progress_bar;
 mod settings;
+pub mod unified_app;

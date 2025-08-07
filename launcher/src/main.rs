@@ -40,6 +40,5 @@ fn main() {
         .get_matches();
 
     let config = Config::load();
-    update_app::app::run_gui(&config);
-    app::launcher_app::run_gui(config, matches.get_flag("launch"));
+    app::unified_app::run_gui(config, matches.get_flag("launch"));
 }

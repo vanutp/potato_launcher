@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use eframe::egui;
-use eframe::run_native;
 use tokio::runtime::Runtime;
 
 use super::auth_state::AuthState;
@@ -14,12 +13,13 @@ use super::manifest_state::ManifestState;
 use super::metadata_state::MetadataState;
 use super::new_instance_state::NewInstanceState;
 use super::settings::SettingsState;
-use crate::config::build_config;
 use crate::config::runtime_config::Config;
 use crate::utils;
 use crate::version::instance_storage::InstanceStatus;
 use crate::version::instance_storage::InstanceStorage;
 use crate::version::instance_storage::LocalInstance;
+
+pub const LAUNCHER_APP_SIZE: egui::Vec2 = egui::Vec2::new(670.0, 450.0);
 
 pub struct LauncherApp {
     runtime: Runtime,
@@ -37,27 +37,6 @@ pub struct LauncherApp {
     new_instance_state: NewInstanceState,
 }
 
-pub fn run_gui(config: Config, launch: bool) {
-    let native_options = eframe::NativeOptions {
-        viewport: utils::add_icon(
-            egui::ViewportBuilder::default()
-                .with_inner_size((670.0, 450.0))
-                .with_resizable(false),
-        ),
-        ..Default::default()
-    };
-
-    run_native(
-        &build_config::get_launcher_name(),
-        native_options,
-        Box::new(move |cc| {
-            egui_extras::install_image_loaders(&cc.egui_ctx);
-            Ok(Box::new(LauncherApp::new(config, &cc.egui_ctx, launch)))
-        }),
-    )
-    .unwrap();
-}
-
 impl eframe::App for LauncherApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.ui(ctx);
@@ -69,7 +48,7 @@ impl eframe::App for LauncherApp {
 }
 
 impl LauncherApp {
-    fn new(config: Config, ctx: &egui::Context, launch: bool) -> Self {
+    pub fn new(config: Config, ctx: &egui::Context, launch: bool) -> Self {
         let runtime = Runtime::new().unwrap();
 
         LauncherApp {
@@ -87,7 +66,7 @@ impl LauncherApp {
         }
     }
 
-    fn ui(&mut self, ctx: &egui::Context) {
+    pub fn ui(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(false)
             .show(ctx, |ui| {
