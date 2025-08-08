@@ -44,6 +44,7 @@ pub fn run_gui(config: Config, launch: bool) {
                 .with_inner_size(initial_size)
                 .with_resizable(false),
         ),
+        centered: true,
         ..Default::default()
     };
 
