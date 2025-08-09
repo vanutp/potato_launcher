@@ -42,7 +42,7 @@ pub fn run_gui(config: Config, launch: bool) {
         viewport: utils::add_icon(
             egui::ViewportBuilder::default()
                 .with_inner_size(initial_size)
-                .with_resizable(false),
+                .with_resizable(true),
         ),
         centered: true,
         ..Default::default()
@@ -173,6 +173,7 @@ impl UnifiedApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(position));
         }
         ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(LAUNCHER_APP_SIZE));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Resizable(false));
 
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(
             build_config::get_launcher_name(),
