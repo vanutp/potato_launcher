@@ -27,11 +27,7 @@ pub struct UnifiedApp {
 
 pub fn run_gui(config: Config, launch: bool) {
     let should_check_updates = should_check_updates();
-    let initial_size = if should_check_updates {
-        UPDATE_APP_SIZE
-    } else {
-        LAUNCHER_APP_SIZE
-    };
+    let initial_size = LAUNCHER_APP_SIZE;
     let app_name = if should_check_updates {
         format!("{} Updater", build_config::get_launcher_name())
     } else {
