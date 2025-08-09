@@ -27,6 +27,7 @@ modules:
         VERSION: {{ version }}
         LAUNCHER_NAME: {{ app_name }}
         VERSION_MANIFEST_URL: {{ version_manifest_url }}
+        AUTO_UPDATE_BASE: ""
         # TODO: bundle patched GLFW and enable this
         # USE_NATIVE_GLFW_DEFAULT: "true"
     build-commands:
