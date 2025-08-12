@@ -169,21 +169,19 @@ pub async fn launch(
     ]
     .concat();
 
-    if online {
-        if let Some(auth_url) = auth_provider.and_then(|x| x.get_auth_url()) {
-            let authlib_injector_path = get_authlib_injector_path(&launcher_dir);
-            if !authlib_injector_path.exists() {
-                return Err(LaunchError::MissingAuthlibInjector.into());
-            }
-            java_options.insert(
-                0,
-                format!(
-                    "-javaagent:{}={}",
-                    authlib_injector_path.to_str().unwrap(),
-                    auth_url,
-                ),
-            );
+    if online && let Some(auth_url) = auth_provider.and_then(|x| x.get_auth_url()) {
+        let authlib_injector_path = get_authlib_injector_path(&launcher_dir);
+        if !authlib_injector_path.exists() {
+            return Err(LaunchError::MissingAuthlibInjector.into());
         }
+        java_options.insert(
+            0,
+            format!(
+                "-javaagent:{}={}",
+                authlib_injector_path.to_str().unwrap(),
+                auth_url,
+            ),
+        );
     }
 
     #[cfg(target_os = "linux")]

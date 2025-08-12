@@ -152,30 +152,30 @@ impl MetadataState {
     }
 
     pub fn update(&mut self) -> bool {
-        if let Some(task) = self.get_task.as_ref() {
-            if task.has_result() {
-                let task = self.get_task.take().unwrap();
-                let result = task.take_result();
-                match result {
-                    BackgroundTaskResult::Finished(result) => {
-                        self.status = result.status;
-                        let name = result.version_info.get_name();
-                        if let Some(metadata) = result.metadata {
-                            self.metadata_storage.insert(name, metadata);
-                        } else {
-                            self.metadata_storage.remove(&name);
-                        }
-                    }
-                    BackgroundTaskResult::Cancelled => {
-                        self.status = GetStatus::NoMetadata;
+        if let Some(task) = self.get_task.as_ref()
+            && task.has_result()
+        {
+            let task = self.get_task.take().unwrap();
+            let result = task.take_result();
+            match result {
+                BackgroundTaskResult::Finished(result) => {
+                    self.status = result.status;
+                    let name = result.version_info.get_name();
+                    if let Some(metadata) = result.metadata {
+                        self.metadata_storage.insert(name, metadata);
+                    } else {
+                        self.metadata_storage.remove(&name);
                     }
                 }
-
-                return true;
+                BackgroundTaskResult::Cancelled => {
+                    self.status = GetStatus::NoMetadata;
+                }
             }
-        }
 
-        false
+            true
+        } else {
+            false
+        }
     }
 
     pub fn get_version_metadata(&self, config: &Config) -> Option<Arc<CompleteVersionMetadata>> {

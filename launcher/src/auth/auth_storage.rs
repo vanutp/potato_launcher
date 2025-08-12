@@ -44,23 +44,23 @@ impl AuthStorage {
     }
 
     pub fn get_by_id(&self, id: &str, username: &str) -> Option<StorageEntry> {
-        if let Some(user_map) = self.runtime_storage.get(id) {
-            if let Some(auth_data) = user_map.get(username) {
-                return Some(StorageEntry {
-                    auth_data: auth_data.clone(),
-                    source: AuthDataSource::Runtime,
-                });
-            }
+        if let Some(user_map) = self.runtime_storage.get(id)
+            && let Some(auth_data) = user_map.get(username)
+        {
+            Some(StorageEntry {
+                auth_data: auth_data.clone(),
+                source: AuthDataSource::Runtime,
+            })
+        } else if let Some(user_map) = self.persistent_storage.get(id)
+            && let Some(auth_data) = user_map.get(username)
+        {
+            Some(StorageEntry {
+                auth_data: auth_data.clone(),
+                source: AuthDataSource::Persistent,
+            })
+        } else {
+            None
         }
-        if let Some(user_map) = self.persistent_storage.get(id) {
-            if let Some(auth_data) = user_map.get(username) {
-                return Some(StorageEntry {
-                    auth_data: auth_data.clone(),
-                    source: AuthDataSource::Persistent,
-                });
-            }
-        }
-        None
     }
 
     pub fn get_id_nicknames(&self, id: &str) -> Vec<String> {

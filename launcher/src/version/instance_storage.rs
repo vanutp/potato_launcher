@@ -144,7 +144,6 @@ impl InstanceStorage {
             self.safe_save(config).await;
         } else {
             warn!("Tried to mark non-existent version as downloaded: {version_name}");
-            return;
         }
     }
 

@@ -302,28 +302,28 @@ impl NewInstanceState {
     }
 
     pub fn take_new_instance(&mut self) -> Option<VersionInfo> {
-        if let Some(task) = self.instance_generate_task.as_ref() {
-            if task.has_result() {
-                let task = self.instance_generate_task.take().unwrap();
-                match task.take_result() {
-                    BackgroundTaskResult::Finished(result) => match result {
-                        Ok(version_info) => {
-                            self.window_open = false;
-                            self.instance_generate_state = NewInstanceGenerateState::NoError;
-                            return Some(version_info);
-                        }
-                        Err(e) => {
-                            error!("Error creating instance:\n{e:?}");
-                            self.instance_generate_state = if is_connect_error(&e) {
-                                NewInstanceGenerateState::Offline
-                            } else {
-                                NewInstanceGenerateState::UnknownError
-                            };
-                        }
-                    },
-                    BackgroundTaskResult::Cancelled => {
+        if let Some(task) = self.instance_generate_task.as_ref()
+            && task.has_result()
+        {
+            let task = self.instance_generate_task.take().unwrap();
+            match task.take_result() {
+                BackgroundTaskResult::Finished(result) => match result {
+                    Ok(version_info) => {
+                        self.window_open = false;
                         self.instance_generate_state = NewInstanceGenerateState::NoError;
+                        return Some(version_info);
                     }
+                    Err(e) => {
+                        error!("Error creating instance:\n{e:?}");
+                        self.instance_generate_state = if is_connect_error(&e) {
+                            NewInstanceGenerateState::Offline
+                        } else {
+                            NewInstanceGenerateState::UnknownError
+                        };
+                    }
+                },
+                BackgroundTaskResult::Cancelled => {
+                    self.instance_generate_state = NewInstanceGenerateState::NoError;
                 }
             }
         }
@@ -340,25 +340,25 @@ impl NewInstanceState {
     ) -> RenderUIResult {
         let lang = config.lang;
 
-        if let Some(task) = self.instance_metadata_task.as_ref() {
-            if task.has_result() {
-                let task = self.instance_metadata_task.take();
-                self.all_metadata_state.take_from_task(task.unwrap());
-            }
+        if let Some(task) = self.instance_metadata_task.as_ref()
+            && task.has_result()
+        {
+            let task = self.instance_metadata_task.take();
+            self.all_metadata_state.take_from_task(task.unwrap());
         }
-        if let Some(task) = self.current_version_metadata_task.as_mut() {
-            if task.has_result() {
-                let task = self.current_version_metadata_task.take();
-                self.curent_metadata_state.take_from_task(task.unwrap());
-                self.instance_loader = VANILLA_LOADER.to_string();
-            }
+        if let Some(task) = self.current_version_metadata_task.as_mut()
+            && task.has_result()
+        {
+            let task = self.current_version_metadata_task.take();
+            self.curent_metadata_state.take_from_task(task.unwrap());
+            self.instance_loader = VANILLA_LOADER.to_string();
         }
 
-        if let Some(selected_instance_name) = &config.selected_instance_name {
-            if ui.button("📂").clicked() {
-                let launcher_dir = config.get_launcher_dir();
-                let _ = open::that(get_instance_dir(&launcher_dir, selected_instance_name));
-            }
+        if let Some(selected_instance_name) = &config.selected_instance_name
+            && ui.button("📂").clicked()
+        {
+            let launcher_dir = config.get_launcher_dir();
+            let _ = open::that(get_instance_dir(&launcher_dir, selected_instance_name));
         }
 
         if ui.button("-").clicked() {
@@ -439,11 +439,10 @@ impl NewInstanceState {
                     let mut loaders = vec![VANILLA_LOADER.to_string()];
                     for loader in [FABRIC_LOADER, FORGE_LOADER, NEOFORGE_LOADER] {
                         let versions = versions.get(loader);
-                        if let Some(versions) = versions {
-                            if !versions.is_empty() {
+                        if let Some(versions) = versions
+                            && !versions.is_empty() {
                                 loaders.push(loader.to_string());
                             }
-                        }
                     }
 
                     let mut new_instance_loader = self.instance_loader.clone();
@@ -484,11 +483,10 @@ impl NewInstanceState {
                                 }
                             }
                         }
-                        if self.instance_loader_version.is_empty() {
-                            if let Some(version) = versions.first() {
+                        if self.instance_loader_version.is_empty()
+                            && let Some(version) = versions.first() {
                                 self.instance_loader_version = version.to_string();
                             }
-                        }
 
                         ui.label(LangMessage::LoaderVersion.to_string(lang));
                         egui::ComboBox::from_id_salt("loader_versions")

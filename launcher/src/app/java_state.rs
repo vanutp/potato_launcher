@@ -188,54 +188,54 @@ impl JavaState {
             self.set_check_java_task(runtime, metadata, config, ctx);
         }
 
-        if let Some(task) = self.check_java_task.as_ref() {
-            if task.has_result() {
-                let task = self.check_java_task.take().unwrap();
-                let result = task.take_result();
+        if let Some(task) = self.check_java_task.as_ref()
+            && task.has_result()
+        {
+            let task = self.check_java_task.take().unwrap();
+            let result = task.take_result();
 
-                match result {
-                    BackgroundTaskResult::Finished(result) => {
-                        if let Some(java_path) = result.java_path {
-                            config.java_paths.insert(
-                                metadata.get_name().to_string(),
-                                java_path.to_string_lossy().to_string(),
-                            );
-                            config.save();
-                            self.status = JavaDownloadStatus::Downloaded;
-                        } else {
-                            config.java_paths.remove(metadata.get_name());
-                            config.save();
-                            self.status = JavaDownloadStatus::NotDownloaded;
-                        }
-                    }
-
-                    BackgroundTaskResult::Cancelled => {
+            match result {
+                BackgroundTaskResult::Finished(result) => {
+                    if let Some(java_path) = result.java_path {
+                        config.java_paths.insert(
+                            metadata.get_name().to_string(),
+                            java_path.to_string_lossy().to_string(),
+                        );
+                        config.save();
+                        self.status = JavaDownloadStatus::Downloaded;
+                    } else {
+                        config.java_paths.remove(metadata.get_name());
+                        config.save();
                         self.status = JavaDownloadStatus::NotDownloaded;
                     }
+                }
+
+                BackgroundTaskResult::Cancelled => {
+                    self.status = JavaDownloadStatus::NotDownloaded;
                 }
             }
         }
 
-        if let Some(task) = self.java_download_task.as_ref() {
-            if task.has_result() {
-                let task = self.java_download_task.take().unwrap();
-                let result = task.take_result();
+        if let Some(task) = self.java_download_task.as_ref()
+            && task.has_result()
+        {
+            let task = self.java_download_task.take().unwrap();
+            let result = task.take_result();
 
-                match result {
-                    BackgroundTaskResult::Finished(result) => {
-                        self.status = result.status;
-                        if self.status == JavaDownloadStatus::Downloaded {
-                            let path = result.java_installation.as_ref().unwrap().path.clone();
-                            config.java_paths.insert(
-                                metadata.get_name().to_string(),
-                                path.to_string_lossy().to_string(),
-                            );
-                            config.save();
-                        }
+            match result {
+                BackgroundTaskResult::Finished(result) => {
+                    self.status = result.status;
+                    if self.status == JavaDownloadStatus::Downloaded {
+                        let path = result.java_installation.as_ref().unwrap().path.clone();
+                        config.java_paths.insert(
+                            metadata.get_name().to_string(),
+                            path.to_string_lossy().to_string(),
+                        );
+                        config.save();
                     }
-                    BackgroundTaskResult::Cancelled => {
-                        self.status = JavaDownloadStatus::NotDownloaded;
-                    }
+                }
+                BackgroundTaskResult::Cancelled => {
+                    self.status = JavaDownloadStatus::NotDownloaded;
                 }
             }
         }

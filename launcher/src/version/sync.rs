@@ -177,13 +177,13 @@ async fn get_libraries_entries(
     let check_download_entries: Vec<_> = check_download_entries
         .into_iter()
         .map(|entry| {
-            if entry.remote_sha1.is_none() {
-                if let Some(sha1) = missing_hashes.get(&entry.path) {
-                    return CheckEntry {
-                        remote_sha1: Some(sha1.clone()),
-                        ..entry
-                    };
-                }
+            if entry.remote_sha1.is_none()
+                && let Some(sha1) = missing_hashes.get(&entry.path)
+            {
+                return CheckEntry {
+                    remote_sha1: Some(sha1.clone()),
+                    ..entry
+                };
             }
             entry
         })
@@ -238,17 +238,17 @@ fn get_authlib_injector_entry(
     version_metadata: &CompleteVersionMetadata,
     launcher_dir: &Path,
 ) -> Option<CheckEntry> {
-    if let Some(auth_backend) = version_metadata.get_auth_backend() {
-        if auth_backend == &AuthBackend::Microsoft {
-            return None;
-        }
+    if let Some(auth_backend) = version_metadata.get_auth_backend()
+        && auth_backend == &AuthBackend::Microsoft
+    {
+        None
+    } else {
+        Some(CheckEntry {
+            url: AUTHLIB_INJECTOR_URL.to_string(),
+            remote_sha1: Some(AUTHLIB_INJECTOR_SHA1.to_string()),
+            path: get_authlib_injector_path(launcher_dir),
+        })
     }
-
-    Some(CheckEntry {
-        url: AUTHLIB_INJECTOR_URL.to_string(),
-        remote_sha1: Some(AUTHLIB_INJECTOR_SHA1.to_string()),
-        path: get_authlib_injector_path(launcher_dir),
-    })
 }
 
 async fn mark_download_complete(

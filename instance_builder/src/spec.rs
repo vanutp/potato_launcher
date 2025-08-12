@@ -116,19 +116,19 @@ impl VersionsSpec {
                         "Successfully fetched remote manifest with {} versions",
                         manifest.versions.len()
                     );
-                    if let Some(to_delete) = delete_remote_instances {
-                        if !to_delete.is_empty() {
-                            let before = manifest.versions.len();
-                            manifest.versions.retain(|v| {
-                                let name = v.get_name();
-                                !to_delete.contains(name.as_str())
-                            });
-                            let removed = before - manifest.versions.len();
-                            if removed > 0 {
-                                info!("Removed {removed} remote instance(s) from fetched manifest");
-                            } else {
-                                warn!("No remote instances matched the provided delete list");
-                            }
+                    if let Some(to_delete) = delete_remote_instances
+                        && !to_delete.is_empty()
+                    {
+                        let before = manifest.versions.len();
+                        manifest.versions.retain(|v| {
+                            let name = v.get_name();
+                            !to_delete.contains(name.as_str())
+                        });
+                        let removed = before - manifest.versions.len();
+                        if removed > 0 {
+                            info!("Removed {removed} remote instance(s) from fetched manifest");
+                        } else {
+                            warn!("No remote instances matched the provided delete list");
                         }
                     }
                     manifest

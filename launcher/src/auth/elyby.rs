@@ -48,19 +48,6 @@ struct AuthQuery {
     code: String,
 }
 
-#[derive(Clone)]
-pub struct TokioExecutor;
-
-impl<F> hyper::rt::Executor<F> for TokioExecutor
-where
-    F: std::future::Future + Send + 'static,
-    F::Output: Send + 'static,
-{
-    fn execute(&self, fut: F) {
-        tokio::task::spawn(fut);
-    }
-}
-
 async fn exchange_code(
     client_id: &str,
     client_secret: &str,
@@ -90,13 +77,13 @@ async fn exchange_code(
         return Err(AuthError::InvalidTokenType.into());
     }
 
-    if let Some(access_token) = data.get("access_token") {
-        if let Some(access_token) = access_token.as_str() {
-            return Ok(access_token.to_string());
-        }
+    if let Some(access_token) = data.get("access_token")
+        && let Some(access_token) = access_token.as_str()
+    {
+        Ok(access_token.to_string())
+    } else {
+        Err(AuthError::MissingAccessToken.into())
     }
-
-    Err(AuthError::MissingAccessToken.into())
 }
 
 enum TokenResult {

@@ -80,28 +80,27 @@ impl ManifestState {
     }
 
     pub fn take_manifest(&mut self, config: &mut Config) -> (Option<VersionManifest>, bool) {
-        if let Some(task) = self.fetch_task.as_ref() {
-            if task.has_result() {
-                let task = self.fetch_task.take().unwrap();
-                let result = task.take_result();
-                match result {
-                    BackgroundTaskResult::Finished(result) => {
-                        if let Some(manifest) = &result.manifest {
-                            if config.selected_instance_name.is_none()
-                                && manifest.versions.len() == 1
-                            {
-                                config.selected_instance_name =
-                                    manifest.versions.first().map(|x| x.get_name());
-                                config.save();
-                            }
-                        }
-                        self.status = result.status;
+        if let Some(task) = self.fetch_task.as_ref()
+            && task.has_result()
+        {
+            let task = self.fetch_task.take().unwrap();
+            let result = task.take_result();
+            match result {
+                BackgroundTaskResult::Finished(result) => {
+                    if let Some(manifest) = &result.manifest
+                        && config.selected_instance_name.is_none()
+                        && manifest.versions.len() == 1
+                    {
+                        config.selected_instance_name =
+                            manifest.versions.first().map(|x| x.get_name());
+                        config.save();
+                    }
+                    self.status = result.status;
 
-                        return (result.manifest, true);
-                    }
-                    BackgroundTaskResult::Cancelled => {
-                        self.status = FetchStatus::NotFetched;
-                    }
+                    return (result.manifest, true);
+                }
+                BackgroundTaskResult::Cancelled => {
+                    self.status = FetchStatus::NotFetched;
                 }
             }
         }

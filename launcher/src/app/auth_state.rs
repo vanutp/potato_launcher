@@ -70,10 +70,10 @@ fn authenticate(
                     connect_error = true;
                 }
                 let mut timeout_error = false;
-                if let Some(re) = e.downcast_ref::<reqwest::Error>() {
-                    if re.is_timeout() || re.status().map(|s| s.as_u16()) == Some(524) {
-                        timeout_error = true;
-                    }
+                if let Some(re) = e.downcast_ref::<reqwest::Error>()
+                    && (re.is_timeout() || re.status().map(|s| s.as_u16()) == Some(524))
+                {
+                    timeout_error = true;
                 }
 
                 AuthResult {
@@ -153,36 +153,36 @@ impl AuthState {
     }
 
     pub fn update(&mut self, runtime: &Runtime, config: &mut Config) -> bool {
-        if let Some(task) = self.auth_task.as_ref() {
-            if task.has_result() {
-                runtime.block_on(self.auth_message_provider.clear());
-                let task = self.auth_task.take().unwrap();
-                let result = task.take_result();
-                match result {
-                    BackgroundTaskResult::Finished(result) => {
-                        if result.status == AuthStatus::Authorized {
-                            if let Some(auth_data) = result.auth_data {
-                                config.set_selected_auth_profile(AuthProfile {
-                                    auth_backend_id: result.auth_backend.get_id(),
-                                    username: auth_data.user_info.username.clone(),
-                                });
+        if let Some(task) = self.auth_task.as_ref()
+            && task.has_result()
+        {
+            runtime.block_on(self.auth_message_provider.clear());
+            let task = self.auth_task.take().unwrap();
+            let result = task.take_result();
+            match result {
+                BackgroundTaskResult::Finished(result) => {
+                    if result.status == AuthStatus::Authorized
+                        && let Some(auth_data) = result.auth_data
+                    {
+                        config.set_selected_auth_profile(AuthProfile {
+                            auth_backend_id: result.auth_backend.get_id(),
+                            username: auth_data.user_info.username.clone(),
+                        });
 
-                                self.auth_storage
-                                    .insert(config, &result.auth_backend, auth_data);
-                                self.show_add_account = false;
-                            }
-                        }
-
-                        self.auth_status = result.status;
+                        self.auth_storage
+                            .insert(config, &result.auth_backend, auth_data);
+                        self.show_add_account = false;
                     }
 
-                    BackgroundTaskResult::Cancelled => {
-                        self.auth_status = AuthStatus::NotAuthorized;
-                    }
+                    self.auth_status = result.status;
                 }
 
-                return true;
+                BackgroundTaskResult::Cancelled => {
+                    self.auth_status = AuthStatus::NotAuthorized;
+                }
             }
+
+            return true;
         }
 
         false
@@ -364,15 +364,14 @@ impl AuthState {
 
         let mut auth_profile = config.get_selected_auth_profile().cloned();
 
-        if let Some(profile) = &auth_profile {
-            if self
+        if let Some(profile) = &auth_profile
+            && self
                 .auth_storage
                 .get_by_id(&profile.auth_backend_id, &profile.username)
                 .is_none()
-            {
-                config.clear_selected_auth_profile();
-                auth_profile = None;
-            }
+        {
+            config.clear_selected_auth_profile();
+            auth_profile = None;
         }
 
         let storage_entry = self.get_selected_storage_entry(config);
@@ -405,15 +404,14 @@ impl AuthState {
         if ui
             .add_enabled(auth_profile.is_some(), egui::Button::new("-"))
             .clicked()
+            && let Some(auth_profile) = auth_profile.take()
         {
-            if let Some(auth_profile) = auth_profile.take() {
-                self.auth_storage.delete_by_id(
-                    config,
-                    &auth_profile.auth_backend_id,
-                    &auth_profile.username,
-                );
-                config.clear_selected_auth_profile();
-            }
+            self.auth_storage.delete_by_id(
+                config,
+                &auth_profile.auth_backend_id,
+                &auth_profile.username,
+            );
+            config.clear_selected_auth_profile();
         }
 
         if ui.button("+").clicked() {
@@ -503,18 +501,18 @@ impl AuthState {
         let lang = config.lang;
 
         let auth_profile = config.get_selected_auth_profile().cloned();
-        if auth_profile.is_none() {
-            if let Some(instance_auth_backend) = instance_auth_backend {
-                let entries = self
-                    .auth_storage
-                    .get_id_nicknames(&instance_auth_backend.get_id());
-                if let Some(nickname) = entries.first() {
-                    let auth_profile_value = AuthProfile {
-                        auth_backend_id: instance_auth_backend.get_id(),
-                        username: nickname.clone(),
-                    };
-                    config.set_selected_auth_profile(auth_profile_value.clone());
-                }
+        if auth_profile.is_none()
+            && let Some(instance_auth_backend) = instance_auth_backend
+        {
+            let entries = self
+                .auth_storage
+                .get_id_nicknames(&instance_auth_backend.get_id());
+            if let Some(nickname) = entries.first() {
+                let auth_profile_value = AuthProfile {
+                    auth_backend_id: instance_auth_backend.get_id(),
+                    username: nickname.clone(),
+                };
+                config.set_selected_auth_profile(auth_profile_value.clone());
             }
         }
 
@@ -558,14 +556,14 @@ impl AuthState {
                             );
                         }
                     });
-                if let Some(selected_username) = selected_username {
-                    if auth_profile.as_ref().map(|x| &x.username) != Some(&selected_username) {
-                        let auth_profile_value = AuthProfile {
-                            auth_backend_id: instance_auth_backend.get_id(),
-                            username: selected_username.clone(),
-                        };
-                        config.set_selected_auth_profile(auth_profile_value.clone());
-                    }
+                if let Some(selected_username) = selected_username
+                    && auth_profile.as_ref().map(|x| &x.username) != Some(&selected_username)
+                {
+                    let auth_profile_value = AuthProfile {
+                        auth_backend_id: instance_auth_backend.get_id(),
+                        username: selected_username.clone(),
+                    };
+                    config.set_selected_auth_profile(auth_profile_value.clone());
                 }
             } else {
                 ui.add_enabled_ui(self.auth_task.is_none(), |ui| {
@@ -628,18 +626,17 @@ impl AuthState {
                         );
                     }
                 });
-            if let Some(selected_account) = selected_account {
-                if auth_profile
+            if let Some(selected_account) = selected_account
+                && auth_profile
                     .as_ref()
                     .map(|x| (&x.auth_backend_id, &x.username))
                     != Some((&selected_account.0, &selected_account.1))
-                {
-                    let auth_profile_value = AuthProfile {
-                        auth_backend_id: selected_account.0,
-                        username: selected_account.1,
-                    };
-                    config.set_selected_auth_profile(auth_profile_value.clone());
-                }
+            {
+                let auth_profile_value = AuthProfile {
+                    auth_backend_id: selected_account.0,
+                    username: selected_account.1,
+                };
+                config.set_selected_auth_profile(auth_profile_value.clone());
             }
         }
 

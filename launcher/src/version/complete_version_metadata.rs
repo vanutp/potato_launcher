@@ -110,15 +110,13 @@ impl CompleteVersionMetadata {
     }
 
     pub fn get_client_check_entry(&self, launcher_dir: &Path) -> anyhow::Result<CheckEntry> {
-        if let Some(downloads) = self.base[0].downloads.as_ref() {
-            if let Some(client) = downloads.client.as_ref() {
-                return Ok(
-                    client.get_check_entry(&get_client_jar_path(launcher_dir, self.get_id()))
-                );
-            }
+        if let Some(downloads) = self.base[0].downloads.as_ref()
+            && let Some(client) = downloads.client.as_ref()
+        {
+            Ok(client.get_check_entry(&get_client_jar_path(launcher_dir, self.get_id())))
+        } else {
+            Err(VersionMetadataError::MissingClientDownload.into())
         }
-
-        Err(VersionMetadataError::MissingClientDownload.into())
     }
 
     pub fn get_auth_backend(&self) -> Option<&AuthBackend> {

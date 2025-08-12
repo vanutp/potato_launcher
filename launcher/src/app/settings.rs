@@ -156,22 +156,21 @@ impl SettingsState {
                 if ui
                     .button(LangMessage::SelectJavaPath.to_string(lang))
                     .clicked()
+                    && let Some(path) = rfd::FileDialog::new().pick_file()
                 {
-                    if let Some(path) = rfd::FileDialog::new().pick_file() {
-                        if runtime.block_on(java::check_java(
-                            &selected_metadata.get_java_version(),
-                            &path,
-                        )) {
-                            self.picked_java_path = Some(path.display().to_string());
-                            config.java_paths.insert(
-                                selected_metadata.get_name().to_string(),
-                                path.display().to_string(),
-                            );
-                            config.save();
-                        } else {
-                            self.picked_java_path =
-                                LangMessage::InvalidJavaInstallation.to_string(lang).into();
-                        }
+                    if runtime.block_on(java::check_java(
+                        &selected_metadata.get_java_version(),
+                        &path,
+                    )) {
+                        self.picked_java_path = Some(path.display().to_string());
+                        config.java_paths.insert(
+                            selected_metadata.get_name().to_string(),
+                            path.display().to_string(),
+                        );
+                        config.save();
+                    } else {
+                        self.picked_java_path =
+                            LangMessage::InvalidJavaInstallation.to_string(lang).into();
                     }
                 }
 

@@ -81,32 +81,32 @@ impl InstanceSyncState {
     }
 
     pub fn update(&mut self) -> bool {
-        if let Some(task) = self.instance_sync_task.as_ref() {
-            if task.has_result() {
-                self.instance_sync_window_open = false;
-                let task = self.instance_sync_task.take();
-                match task.unwrap().take_result() {
-                    BackgroundTaskResult::Finished(result) => {
-                        self.status = match result {
-                            Ok(()) => InstanceSyncStatus::Synced,
-                            Err(e) => {
-                                if is_connect_error(&e) {
-                                    InstanceSyncStatus::SyncErrorOffline
-                                } else {
-                                    error!("Error syncing instance:\n{e:?}");
-                                    InstanceSyncStatus::SyncError
-                                }
+        if let Some(task) = self.instance_sync_task.as_ref()
+            && task.has_result()
+        {
+            self.instance_sync_window_open = false;
+            let task = self.instance_sync_task.take();
+            match task.unwrap().take_result() {
+                BackgroundTaskResult::Finished(result) => {
+                    self.status = match result {
+                        Ok(()) => InstanceSyncStatus::Synced,
+                        Err(e) => {
+                            if is_connect_error(&e) {
+                                InstanceSyncStatus::SyncErrorOffline
+                            } else {
+                                error!("Error syncing instance:\n{e:?}");
+                                InstanceSyncStatus::SyncError
                             }
-                        };
-                    }
-                    BackgroundTaskResult::Cancelled => {
-                        self.status = InstanceSyncStatus::NotSynced;
-                    }
+                        }
+                    };
                 }
+                BackgroundTaskResult::Cancelled => {
+                    self.status = InstanceSyncStatus::NotSynced;
+                }
+            }
 
-                if self.status == InstanceSyncStatus::Synced {
-                    return true;
-                }
+            if self.status == InstanceSyncStatus::Synced {
+                return true;
             }
         }
 
