@@ -29,7 +29,7 @@ tar = "0.4.44"
 thiserror = "2.0.12"
 tokio = { version = "1.47.0", features = ["full"] }
 tokio-util = "0.7.15"
-zip = { version = "4.3.0", features = ["deflate"]}
+zip = { version = "4.3.0", default-features = false, features = ["deflate"]}
 async-trait = "0.1.88"
 log = "0.4.27"
 hyper = { version = "1.6.0", features = ["full"] }
