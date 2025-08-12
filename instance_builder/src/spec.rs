@@ -89,7 +89,12 @@ impl VersionsSpec {
         Ok(spec)
     }
 
-    pub async fn generate(self, output_dir: &Path, work_dir: &Path) -> anyhow::Result<()> {
+    pub async fn generate(
+        self,
+        output_dir: &Path,
+        work_dir: &Path,
+        delete_remote_instances: Option<&HashSet<String>>,
+    ) -> anyhow::Result<()> {
         if let Some(command) = &self.exec_before_all {
             exec_string_command(command).await?;
         }
@@ -97,14 +102,35 @@ impl VersionsSpec {
         info!("Fetching version manifest");
         let vanilla_manifest = VersionManifest::fetch(VANILLA_MANIFEST_URL).await?;
 
+        if delete_remote_instances.is_some() && self.version_manifest_url.is_none() {
+            warn!(
+                "--delete-remote flag is set but version_manifest_url spec option is not; ignoring the flag"
+            );
+        }
+
         let mut version_manifest = if let Some(version_manifest_url) = &self.version_manifest_url {
             info!("Fetching remote version manifest from: {version_manifest_url}");
             match VersionManifest::fetch(version_manifest_url).await {
-                Ok(manifest) => {
+                Ok(mut manifest) => {
                     info!(
                         "Successfully fetched remote manifest with {} versions",
                         manifest.versions.len()
                     );
+                    if let Some(to_delete) = delete_remote_instances {
+                        if !to_delete.is_empty() {
+                            let before = manifest.versions.len();
+                            manifest.versions.retain(|v| {
+                                let name = v.get_name();
+                                !to_delete.contains(name.as_str())
+                            });
+                            let removed = before - manifest.versions.len();
+                            if removed > 0 {
+                                info!("Removed {removed} remote instance(s) from fetched manifest");
+                            } else {
+                                warn!("No remote instances matched the provided delete list");
+                            }
+                        }
+                    }
                     manifest
                 }
                 Err(e) => {

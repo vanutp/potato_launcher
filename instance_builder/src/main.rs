@@ -6,6 +6,7 @@ mod utils;
 use clap::{Arg, Command};
 use shared::logs::setup_logger;
 use spec::VersionsSpec;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tokio::runtime::Runtime;
 
@@ -51,6 +52,15 @@ fn main() -> anyhow::Result<()> {
                 .help("Working directory")
                 .default_value("./workdir"),
         )
+        .arg(
+            Arg::new("delete_remote_instances")
+                .help("Comma-separated remote instance names to delete from fetched manifest")
+                .long("delete-remote")
+                .num_args(1..)
+                .use_value_delimiter(true)
+                .value_delimiter(',')
+                .value_name("NAME"),
+        )
         .get_matches();
 
     let spec_file = matches.get_one::<PathBuf>("spec_file").unwrap();
@@ -67,5 +77,9 @@ fn main() -> anyhow::Result<()> {
 
     let rt = Runtime::new().unwrap();
     let spec = rt.block_on(VersionsSpec::from_file(&spec_file_path))?;
-    rt.block_on(spec.generate(&output_dir_path, &work_dir_path))
+    let delete_remote_set: Option<HashSet<String>> = matches
+        .get_many::<String>("delete_remote_instances")
+        .map(|vals| vals.map(|s| s.to_string()).collect());
+
+    rt.block_on(spec.generate(&output_dir_path, &work_dir_path, delete_remote_set.as_ref()))
 }
