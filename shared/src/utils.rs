@@ -24,7 +24,10 @@ pub fn get_vanilla_version_info(
 }
 
 pub fn url_from_rel_path(rel_path: &Path, download_server_base: &str) -> anyhow::Result<String> {
-    let path_str = rel_path.to_string_lossy().replace('\\', "/");
+    let path_str = rel_path
+        .to_string_lossy()
+        .replace('\\', "/")
+        .replace('%', "%25");
 
     Ok(format!(
         "{}/{}",
