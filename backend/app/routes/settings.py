@@ -13,7 +13,6 @@ security = HTTPBearer()
     summary="Получение параметров окружения",
     response_model=List[SettingResponse])
 def get_settings(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Возвращает все текущие настройки"""
     verify_access_token(credentials.credentials)
     return get_all_settings()
 
