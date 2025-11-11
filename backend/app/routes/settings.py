@@ -11,7 +11,7 @@ security = HTTPBearer()
 @router.get(
     "/settings",
     summary="Получение параметров окружения",
-    response_model=List[SettingResponse])
+    response_model=Dict[str, Union[str, bool]])
 def get_settings(credentials: HTTPAuthorizationCredentials = Depends(security)):
     verify_access_token(credentials.credentials)
     return get_all_settings()
@@ -20,7 +20,7 @@ def get_settings(credentials: HTTPAuthorizationCredentials = Depends(security)):
 @router.post(
     "/settings",
     summary="Создание или обновление массива параметров окружения",
-    response_model=List[SettingResponse])
+    response_model=Dict[str, Union[str, bool]])
 def create_settings(body: List[SettingRequest], credentials: HTTPAuthorizationCredentials = Depends(security)):
     verify_access_token(credentials.credentials)
-    return create_or_update_settings([item.model_dump() for item in body])
+    return create_or_update_settings(body)

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from enum import Enum
-from typing import Any
+from typing import Any, Union
 
 
 class SettingType(str, Enum):
@@ -13,11 +13,11 @@ class SettingType(str, Enum):
 
 class SettingRequest(BaseModel):
     key: str
-    value: Any
+    value: Union[str, bool]
     type: SettingType
 
 
 class SettingResponse(BaseModel):
     key: str
-    value: Any
+    value: Union[str, bool]
     type: SettingType
