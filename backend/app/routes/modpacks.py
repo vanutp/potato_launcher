@@ -29,7 +29,7 @@ all_modpacks: List[Modpack] = [
 
 @router.get("/modpacks", summary="Список модпаков из манифеста")
 def get(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    verify_access_token(credentials.credentials)
+    # verify_access_token(credentials.credentials)
     return all_modpacks
 
 @router.post("/modpacks", summary="Создание нового модпака")
