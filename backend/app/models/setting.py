@@ -1,23 +1,42 @@
-from pydantic import BaseModel
+from dataclasses import dataclass
+
 from enum import Enum
-from typing import Any, Union
+
+from app.models.base import ApiModel
 
 
 class SettingType(str, Enum):
     STRING = "string"
     BOOLEAN = "boolean"
-    INT = "int"
-    FLOAT = "float"
-    NULL = "null"
 
 
-class SettingRequest(BaseModel):
+@dataclass
+class Setting:
     key: str
-    value: Union[str, bool]
+    type: SettingType
+    value: str | bool
+
+
+class SettingBase(ApiModel):
+    key: str
+    value: str | bool
     type: SettingType
 
+    def to_model(self) -> Setting:
+        return Setting(
+            key=self.key,
+            type=self.type,
+            value=self.value
+        )
 
-class SettingResponse(BaseModel):
-    key: str
-    value: Union[str, bool]
-    type: SettingType
+
+class SettingRequest(SettingBase):
+    ...
+
+
+class UpdateSettingRequest(SettingBase):
+    ...
+
+
+class SettingResponse(SettingBase):
+    ...

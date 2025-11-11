@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from app.models.base import ApiModel
 
-class TokenRequest(BaseModel):
+
+class TokenRequest(ApiModel):
     token: str

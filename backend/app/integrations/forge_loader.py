@@ -5,7 +5,7 @@ import httpx
 FORGE_MAVEN_METADATA_URL = "https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.json"
 
 # TODO for recommended & latest description
-FORGE_PROMOTIONS_URL = "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json";
+FORGE_PROMOTIONS_URL = "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json"
 
 
 async def _fetch_forge_metadata() -> Dict[str, Any]:
