@@ -3,3 +3,4 @@ requests
 PyJWT
 pydantic-settings
 uvicorn
+httpx
