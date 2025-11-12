@@ -1,10 +1,11 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from starlette import status
 
 from app.gateway.modpack import ModpackGateway
 from app.models.modpack import ModpackResponse, CreateModpackRequest, UpdateModpackRequest
+from app.services.runner_service import runner_service
 from app.utils.security import verify_access_token
 from app.utils.stub import Stub
 
@@ -61,6 +62,18 @@ def get(
     modpack_gateway.delete(id)
 
 
-@router.post("/build", summary="Run build")
-def build():
-    raise HTTPException(status_code=422, detail="This is not implemented yet")
+@router.post(
+    "/build",
+    summary="Run build",
+)
+async def build(body: dict[str, Any]):
+    return await runner_service.run_build(body)
+
+
+@router.get(
+    "/build/status",
+    summary="Get build status",
+    response_model=dict[str, Any]
+)
+async def get_build_status():
+    return await runner_service.get_status()
