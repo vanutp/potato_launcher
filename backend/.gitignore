@@ -9,3 +9,7 @@ env/
 venv/
 
 *.json
+
+instance_builder.exe
+app/generated/
+app/workdir/
