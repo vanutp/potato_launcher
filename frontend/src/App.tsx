@@ -1,45 +1,56 @@
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
+import LoginForm from './components/LoginForm';
 import ModpackSidebar from './components/ModpackSidebar';
 import ModpackForm from './components/ModpackForm';
 import ModpackDetails from './components/ModpackDetails';
 import SettingsForm from './components/SettingsForm';
+import {useAuth} from './hooks/useAuth';
+import {apiService} from './services/api';
+import {ModpackResponse, ModpackBase} from './types/api';
+import {useRef} from 'react';
 
-interface Modpack {
-    id: string;
-    name: string;
-    version: string;
-    loader: string;
-    loaderVersion: string;
-}
 
 function App() {
-    const [modpacks, setModpacks] = useState<Modpack[]>([
-        {
-            id: '1',
-            name: 'Adventure Plus',
-            version: '1.20.4',
-            loader: 'forge',
-            loaderVersion: '47.2.0'
-        },
-        {
-            id: '2',
-            name: 'Tech World',
-            version: '1.20.1',
-            loader: 'fabric',
-            loaderVersion: '0.15.6'
-        },
-        {
-            id: '3',
-            name: 'Magic Realms',
-            version: '1.19.4',
-            loader: 'neoforge',
-            loaderVersion: '2.4.15'
-        }
-    ]);
+    const {isAuthenticated, loading: authLoading, error: authError, login, logout} = useAuth();
+    const [modpacks, setModpacks] = useState<ModpackResponse[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const [selectedModpack, setSelectedModpack] = useState<string | null>(null);
+    const [selectedModpack, setSelectedModpack] = useState<number | null>(null);
     const [showForm, setShowForm] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const fetchingRef = useRef(false);
+
+    // Set up unauthorized handler
+    useEffect(() => {
+        apiService.setUnauthorizedHandler(() => {
+            logout();
+        });
+    }, [logout]);
+
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        if (fetchingRef.current) return;
+        fetchingRef.current = true;
+
+        loadModpacks();
+    }, [isAuthenticated]);
+
+    const loadModpacks = async () => {
+        fetchingRef.current = false; // Reset flag to allow reloading
+        try {
+            setLoading(true);
+            setError(null);
+            const data = await apiService.getModpacks();
+            setModpacks(data);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load modpacks');
+        } finally {
+            setLoading(false);
+            fetchingRef.current = false;
+        }
+    };
 
     const handleNewModpack = () => {
         setShowForm(true);
@@ -47,7 +58,7 @@ function App() {
         setShowSettings(false);
     };
 
-    const handleSelectModpack = (id: string) => {
+    const handleSelectModpack = (id: number) => {
         setSelectedModpack(id);
         setShowForm(false);
         setShowSettings(false);
@@ -59,32 +70,82 @@ function App() {
         setSelectedModpack(null);
     };
 
-    const handleModpackUpdate = (id: string, updatedData: Partial<Modpack>) => {
+    const handleModpackUpdate = (id: number, updatedData: Partial<ModpackResponse>) => {
         setModpacks(prev => prev.map(modpack =>
             modpack.id === id ? {...modpack, ...updatedData} : modpack
         ));
     };
 
-    const handleFormSubmit = (formData: { name: string; version: string; loader: string; loaderVersion: string }) => {
-        const newModpack: Modpack = {
-            id: Date.now().toString(),
-            ...formData
-        };
+    const handleModpackDelete = async (id: number) => {
+        try {
+            await apiService.deleteModpack(id);
+            // Reload modpacks and clear selection
+            setModpacks(prev => prev.filter(modpack => modpack.id !== id));
+            if (selectedModpack === id) {
+                setSelectedModpack(null);
+            }
+        } catch (err) {
+            console.error('Failed to delete modpack:', err);
+            // Reload from server in case of error
+            await loadModpacks();
+        }
+    };
 
-        setModpacks(prev => [...prev, newModpack]);
-        setShowForm(false);
-        setSelectedModpack(newModpack.id);
-        setShowSettings(false);
+    const handleFormSubmit = async (formData: ModpackBase) => {
+        try {
+            const newModpack = await apiService.createModpack(formData);
+            setModpacks(prev => [...prev, newModpack]);
+            setShowForm(false);
+            setSelectedModpack(newModpack.id);
+            setShowSettings(false);
+        } catch (err) {
+            console.error('Failed to create modpack:', err);
+        }
     };
 
     const handleSettingsSave = (settings: any) => {
         console.log('Settings saved:', settings);
     };
 
+    // Show login form if not authenticated
+    if (!isAuthenticated) {
+        return (
+            <LoginForm
+                onLogin={login}
+                loading={authLoading}
+                error={authError}
+            />
+        );
+    }
+
     const selectedModpackData = modpacks.find(m => m.id === selectedModpack);
 
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+                <div className="text-white text-xl">Loading...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="text-red-400 text-xl mb-4">Error: {error}</div>
+                    <button
+                        onClick={loadModpacks}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="min-h-screen bg-gray-900 flex">
+        <div className="min-h-screen bg-gray-900 flex" style={{margin: '0 auto'}}>
             <ModpackSidebar
                 modpacks={modpacks}
                 selectedModpack={selectedModpack}
@@ -93,6 +154,7 @@ function App() {
                 showForm={showForm}
                 onShowSettings={handleShowSettings}
                 showSettings={showSettings}
+                onLogout={logout}
             />
 
             <div className="flex-1 p-8">
@@ -105,6 +167,7 @@ function App() {
                         key={selectedModpack || 'none'}
                         modpack={selectedModpackData}
                         onUpdate={handleModpackUpdate}
+                        onDelete={handleModpackDelete}
                     />
                 ) : (
                     <div className="flex items-center justify-center h-full">

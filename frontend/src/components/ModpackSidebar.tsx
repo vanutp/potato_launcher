@@ -1,19 +1,16 @@
 import {Plus, Settings} from 'lucide-react';
-
-interface Modpack {
-    id: string;
-    name: string;
-    version: string;
-}
+import {LogOut} from 'lucide-react';
+import {ModpackResponse} from '../types/api';
 
 interface ModpackSidebarProps {
-    modpacks: Modpack[];
-    selectedModpack: string | null;
-    onSelectModpack: (id: string) => void;
+    modpacks: ModpackResponse[];
+    selectedModpack: number | null;
+    onSelectModpack: (id: number) => void;
     onNewModpack: () => void;
     showForm: boolean;
     onShowSettings: () => void;
     showSettings: boolean;
+    onLogout: () => void;
 }
 
 export default function ModpackSidebar(
@@ -24,7 +21,8 @@ export default function ModpackSidebar(
         onNewModpack,
         showForm,
         onShowSettings,
-        showSettings
+        showSettings,
+        onLogout
     }: ModpackSidebarProps) {
     return (
         <div className="w-80 h-screen sticky top-0 bg-gray-800 border-r border-gray-700 flex flex-col">
@@ -63,7 +61,7 @@ export default function ModpackSidebar(
                                     }`}
                                 >
                                     <div className="font-medium">{modpack.name}</div>
-                                    <div className="text-sm text-gray-400">{modpack.version}</div>
+                                    <div className="text-sm text-gray-400">{modpack.minecraft_version}</div>
                                 </button>
                             ))}
                         </div>
@@ -72,17 +70,26 @@ export default function ModpackSidebar(
             </div>
 
             <div className="p-4 border-t border-gray-700 bg-gray-800">
-                <button
-                    onClick={onShowSettings}
-                    className={`w-full flex items-center gap-2 px-4 py-3 rounded-md text-white font-medium transition-all duration-200 ${
-                        showSettings
-                            ? 'bg-blue-600 hover:bg-blue-700'
-                            : 'bg-gray-700 hover:bg-gray-600'
-                    }`}
-                >
-                    <Settings size={20}/>
-                    Settings
-                </button>
+                <div className="space-y-2">
+                    <button
+                        onClick={onShowSettings}
+                        className={`w-full flex items-center gap-2 px-4 py-3 rounded-md text-white font-medium transition-all duration-200 ${
+                            showSettings
+                                ? 'bg-blue-600 hover:bg-blue-700'
+                                : 'bg-gray-700 hover:bg-gray-600'
+                        }`}
+                    >
+                        <Settings size={20}/>
+                        Settings
+                    </button>
+                    <button
+                        onClick={onLogout}
+                        className="w-full flex items-center gap-2 px-4 py-3 rounded-md text-white font-medium transition-all duration-200 bg-red-600 hover:bg-red-700"
+                    >
+                        <LogOut size={20}/>
+                        Logout
+                    </button>
+                </div>
             </div>
         </div>
     );

@@ -1,94 +1,141 @@
-import {useState, useEffect} from 'react';
-import {CreditCard as Edit, Save, Upload, X} from 'lucide-react';
-
-interface Modpack {
-    id: string;
-    name: string;
-    version: string;
-    loader: string;
-    loaderVersion: string;
-}
+import {useState, useEffect, useCallback} from 'react';
+import {CreditCard as Edit, Save, Upload, X, Trash2} from 'lucide-react';
+import DeleteConfirmModal from './DeleteConfirmModal';
+import { ModpackResponse, LoaderType } from '../types/api';
+import { apiService } from '../services/api';
 
 interface ModpackDetailsProps {
-    modpack: Modpack;
-    onUpdate: (id: string, updatedData: Partial<Modpack>) => void;
+    modpack: ModpackResponse;
+    onUpdate: (id: number, updatedData: Partial<ModpackResponse>) => void;
+    onDelete: (id: number) => void;
 }
 
-const MINECRAFT_VERSIONS = [
-    '1.20.4',
-    '1.20.3',
-    '1.20.2',
-    '1.20.1',
-    '1.19.4',
-    '1.19.3',
-    '1.19.2',
-    '1.18.2',
-    '1.18.1',
-];
-
-const LOADERS = [
-    {id: 'forge', name: 'Forge'},
-    {id: 'neoforge', name: 'NeoForge'},
-    {id: 'fabric', name: 'Fabric'},
-];
-
-const LOADER_VERSIONS = {
-    forge: ['47.2.0', '47.1.3', '47.1.0', '46.0.14', '45.2.0'],
-    neoforge: ['2.4.15', '2.4.10', '2.3.5', '1.7.2', '1.5.8'],
-    fabric: ['0.15.6', '0.15.3', '0.14.24', '0.14.21', '0.14.19'],
-};
-
-export default function ModpackDetails({modpack, onUpdate}: ModpackDetailsProps) {
+export default function ModpackDetails({ modpack, onUpdate, onDelete }: ModpackDetailsProps) {
     const [isEditing, setIsEditing] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [editData, setEditData] = useState({
         name: modpack.name,
-        version: modpack.version,
+        minecraft_version: modpack.minecraft_version,
         loader: modpack.loader,
-        loaderVersion: modpack.loaderVersion,
+        loader_version: modpack.loader_version,
     });
+
+    const [minecraftVersions, setMinecraftVersions] = useState<string[]>([]);
+    const [availableLoaders, setAvailableLoaders] = useState<string[]>([]);
+    const [loaderVersions, setLoaderVersions] = useState<string[]>([]);
+    const [loadingVersions, setLoadingVersions] = useState(false);
+    const [loadingLoaders, setLoadingLoaders] = useState(false);
+    const [loadingLoaderVersions, setLoadingLoaderVersions] = useState(false);
     const [dragActive, setDragActive] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState<FileList | null>(null);
 
+    const loadMinecraftVersions = async () => {
+        setLoadingVersions(true);
+        try {
+            const versions = await apiService.getMinecraftVersions();
+            setMinecraftVersions(versions);
+        } catch (err) {
+            console.error('Failed to load Minecraft versions:', err);
+        } finally {
+            setLoadingVersions(false);
+        }
+    };
+
+    const loadLoaders = useCallback(async (version: string) => {
+        if (!version) {
+            setAvailableLoaders([]);
+            return;
+        }
+
+        setLoadingLoaders(true);
+        try {
+            const loaders = await apiService.getLoadersForVersion(version);
+            setAvailableLoaders(loaders);
+        } catch (err) {
+            console.error('Failed to load loaders:', err);
+            setAvailableLoaders([]);
+        } finally {
+            setLoadingLoaders(false);
+        }
+    }, []);
+
+    const loadLoaderVersions = useCallback(async (mcVersion: string, loader: string) => {
+        if (!mcVersion || !loader) {
+            setLoaderVersions([]);
+            return;
+        }
+
+        setLoadingLoaderVersions(true);
+        try {
+            const versions = await apiService.getLoaderVersions(mcVersion, loader);
+            setLoaderVersions(versions);
+        } catch (err) {
+            console.error('Failed to load loader versions:', err);
+            setLoaderVersions([]);
+        } finally {
+            setLoadingLoaderVersions(false);
+        }
+    }, []);
+
     useEffect(() => {
-        setIsEditing(false);
-        setUploadedFiles(null);
-        setEditData({
-            name: modpack.name,
-            version: modpack.version,
-            loader: modpack.loader,
-            loaderVersion: modpack.loaderVersion,
-        });
+        // Reset state when modpack changes
+        handleCancel();
     }, [modpack.id]);
 
-    const handleEdit = () => {
+    useEffect(() => {
+        if (isEditing && editData.minecraft_version) {
+            loadLoaders(editData.minecraft_version);
+        }
+    }, [editData.minecraft_version, loadLoaders, isEditing]);
+
+    useEffect(() => {
+        if (isEditing && editData.minecraft_version && editData.loader) {
+            loadLoaderVersions(editData.minecraft_version, editData.loader);
+        }
+    }, [editData.minecraft_version, editData.loader, loadLoaderVersions, isEditing]);
+
+    const handleEdit = async () => {
         setIsEditing(true);
         setEditData({
             name: modpack.name,
-            version: modpack.version,
+            minecraft_version: modpack.minecraft_version,
             loader: modpack.loader,
-            loaderVersion: modpack.loaderVersion,
+            loader_version: modpack.loader_version,
         });
+
+        // Load data when starting to edit
+        await loadMinecraftVersions();
     };
 
     const handleCancel = () => {
         setIsEditing(false);
+        setShowDeleteConfirm(false);
         setUploadedFiles(null);
+        // Clear loaded data
+        setMinecraftVersions([]);
+        setAvailableLoaders([]);
+        setLoaderVersions([]);
         setEditData({
             name: modpack.name,
-            version: modpack.version,
+            minecraft_version: modpack.minecraft_version,
             loader: modpack.loader,
-            loaderVersion: modpack.loaderVersion,
+            loader_version: modpack.loader_version,
         });
     };
 
     const handleUpdate = () => {
         onUpdate(modpack.id, editData);
         setIsEditing(false);
+        setShowDeleteConfirm(false);
         setUploadedFiles(null);
     };
 
-    const handleInputChange = (field: keyof typeof editData, value: string) => {
+    const handleInputChange = (field: keyof typeof editData, value: string | LoaderType) => {
         setEditData(prev => ({...prev, [field]: value}));
+    };
+
+    const handleDelete = () => {
+        onDelete(modpack.id);
     };
 
     const handleDrag = (e: React.DragEvent) => {
@@ -125,13 +172,40 @@ export default function ModpackDetails({modpack, onUpdate}: ModpackDetailsProps)
                         {isEditing ? 'Edit Modpack' : modpack.name}
                     </h2>
                     {!isEditing && (
-                        <button
-                            onClick={handleEdit}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors duration-200"
-                        >
-                            <Edit size={16}/>
-                            Update modpack
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={handleEdit}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors duration-200"
+                            >
+                                <Edit size={16}/>
+                                Update modpack
+                            </button>
+                            {!showDeleteConfirm ? (
+                                <button
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200"
+                                >
+                                    <Trash2 size={16}/>
+                                    Delete
+                                </button>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-red-400 text-sm font-medium">Delete this modpack?</span>
+                                    <button
+                                        onClick={handleDelete}
+                                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors duration-200"
+                                    >
+                                        Yes
+                                    </button>
+                                    <button
+                                        onClick={() => setShowDeleteConfirm(false)}
+                                        className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded transition-colors duration-200"
+                                    >
+                                        No
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
 
@@ -154,51 +228,82 @@ export default function ModpackDetails({modpack, onUpdate}: ModpackDetailsProps)
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
                                     Minecraft Version *
                                 </label>
-                                <select
-                                    value={editData.version}
-                                    onChange={(e) => handleInputChange('version', e.target.value)}
-                                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-                                >
-                                    {MINECRAFT_VERSIONS.map((version) => (
-                                        <option key={version} value={version}>
-                                            {version}
-                                        </option>
-                                    ))}
-                                </select>
+                                {loadingVersions ? (
+                                    <div className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-gray-400 flex items-center">
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500 mr-2"></div>
+                                        Loading versions...
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={editData.minecraft_version}
+                                        onChange={(e) => handleInputChange('minecraft_version', e.target.value)}
+                                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+                                    >
+                                        {minecraftVersions.map((version) => (
+                                            <option key={version} value={version}>
+                                                {version}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
                                     Mod Loader *
                                 </label>
-                                <select
-                                    value={editData.loader}
-                                    onChange={(e) => handleInputChange('loader', e.target.value)}
-                                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-                                >
-                                    {LOADERS.map((loader) => (
-                                        <option key={loader.id} value={loader.id}>
-                                            {loader.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                {loadingLoaders ? (
+                                    <div className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-gray-400 flex items-center">
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500 mr-2"></div>
+                                        Loading loaders...
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={editData.loader}
+                                        onChange={(e) => handleInputChange('loader', e.target.value as LoaderType)}
+                                        disabled={!editData.minecraft_version || availableLoaders.length === 0}
+                                        className={`w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 ${
+                                            !editData.minecraft_version || availableLoaders.length === 0
+                                                ? 'opacity-50 cursor-not-allowed'
+                                                : ''
+                                        }`}
+                                    >
+                                        {availableLoaders.map((loader) => (
+                                            <option key={loader} value={loader}>
+                                                {loader.charAt(0).toUpperCase() + loader.slice(1)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
                                     Loader Version *
                                 </label>
-                                <select
-                                    value={editData.loaderVersion}
-                                    onChange={(e) => handleInputChange('loaderVersion', e.target.value)}
-                                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
-                                >
-                                    {LOADER_VERSIONS[editData.loader as keyof typeof LOADER_VERSIONS]?.map((version) => (
-                                        <option key={version} value={version}>
-                                            {version}
-                                        </option>
-                                    ))}
-                                </select>
+                                {loadingLoaderVersions ? (
+                                    <div className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-gray-400 flex items-center">
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500 mr-2"></div>
+                                        Loading versions...
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={editData.loader_version}
+                                        onChange={(e) => handleInputChange('loader_version', e.target.value)}
+                                        disabled={!editData.loader || loaderVersions.length === 0}
+                                        className={`w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 ${
+                                            !editData.loader || loaderVersions.length === 0
+                                                ? 'opacity-50 cursor-not-allowed'
+                                                : ''
+                                        }`}
+                                    >
+                                        {loaderVersions.map((version) => (
+                                            <option key={version} value={version}>
+                                                {version}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
 
                             <div>
@@ -264,7 +369,7 @@ export default function ModpackDetails({modpack, onUpdate}: ModpackDetailsProps)
                                     Minecraft Version
                                 </label>
                                 <p className="text-white bg-gray-700 px-4 py-2 rounded-md">
-                                    {modpack.version}
+                                    {modpack.minecraft_version}
                                 </p>
                             </div>
                             <div>
@@ -280,13 +385,20 @@ export default function ModpackDetails({modpack, onUpdate}: ModpackDetailsProps)
                                     Loader Version
                                 </label>
                                 <p className="text-white bg-gray-700 px-4 py-2 rounded-md">
-                                    {modpack.loaderVersion}
+                                    {modpack.loader_version}
                                 </p>
                             </div>
                         </div>
                     )}
                 </div>
             </div>
+
+            <DeleteConfirmModal
+                isOpen={showDeleteConfirm}
+                modpackName={modpack.name}
+                onConfirm={handleDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+            />
         </div>
     );
 }
