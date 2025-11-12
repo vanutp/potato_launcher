@@ -2,7 +2,7 @@ import {useState, useEffect, useCallback} from 'react';
 import * as React from "react";
 import {Upload} from 'lucide-react';
 import {apiService} from '../services/api';
-import {ModpackBase, LoaderType} from '../types/api';
+import {ModpackBase, LoaderType, AuthKind, AuthConfig} from '../types/api';
 
 interface ModpackFormProps {
     onSubmit: (data: ModpackBase) => void;
@@ -14,6 +14,9 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
         minecraft_version: '',
         loader: LoaderType.VANILLA,
         loader_version: '',
+        auth_config: {
+            kind: AuthKind.OFFLINE
+        }
     });
 
     const [minecraftVersions, setMinecraftVersions] = useState<string[]>([]);
@@ -98,6 +101,20 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
         if (!formData.loader_version) {
             newErrors.loader_version = 'Loader version is required';
         }
+        if (!formData.auth_config.kind) {
+            newErrors.auth_kind = 'Authentication type is required';
+        }
+        if (formData.auth_config.kind === AuthKind.TELEGRAM && !formData.auth_config.auth_base_url?.trim()) {
+            newErrors.auth_base_url = 'Auth base URL is required for Telegram';
+        }
+        if (formData.auth_config.kind === AuthKind.ELY_BY) {
+            if (!formData.auth_config.client_id?.trim()) {
+                newErrors.client_id = 'Client ID is required for Ely.by';
+            }
+            if (!formData.auth_config.client_secret?.trim()) {
+                newErrors.client_secret = 'Client Secret is required for Ely.by';
+            }
+        }
 
         setErrors(newErrors);
 
@@ -116,7 +133,15 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
                 onSubmit(formData);
 
                 // Reset form
-                setFormData({name: '', minecraft_version: '', loader: LoaderType.VANILLA, loader_version: ''});
+                setFormData({
+                    name: '',
+                    minecraft_version: '',
+                    loader: LoaderType.VANILLA,
+                    loader_version: '',
+                    auth_config: {
+                        kind: AuthKind.OFFLINE
+                    }
+                });
                 setUploadedFiles(null);
             } catch (err) {
                 console.error('Failed to create modpack:', err);
@@ -134,6 +159,24 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
         }
     };
 
+    const handleAuthConfigChange = (field: keyof AuthConfig, value: string | AuthKind) => {
+        setFormData(prev => ({
+            ...prev,
+            auth_config: {
+                ...prev.auth_config,
+                [field]: value,
+                // Clear optional fields when changing kind
+                ...(field === 'kind' && {
+                    auth_base_url: undefined,
+                    client_id: undefined,
+                    client_secret: undefined
+                })
+            }
+        }));
+        if (errors[field as string]) {
+            setErrors(prev => ({...prev, [field as string]: ''}));
+        }
+    };
     const handleDrag = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -281,6 +324,90 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
                             <p className="mt-1 text-sm text-yellow-400">No versions available for this loader</p>
                         )}
                     </div>
+
+                    <div>
+                        <label htmlFor="auth_kind" className="block text-sm font-medium text-gray-300 mb-2">
+                            Authentication Type *
+                        </label>
+                        <select
+                            id="auth_kind"
+                            value={formData.auth_config.kind}
+                            onChange={(e) => handleAuthConfigChange('kind', e.target.value as AuthKind)}
+                            className={`w-full px-4 py-3 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 transition-all duration-200 ${
+                                errors.auth_kind
+                                    ? 'border-red-500 focus:ring-red-500'
+                                    : 'border-gray-600 focus:ring-green-500 focus:border-green-500'
+                            }`}
+                        >
+                            <option value={AuthKind.OFFLINE}>Offline</option>
+                            <option value={AuthKind.MOJANG}>Mojang</option>
+                            <option value={AuthKind.TELEGRAM}>Telegram</option>
+                            <option value={AuthKind.ELY_BY}>Ely.by</option>
+                        </select>
+                        {errors.auth_kind && <p className="mt-1 text-sm text-red-400">{errors.auth_kind}</p>}
+                    </div>
+
+                    {formData.auth_config.kind === AuthKind.TELEGRAM && (
+                        <div>
+                            <label htmlFor="auth_base_url" className="block text-sm font-medium text-gray-300 mb-2">
+                                Auth Base URL *
+                            </label>
+                            <input
+                                id="auth_base_url"
+                                type="url"
+                                value={formData.auth_config.auth_base_url || ''}
+                                onChange={(e) => handleAuthConfigChange('auth_base_url', e.target.value)}
+                                className={`w-full px-4 py-3 bg-gray-700 border rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
+                                    errors.auth_base_url
+                                        ? 'border-red-500 focus:ring-red-500'
+                                        : 'border-gray-600 focus:ring-green-500 focus:border-green-500'
+                                }`}
+                                placeholder="https://your-telegram-auth-server.com"
+                            />
+                            {errors.auth_base_url && <p className="mt-1 text-sm text-red-400">{errors.auth_base_url}</p>}
+                        </div>
+                    )}
+
+                    {formData.auth_config.kind === AuthKind.ELY_BY && (
+                        <>
+                            <div>
+                                <label htmlFor="client_id" className="block text-sm font-medium text-gray-300 mb-2">
+                                    Client ID *
+                                </label>
+                                <input
+                                    id="client_id"
+                                    type="text"
+                                    value={formData.auth_config.client_id || ''}
+                                    onChange={(e) => handleAuthConfigChange('client_id', e.target.value)}
+                                    className={`w-full px-4 py-3 bg-gray-700 border rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
+                                        errors.client_id
+                                            ? 'border-red-500 focus:ring-red-500'
+                                            : 'border-gray-600 focus:ring-green-500 focus:border-green-500'
+                                    }`}
+                                    placeholder="Enter Ely.by client ID..."
+                                />
+                                {errors.client_id && <p className="mt-1 text-sm text-red-400">{errors.client_id}</p>}
+                            </div>
+                            <div>
+                                <label htmlFor="client_secret" className="block text-sm font-medium text-gray-300 mb-2">
+                                    Client Secret *
+                                </label>
+                                <input
+                                    id="client_secret"
+                                    type="password"
+                                    value={formData.auth_config.client_secret || ''}
+                                    onChange={(e) => handleAuthConfigChange('client_secret', e.target.value)}
+                                    className={`w-full px-4 py-3 bg-gray-700 border rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
+                                        errors.client_secret
+                                            ? 'border-red-500 focus:ring-red-500'
+                                            : 'border-gray-600 focus:ring-green-500 focus:border-green-500'
+                                    }`}
+                                    placeholder="Enter Ely.by client secret..."
+                                />
+                                {errors.client_secret && <p className="mt-1 text-sm text-red-400">{errors.client_secret}</p>}
+                            </div>
+                        </>
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium text-gray-300 mb-2">

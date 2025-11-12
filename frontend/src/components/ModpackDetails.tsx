@@ -1,7 +1,7 @@
 import {useState, useEffect, useCallback} from 'react';
 import {CreditCard as Edit, Save, Upload, X, Trash2} from 'lucide-react';
 import DeleteConfirmModal from './DeleteConfirmModal';
-import { ModpackResponse, LoaderType } from '../types/api';
+import { ModpackResponse, LoaderType, AuthKind, AuthConfig } from '../types/api';
 import { apiService } from '../services/api';
 
 interface ModpackDetailsProps {
@@ -18,6 +18,7 @@ export default function ModpackDetails({ modpack, onUpdate, onDelete }: ModpackD
         minecraft_version: modpack.minecraft_version,
         loader: modpack.loader,
         loader_version: modpack.loader_version,
+        auth_config: modpack.auth_config,
     });
 
     const [minecraftVersions, setMinecraftVersions] = useState<string[]>([]);
@@ -102,6 +103,7 @@ export default function ModpackDetails({ modpack, onUpdate, onDelete }: ModpackD
             minecraft_version: modpack.minecraft_version,
             loader: modpack.loader,
             loader_version: modpack.loader_version,
+            auth_config: modpack.auth_config,
         });
 
         // Load data when starting to edit
@@ -121,6 +123,7 @@ export default function ModpackDetails({ modpack, onUpdate, onDelete }: ModpackD
             minecraft_version: modpack.minecraft_version,
             loader: modpack.loader,
             loader_version: modpack.loader_version,
+            auth_config: modpack.auth_config,
         });
     };
 
@@ -152,6 +155,22 @@ export default function ModpackDetails({ modpack, onUpdate, onDelete }: ModpackD
 
     const handleInputChange = (field: keyof typeof editData, value: string | LoaderType) => {
         setEditData(prev => ({...prev, [field]: value}));
+    };
+
+    const handleAuthConfigChange = (field: keyof AuthConfig, value: string | AuthKind) => {
+        setEditData(prev => ({
+            ...prev,
+            auth_config: {
+                ...prev.auth_config,
+                [field]: value,
+                // Clear optional fields when changing kind
+                ...(field === 'kind' && {
+                    auth_base_url: undefined,
+                    client_id: undefined,
+                    client_secret: undefined
+                })
+            }
+        }));
     };
 
     const handleDelete = () => {
@@ -328,6 +347,66 @@ export default function ModpackDetails({ modpack, onUpdate, onDelete }: ModpackD
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
+                                    Authentication Type *
+                                </label>
+                                <select
+                                    value={editData.auth_config.kind}
+                                    onChange={(e) => handleAuthConfigChange('kind', e.target.value as AuthKind)}
+                                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+                                >
+                                    <option value={AuthKind.OFFLINE}>Offline</option>
+                                    <option value={AuthKind.MOJANG}>Mojang</option>
+                                    <option value={AuthKind.TELEGRAM}>Telegram</option>
+                                    <option value={AuthKind.ELY_BY}>Ely.by</option>
+                                </select>
+                            </div>
+
+                            {editData.auth_config.kind === AuthKind.TELEGRAM && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Auth Base URL *
+                                    </label>
+                                    <input
+                                        type="url"
+                                        value={editData.auth_config.auth_base_url || ''}
+                                        onChange={(e) => handleAuthConfigChange('auth_base_url', e.target.value)}
+                                        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+                                        placeholder="https://your-telegram-auth-server.com"
+                                    />
+                                </div>
+                            )}
+
+                            {editData.auth_config.kind === AuthKind.ELY_BY && (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Client ID *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editData.auth_config.client_id || ''}
+                                            onChange={(e) => handleAuthConfigChange('client_id', e.target.value)}
+                                            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+                                            placeholder="Enter Ely.by client ID..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Client Secret *
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={editData.auth_config.client_secret || ''}
+                                            onChange={(e) => handleAuthConfigChange('client_secret', e.target.value)}
+                                            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
+                                            placeholder="Enter Ely.by client secret..."
+                                        />
+                                    </div>
+                                </>
+                            )}
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">
                                     Upload Files (Optional)
                                 </label>
                                 <div
@@ -423,6 +502,44 @@ export default function ModpackDetails({ modpack, onUpdate, onDelete }: ModpackD
                                     {modpack.loader_version}
                                 </p>
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">
+                                    Authentication Type
+                                </label>
+                                <p className="text-white bg-gray-700 px-4 py-2 rounded-md capitalize">
+                                    {modpack.auth_config.kind}
+                                </p>
+                            </div>
+                            {modpack.auth_config.kind === AuthKind.TELEGRAM && modpack.auth_config.auth_base_url && (
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">
+                                        Auth Base URL
+                                    </label>
+                                    <p className="text-white bg-gray-700 px-4 py-2 rounded-md break-all">
+                                        {modpack.auth_config.auth_base_url}
+                                    </p>
+                                </div>
+                            )}
+                            {modpack.auth_config.kind === AuthKind.ELY_BY && (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                                            Client ID
+                                        </label>
+                                        <p className="text-white bg-gray-700 px-4 py-2 rounded-md">
+                                            {modpack.auth_config.client_id}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                                            Client Secret
+                                        </label>
+                                        <p className="text-white bg-gray-700 px-4 py-2 rounded-md">
+                                            ••••••••••••••••
+                                        </p>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>

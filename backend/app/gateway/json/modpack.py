@@ -1,15 +1,42 @@
+from typing import Any
+
 from app.gateway.json.db import read_file, save_file
 from app.gateway.modpack import ModpackGateway
-from app.models.modpack import Modpack
+from app.models.modpack import Modpack, TelegramAuth, ElyAuth, MojangAuth, OfflineAuth, AuthConfig
 
 
 class JsonModpackGateway(ModpackGateway):
+
+    def _auth_as_dict(self, modpack: Modpack) -> dict[str, Any]:
+        auth = {
+            "kind": modpack.auth_config.kind,
+        }
+        if modpack.auth_config.kind == "ely.by":
+            auth["client_id"] = modpack.auth_config.client_id
+            auth["client_secret"] = modpack.auth_config.client_secret
+        elif modpack.auth_config.kind == "telegram":
+            auth["auth_base_url"] = modpack.auth_config.auth_base_url
+        return auth
+
+    def _dict_to_auth(self, data: dict[str, Any]) -> AuthConfig:
+        kind = data["kind"]
+        if kind == "telegram":
+            return TelegramAuth(auth_base_url=data["auth_base_url"])
+        elif kind == "ely.by":
+            return ElyAuth(client_id=data["client_id"], client_secret=data["client_secret"])
+        elif kind == "mojang":
+            return MojangAuth()
+        elif kind == "offline":
+            return OfflineAuth()
+        else:
+            raise ValueError(f"Unknown auth kind: {kind}")
 
     def save(self, modpack: Modpack) -> Modpack:
         data = read_file()
         modpacks = data.get("modpacks", [])
 
         new_id = (max((int(m.get("id", 0)) for m in modpacks), default=0) + 1)
+
         modpacks.append(
             {
                 "id": new_id,
@@ -17,6 +44,7 @@ class JsonModpackGateway(ModpackGateway):
                 "minecraft_version": modpack.minecraft_version,
                 "loader": modpack.loader,
                 "loader_version": modpack.loader_version,
+                "auth_config": self._auth_as_dict(modpack)
             }
         )
         data["modpacks"] = modpacks
@@ -28,6 +56,7 @@ class JsonModpackGateway(ModpackGateway):
             minecraft_version=modpack.minecraft_version,
             loader=modpack.loader.value,
             loader_version=modpack.loader_version,
+            auth_config=self._dict_to_auth(modpacks[-1]["auth_config"])
         )
 
     def get_by_id(self, id: int) -> Modpack | None:
@@ -52,6 +81,7 @@ class JsonModpackGateway(ModpackGateway):
                     "minecraft_version": modpack.minecraft_version,
                     "loader": modpack.loader.value,
                     "loader_version": modpack.loader_version,
+                    "auth_config": self._auth_as_dict(modpack)
                 }
                 data["modpacks"] = modpacks
                 save_file(data)

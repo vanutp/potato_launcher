@@ -7,7 +7,8 @@ from urllib.parse import urlparse
 
 from fastapi import HTTPException
 
-from app.models.modpack import LoaderType
+from app.models.modpack import LoaderType, Modpack
+from app.models.setting import Setting
 from app.services.connection_manager import ConnectionManager
 from app.services.mc_versions_service import (
     get_loader_versions,
@@ -19,7 +20,6 @@ from app.services.mc_versions_service import (
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _BUILD_DIR = _PROJECT_ROOT / "build_artifacts"
 _SPEC_FILE_NAME = "spec.json"
-
 
 class RunnerService:
     def __init__(self, connection_manager: ConnectionManager) -> None:
@@ -36,7 +36,7 @@ class RunnerService:
             return self._busy
 
 
-    async def run_build(self):
+    async def run_build(self) -> None:
         spec_path = _BUILD_DIR / _SPEC_FILE_NAME
 
         ###
