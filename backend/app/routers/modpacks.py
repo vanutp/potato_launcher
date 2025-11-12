@@ -79,6 +79,7 @@ async def build(
     is_success = await runner_service.run_build()
     if not is_success:
         raise HTTPException(status_code=400, detail="Failed to build modpacks")
+    return True
 
 
 @router.get(

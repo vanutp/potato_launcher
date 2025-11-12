@@ -18,12 +18,12 @@ from app.services.mc_versions_service import (
 
 # TODO вернуться к папкам когда будем запускать скрипт
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_BUILD_DIR = _PROJECT_ROOT / "build_artifacts"
-_SPEC_FILE_NAME = "spec.json"
+_BUILD_DIR = _PROJECT_ROOT / "instance_builder"
+
 
 class RunnerService:
     def __init__(self, connection_manager: ConnectionManager) -> None:
-        self._debug: bool = True # TODO temp only for debug
+        self._debug: bool = False # TODO temp only for debug
         self._busy: bool = False
         self._lock = asyncio.Lock()
         self._connection_manager = connection_manager
@@ -36,10 +36,8 @@ class RunnerService:
             return self._busy
 
 
-    async def run_build(self) -> None:
-        spec_path = _BUILD_DIR / _SPEC_FILE_NAME
-
-        ###
+    async def run_build(self) -> bool:
+        # TODO uncomment
         # await self._validate_spec(spec_path)
 
         should_notify = False
@@ -55,11 +53,11 @@ class RunnerService:
                 sleep_seconds = int(60)
                 self._task = asyncio.create_task(self._dummy_build(sleep_seconds))
             else:
-                self._task = asyncio.create_task(self._execute_cargo_command(spec_path))
+                self._task = asyncio.create_task(self._execute_instance_builder())
 
         if should_notify:
             await self._broadcast_status()
-            
+
         return True
 
     # TODO temp only for debug
@@ -82,16 +80,14 @@ class RunnerService:
                 self._busy = False
             await self._broadcast_status()
 
-    async def _execute_cargo_command(self, spec_path: Path) -> None:
+    async def _execute_instance_builder(self) -> None:
+        # TODO  сделать краше и не с .exe
         cmd = [
-            "cargo",
-            "run",
-            "--release",
-            "-p",
-            "instance_builder",
-            "--",
+            "..\\instance_builder\\instance_builder.exe",
             "-s",
-            str(spec_path),
+            "..\\instance_builder\\spec.json",
+            "..\\generated",
+            "..\\workdir"
         ]
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -101,7 +97,7 @@ class RunnerService:
                 cwd=str(_PROJECT_ROOT),
             )
 
-            stdout_b, stderr_b = await proc.communicate()
+            stdout, stderr = await proc.communicate()
             msg = "ok" if proc.returncode == 0 else f"failed (code {proc.returncode})"
             # TODO log stdout/stderr here
 
