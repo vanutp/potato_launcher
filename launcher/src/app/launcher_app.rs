@@ -54,7 +54,7 @@ impl LauncherApp {
         LauncherApp {
             settings_state: SettingsState::new(),
             auth_state: AuthState::new(ctx, &config),
-            manifest_state: ManifestState::new(&runtime, ctx),
+            manifest_state: ManifestState::new(&runtime, ctx, &config),
             metadata_state: MetadataState::new(),
             java_state: JavaState::new(ctx),
             instance_sync_state: InstanceSyncState::new(ctx),
@@ -73,7 +73,13 @@ impl LauncherApp {
                 ui.add_space(5.0);
                 ui.horizontal(|ui| {
                     let selected_metadata = self.metadata_state.get_version_metadata(&self.config);
-                    self.settings_state.render_settings(ui, &mut self.config);
+                    self.settings_state.render_settings(
+                        ui,
+                        &mut self.config,
+                        &self.runtime,
+                        &mut self.manifest_state,
+                        ctx,
+                    );
 
                     self.instance_sync_state.render_sync_button(
                         ui,
@@ -84,7 +90,8 @@ impl LauncherApp {
 
                     if ui.button("🔄").clicked() {
                         self.auth_state.reset(&mut self.config, &self.runtime, ctx);
-                        self.manifest_state.retry_fetch(&self.runtime, ctx);
+                        self.manifest_state
+                            .retry_fetch(&self.runtime, &self.config, ctx);
                         self.metadata_state.reset(true); // just reset the state, not the task
 
                         // metadata is checked after manifest is fetched
@@ -126,16 +133,32 @@ impl LauncherApp {
     fn render_central_elements(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         let (manifest, updated) = self.manifest_state.take_manifest(&mut self.config);
         if let Some(manifest) = manifest {
-            self.instance_storage.set_remote_manifest(Some(manifest));
+            self.instance_sync_state.cancel_sync();
+            self.instance_storage
+                .set_remote_manifest(manifest, self.config.get_effective_version_manifest_url());
         }
         if updated {
+            let (local_instance_names, remote_instance_names) =
+                self.instance_storage.get_all_names();
+            let selected_valid = self
+                .config
+                .selected_instance_name
+                .as_ref()
+                .map(|name| {
+                    local_instance_names.contains(name) || remote_instance_names.contains(name)
+                })
+                .unwrap_or(false);
+            if !selected_valid {
+                self.config.selected_instance_name = None;
+                self.config.save();
+            }
             self.set_metadata_task(ctx);
         }
 
         if let Some(version_info) = self.new_instance_state.take_new_instance() {
             self.runtime.block_on(
                 self.instance_storage
-                    .add_instance(&self.config, version_info),
+                    .add_local_instance(&self.config, version_info),
             );
         }
 
