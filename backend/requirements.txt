@@ -8,3 +8,4 @@ async-lru~=2.0.5
 pydantic-settings~=2.12.0
 httpx~=0.28.1
 websockets~=15.0.1
+python-multipart~=0.0.6

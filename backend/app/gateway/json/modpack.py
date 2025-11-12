@@ -101,6 +101,8 @@ class JsonModpackGateway(ModpackGateway):
                 }
             ]
             modpack['include_from'] = f'./modpacks-saves/{id}'
+            loader_name = modpack.pop("loader")
+            modpack['loader_name'] = loader_name
             spec["versions"].append(modpack)
         
         save_spec_file(spec)
