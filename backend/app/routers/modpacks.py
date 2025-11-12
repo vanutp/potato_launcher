@@ -73,8 +73,10 @@ def get(
     summary="Run build",
 )
 async def build(
-        runner_service: Annotated[RunnerService, Depends(Stub(RunnerService))]
+        runner_service: Annotated[RunnerService, Depends(Stub(RunnerService))],
+        modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))]
 ):
+    modpack_gateway.generate_spec()
     is_success = await runner_service.run_build()
     if not is_success:
         raise HTTPException(status_code=400, detail="Failed to build modpacks")
