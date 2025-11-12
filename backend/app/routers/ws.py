@@ -29,7 +29,7 @@ async def websocket_endpoint(
     try:
         while True:
             await websocket.receive()
-    except WebSocketDisconnect:
+    except Exception:
         pass
     finally:
         await manager.disconnect(websocket)
