@@ -1,7 +1,7 @@
 import {useState, useEffect, useCallback} from 'react';
 import * as React from "react";
-import { apiService } from '../services/api';
-import { ModpackBase, LoaderType } from '../types/api';
+import {apiService} from '../services/api';
+import {ModpackBase, LoaderType} from '../types/api';
 
 interface ModpackFormProps {
     onSubmit: (data: ModpackBase) => void;
@@ -11,7 +11,7 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
     const [formData, setFormData] = useState<ModpackBase>({
         name: '',
         minecraft_version: '',
-        loader: LoaderType.FORGE,
+        loader: LoaderType.VANILLA,
         loader_version: '',
     });
 
@@ -67,7 +67,7 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
     useEffect(() => {
         if (formData.minecraft_version) {
             loadLoaders(formData.minecraft_version);
-            setFormData(prev => ({...prev, loader: LoaderType.FORGE, loader_version: ''}));
+            setFormData(prev => ({...prev, loader: LoaderType.VANILLA, loader_version: ''}));
         }
     }, [formData.minecraft_version, loadLoaders]);
 
@@ -100,7 +100,7 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
 
         if (Object.keys(newErrors).length === 0) {
             onSubmit(formData);
-            setFormData({name: '', minecraft_version: '', loader: LoaderType.FORGE, loader_version: ''});
+            setFormData({name: '', minecraft_version: '', loader: LoaderType.VANILLA, loader_version: ''});
         }
     };
 
@@ -157,7 +157,8 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
                                 </option>
                             ))}
                         </select>
-                        {errors.minecraft_version && <p className="mt-1 text-sm text-red-400">{errors.minecraft_version}</p>}
+                        {errors.minecraft_version &&
+                            <p className="mt-1 text-sm text-red-400">{errors.minecraft_version}</p>}
                     </div>
 
                     <div>

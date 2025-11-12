@@ -1,4 +1,5 @@
 export enum LoaderType {
+  VANILLA = "vanilla",
   FORGE = "forge",
   FABRIC = "fabric",
   NEOFORGE = "neoforge"
