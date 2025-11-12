@@ -5,7 +5,7 @@ from starlette import status
 
 from app.gateway.modpack import ModpackGateway
 from app.models.modpack import ModpackResponse, CreateModpackRequest, UpdateModpackRequest
-from app.services.runner_service import runner_service
+from app.services.runner_service import RunnerService
 from app.utils.security import verify_access_token
 from app.utils.stub import Stub
 
@@ -65,15 +65,20 @@ def get(
 @router.post(
     "/build",
     summary="Run build",
+    response_model=bool
 )
-async def build(body: dict[str, Any]):
-    return await runner_service.run_build(body)
+async def build(
+        runner_service: Annotated[RunnerService, Depends(Stub(RunnerService))]
+):
+    return await runner_service.run_build()
 
 
 @router.get(
     "/build/status",
     summary="Get build status",
-    response_model=dict[str, Any]
+    response_model=bool
 )
-async def get_build_status():
+async def get_build_status(
+        runner_service: Annotated[RunnerService, Depends(Stub(RunnerService))]
+):
     return await runner_service.get_status()

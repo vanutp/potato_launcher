@@ -15,6 +15,7 @@ from app.routers import modpacks
 from app.routers import mc_versions
 from app.routers import settings
 from app.services.connection_manager import ConnectionManager
+from app.services.runner_service import RunnerService
 
 
 async def handle_error(_: Request, exc: Exception) -> JSONResponse:
@@ -54,9 +55,12 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    connection_manager = ConnectionManager()
+    runner = RunnerService(connection_manager)
     app.dependency_overrides[SettingGateway] = lambda: JsonSettingGateway()
     app.dependency_overrides[ModpackGateway] = lambda: JsonModpackGateway()
-    app.dependency_overrides[ConnectionManager] = lambda: ConnectionManager()
+    app.dependency_overrides[ConnectionManager] = lambda: connection_manager
+    app.dependency_overrides[RunnerService] = lambda: runner
 
     register_routers(app)
     catch_exceptions(app)
