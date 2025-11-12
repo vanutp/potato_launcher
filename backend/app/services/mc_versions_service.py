@@ -24,8 +24,11 @@ async def get_vanilla_versions(version_type: Optional[str] = None) -> List[str]:
 
 @alru_cache
 async def get_loaders_for_version(version: str) -> List[str]:
-    # TODO проверить, что для переданный version в принципе существует в игре
-    loaders: List[LoaderType] = [LoaderType.VANILLA]
+    loaders: List[LoaderType] = []
+    
+    vanilla_versions = get_vanilla_versions()
+    if version in vanilla_versions:
+        loaders.append(LoaderType.VANILLA)
 
     if await fabric_has_loader_for(version):
         loaders.append(LoaderType.FABRIC)
