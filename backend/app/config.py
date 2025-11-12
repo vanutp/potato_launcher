@@ -6,9 +6,11 @@ class ConfigEnv(BaseSettings):
     ADMIN_SECRET_TOKEN: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     ALGORITHM: str = "HS256"
+    HOST: str = "0.0.0.0"
+    PORT: int = 8000
 
     class Config:
-        env_file = ".env"
+        env_file = "../.env"
         env_file_encoding = "utf-8"
 
 
