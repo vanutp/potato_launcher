@@ -3,7 +3,7 @@ import os.path
 from typing import Any
 
 _DB_FILE_NAME = "db.json"
-_SPEC_FILE_NAME = "spec.example.json"
+_SPEC_FILE_NAME = "../instance_builder/spec.json"
 
 
 def read_file() -> dict[str, Any]:

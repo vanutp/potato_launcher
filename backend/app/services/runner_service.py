@@ -86,20 +86,19 @@ class RunnerService:
     async def _execute_instance_builder(self) -> None:
         # TODO move from .exe to linux elf :)
         cmd = [
-            str((_BUILD_DIR / "instance_builder.exe").resolve()),
+            str((_BUILD_DIR / "instance_builder").resolve()),
             "-s",
             str((_BUILD_DIR / "spec.json").resolve()),
             str((_PROJECT_ROOT / "generated").resolve()),
             str((_PROJECT_ROOT / "workdir").resolve()),
         ]
 
-        print(_PROJECT_ROOT)
         print(_BUILD_DIR)
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                #stdout=asyncio.subprocess.PIPE,
+                #stderr=asyncio.subprocess.PIPE,
                 cwd=str(_BUILD_DIR),
             )
 

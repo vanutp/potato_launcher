@@ -100,12 +100,13 @@ class JsonModpackGateway(ModpackGateway):
                     "overwrite": False
                 }
             ]
+            modpack['include_from'] = f'./modpacks-saves/{id}'
             spec["versions"].append(modpack)
         
         save_spec_file(spec)
 
     def _cast_value(self, value: str, type: str) -> str | bool:
-        if type == 'bool':
+        if type == 'boolean':
             return bool(value)
         return str(value)
 
