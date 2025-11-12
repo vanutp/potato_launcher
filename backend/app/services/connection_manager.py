@@ -11,7 +11,8 @@ class ConnectionManager:
         self.connections.append(websocket)
 
     async def disconnect(self, websocket: WebSocket):
-        self.connections.remove(websocket)
+        if websocket in self.connections:
+            self.connections.remove(websocket)
 
     async def notify_all(self, text: str):
         to_remove = []
