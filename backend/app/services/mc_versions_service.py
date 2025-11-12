@@ -1,5 +1,5 @@
 from typing import List, Optional
-from models.modpack import LoaderType
+from app.models.modpack import LoaderType
 
 from app.integrations.vanilla_versions import get_vanilla_version_list
 from app.integrations.forge_loader import (

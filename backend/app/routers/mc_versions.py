@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from app.utils.security import verify_access_token
 from typing import List
-from models.modpack import LoaderType
+from app.models.modpack import LoaderType
 
 from app.services.mc_versions_service import (
     get_vanilla_versions,
@@ -37,6 +37,6 @@ async def get(version: str) -> list[LoaderType]:
     response_model=list[str],
     summary="List loader version for specified minecraft version"
 )
-async def get(version: str, loader: str) -> list[str]:
-    loader_versions = await get_loader_versions(version, loader)
+async def get(version: str, loader: LoaderType) -> list[str]:
+    loader_versions = await get_loader_versions(version, loader.value)
     return loader_versions
