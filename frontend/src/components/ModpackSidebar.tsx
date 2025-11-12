@@ -1,5 +1,5 @@
 import {Plus, Settings} from 'lucide-react';
-import {LogOut} from 'lucide-react';
+import {LogOut, Hammer} from 'lucide-react';
 import {ModpackResponse} from '../types/api';
 
 interface ModpackSidebarProps {
@@ -11,6 +11,7 @@ interface ModpackSidebarProps {
     onShowSettings: () => void;
     showSettings: boolean;
     onLogout: () => void;
+    onBuild: () => void;
 }
 
 export default function ModpackSidebar(
@@ -22,7 +23,8 @@ export default function ModpackSidebar(
         showForm,
         onShowSettings,
         showSettings,
-        onLogout
+        onLogout,
+        onBuild
     }: ModpackSidebarProps) {
     return (
         <div className="w-80 h-screen sticky top-0 bg-gray-800 border-r border-gray-700 flex flex-col">
@@ -38,6 +40,13 @@ export default function ModpackSidebar(
                 >
                     <Plus size={20}/>
                     New Modpack
+                </button>
+                <button
+                    onClick={onBuild}
+                    className="w-full flex items-center gap-2 px-4 py-3 rounded-md text-white font-medium transition-all duration-200 bg-orange-500 hover:bg-orange-600 mt-3"
+                >
+                    <Hammer size={20}/>
+                    Build
                 </button>
             </div>
 

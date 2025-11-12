@@ -71,7 +71,6 @@ def get(
 @router.post(
     "/build",
     summary="Run build",
-    response_model=bool
 )
 async def build(
         runner_service: Annotated[RunnerService, Depends(Stub(RunnerService))]

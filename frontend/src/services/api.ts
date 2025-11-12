@@ -126,6 +126,13 @@ class ApiService {
       body: JSON.stringify(settings),
     });
   }
+
+  // Build
+  async buildModpacks(): Promise<void> {
+    await this.request<void>('/modpacks/build', {
+      method: 'POST',
+    });
+  }
 }
 
 export const apiService = new ApiService();

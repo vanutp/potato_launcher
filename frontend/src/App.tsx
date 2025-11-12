@@ -6,6 +6,8 @@ import ModpackDetails from './components/ModpackDetails';
 import SettingsForm from './components/SettingsForm';
 import {useAuth} from './hooks/useAuth';
 import {useWebSocket} from './hooks/useWebSocket';
+import {useNotification} from './hooks/useNotification';
+import Notification from './components/Notification';
 import {apiService} from './services/api';
 import {ModpackResponse, ModpackBase} from './types/api';
 import {useRef} from 'react';
@@ -13,6 +15,7 @@ import {useRef} from 'react';
 
 function App() {
     const { isAuthenticated, loading: authLoading, error: authError, login, logout } = useAuth();
+    const { notification, hideNotification, showSuccess, showError } = useNotification();
     const [modpacks, setModpacks] = useState<ModpackResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -20,6 +23,7 @@ function App() {
     const [selectedModpack, setSelectedModpack] = useState<number | null>(null);
     const [showForm, setShowForm] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [_, setBuilding] = useState(false);
     const fetchingRef = useRef(false);
 
     // WebSocket connection for real-time updates
@@ -106,7 +110,7 @@ function App() {
         }
     };
 
-    const handleFormSubmit = async (formData: ModpackBase) => {
+    const handleFormSubmit = async (_: ModpackBase) => {
         // The form handles creation and file upload internally
         // Just reload modpacks and update UI state
         await loadModpacks();
@@ -116,6 +120,19 @@ function App() {
 
     const handleSettingsSave = (settings: any) => {
         console.log('Settings saved:', settings);
+    };
+
+    const handleBuild = async () => {
+        try {
+            setBuilding(true);
+            await apiService.buildModpacks();
+            showSuccess('Build started successfully!');
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Build failed';
+            showError(`Build failed: ${errorMessage}`);
+        } finally {
+            setBuilding(false);
+        }
     };
 
     // Show login form if not authenticated
@@ -157,6 +174,12 @@ function App() {
 
     return (
         <div className="min-h-screen bg-gray-900 flex" style={{margin: '0 auto'}}>
+            <Notification
+                type={notification.type}
+                message={notification.message}
+                isVisible={notification.isVisible}
+                onClose={hideNotification}
+            />
             <ModpackSidebar
                 modpacks={modpacks}
                 selectedModpack={selectedModpack}
@@ -166,6 +189,7 @@ function App() {
                 onShowSettings={handleShowSettings}
                 showSettings={showSettings}
                 onLogout={logout}
+                onBuild={handleBuild}
             />
 
             <div className="flex-1 p-8">
