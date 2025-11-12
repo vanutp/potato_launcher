@@ -11,4 +11,6 @@ services:
     env_file:
       - ./backend/.env
     volumes:
-      - ./generated:/app/generated
+      - ./out:/backend/out # тут вопросики к структуре папок
+      # сделать волюмы для остальных данных, которые не должны удаляться после перезапуска
+      #- ./out:/backend/out

@@ -20,7 +20,7 @@ RUN cargo build --release -p instance_builder
 # ===== СТАДИЯ 2: Финальный Python-контейнер =====
 FROM python:3.14-slim
 
-WORKDIR /app
+WORKDIR /backend
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 ca-certificates \
@@ -32,7 +32,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/app/ ./app
 
 # Копируем бинарник из builder-стейджа
-COPY --from=builder /build/target/release/instance_builder /app/app/instance_builder/instance_builder
+COPY --from=builder /build/target/release/instance_builder /backend/app/instance_builder/instance_builder
 
 EXPOSE 8000
 
