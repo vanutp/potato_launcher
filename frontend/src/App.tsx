@@ -5,13 +5,14 @@ import ModpackForm from './components/ModpackForm';
 import ModpackDetails from './components/ModpackDetails';
 import SettingsForm from './components/SettingsForm';
 import {useAuth} from './hooks/useAuth';
+import {useWebSocket} from './hooks/useWebSocket';
 import {apiService} from './services/api';
 import {ModpackResponse, ModpackBase} from './types/api';
 import {useRef} from 'react';
 
 
 function App() {
-    const {isAuthenticated, loading: authLoading, error: authError, login, logout} = useAuth();
+    const { isAuthenticated, loading: authLoading, error: authError, login, logout } = useAuth();
     const [modpacks, setModpacks] = useState<ModpackResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -20,6 +21,20 @@ function App() {
     const [showForm, setShowForm] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const fetchingRef = useRef(false);
+
+    // WebSocket connection for real-time updates
+    useWebSocket({
+        onModpackChange: (data) => {
+            console.log('Modpack change received:', data);
+            // Reload modpacks when changes are received
+            loadModpacks();
+        },
+        onNotification: (data) => {
+            console.log('Notification received:', data);
+            // Handle notifications (could show toast, etc.)
+        },
+        enabled: isAuthenticated
+    });
 
     // Set up unauthorized handler
     useEffect(() => {

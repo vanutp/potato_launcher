@@ -10,10 +10,11 @@ from app.gateway.json.modpack import JsonModpackGateway
 from app.gateway.json.setting import JsonSettingGateway
 from app.gateway.modpack import ModpackGateway
 from app.gateway.settings import SettingGateway
-from app.routers import auth
+from app.routers import auth, ws
 from app.routers import modpacks
 from app.routers import mc_versions
 from app.routers import settings
+from app.services.connection_manager import ConnectionManager
 
 
 async def handle_error(_: Request, exc: Exception) -> JSONResponse:
@@ -37,6 +38,7 @@ def register_routers(app: FastAPI) -> None:
     api_v1_router.include_router(modpacks.router)
     api_v1_router.include_router(mc_versions.router)
     api_v1_router.include_router(settings.router)
+    api_v1_router.include_router(ws.ws_router)
 
     app.include_router(api_v1_router)
 
@@ -54,6 +56,7 @@ def create_app() -> FastAPI:
 
     app.dependency_overrides[SettingGateway] = lambda: JsonSettingGateway()
     app.dependency_overrides[ModpackGateway] = lambda: JsonModpackGateway()
+    app.dependency_overrides[ConnectionManager] = lambda: ConnectionManager()
 
     register_routers(app)
     catch_exceptions(app)

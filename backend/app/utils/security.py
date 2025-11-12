@@ -8,9 +8,8 @@ from app.config import config
 creds = HTTPBearer()
 
 
-def verify_access_token(credentials: HTTPAuthorizationCredentials = Depends(creds)):
+def validate_access_token(token: str):
     try:
-        token = credentials.credentials
         payload = jwt.decode(token, config.ADMIN_JWT_SECRET, algorithms=[config.ALGORITHM])
         if payload.get("sub") != "single_user":
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid JWT payload")
@@ -19,3 +18,7 @@ def verify_access_token(credentials: HTTPAuthorizationCredentials = Depends(cred
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
     except jwt.PyJWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid JWT")
+
+
+def verify_access_token(credentials: HTTPAuthorizationCredentials = Depends(creds)):
+    validate_access_token(token=credentials.credentials)
