@@ -7,6 +7,7 @@ from app.models.base import ApiModel
 
 
 class LoaderType(str, Enum):
+    VANILLA = "vanilla"
     FORGE = "forge"
     FABRIC = "fabric"
     NEOFORGE = "neoforge"

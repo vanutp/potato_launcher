@@ -1,4 +1,5 @@
 from typing import List, Optional
+from models.modpack import LoaderType
 
 from app.integrations.vanilla_versions import get_vanilla_version_list
 from app.integrations.forge_loader import (
@@ -24,16 +25,16 @@ async def get_vanilla_versions(version_type: Optional[str] = None) -> List[str]:
 @alru_cache
 async def get_loaders_for_version(version: str) -> List[str]:
     # TODO проверить, что для переданный version в принципе существует в игре
-    loaders: List[str] = ["vanilla"]
+    loaders: List[LoaderType] = [LoaderType.VANILLA]
 
     if await fabric_has_loader_for(version):
-        loaders.append("fabric")
+        loaders.append(LoaderType.FABRIC)
 
     if await forge_has_loader_for(version):
-        loaders.append("forge")
+        loaders.append(LoaderType.FORGE)
 
     if await neoforge_has_loader_for(version):
-        loaders.append("neoforge")
+        loaders.append(LoaderType.NEOFORGE)
 
     return loaders
 

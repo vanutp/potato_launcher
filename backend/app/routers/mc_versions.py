@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from app.utils.security import verify_access_token
 from typing import List
+from models.modpack import LoaderType
 
 from app.services.mc_versions_service import (
     get_vanilla_versions,
@@ -23,10 +24,10 @@ async def get() -> list[str]:
 
 @router.get(
     "/{version}/loaders",
-    response_model=List[str],
+    response_model=list[LoaderType],
     summary="List available loaders for version"
 )
-async def get(version: str) -> list[str]:
+async def get(version: str) -> list[LoaderType]:
     loaders = await get_loaders_for_version(version)
     return loaders
 
