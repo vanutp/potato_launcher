@@ -26,7 +26,7 @@ async def get_vanilla_versions(version_type: Optional[str] = None) -> List[str]:
 async def get_loaders_for_version(version: str) -> List[str]:
     loaders: List[LoaderType] = []
     
-    vanilla_versions = get_vanilla_versions()
+    vanilla_versions = await get_vanilla_versions()
     if version in vanilla_versions:
         loaders.append(LoaderType.VANILLA)
 
