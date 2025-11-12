@@ -3,6 +3,7 @@ import os.path
 from typing import Any
 
 _DB_FILE_NAME = "db.json"
+_SPEC_FILE_NAME = "spec.example.json"
 
 
 def read_file() -> dict[str, Any]:
@@ -18,3 +19,7 @@ def read_file() -> dict[str, Any]:
 def save_file(data: dict[str, Any]) -> None:
     with open(_DB_FILE_NAME, "w") as db_file:
         json.dump(data, db_file)
+
+def save_spec_file(data: dict[str, Any]) -> None:
+    with open(_SPEC_FILE_NAME, "w") as spec_file:
+        json.dump(data, spec_file)

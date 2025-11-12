@@ -1,6 +1,6 @@
 from typing import Any
 
-from app.gateway.json.db import read_file, save_file
+from app.gateway.json.db import read_file, save_file, save_spec_file
 from app.gateway.modpack import ModpackGateway
 from app.models.modpack import Modpack, TelegramAuth, ElyAuth, MojangAuth, OfflineAuth, AuthConfig
 
@@ -67,6 +67,47 @@ class JsonModpackGateway(ModpackGateway):
             if raw_modpack["id"] == id:
                 return Modpack(**raw_modpack)
         return None
+    
+    def generate_spec(self) -> None:
+        data = read_file()
+        modpacks = data.get("modpacks", [])
+        settings = data.get("settings", [])
+
+        spec = {}
+        for setting in settings:
+            if not isinstance(setting, dict):
+                raise TypeError(f"Each setting must be a dict, got {type(setting).__name__}: {setting!r}")
+            k = setting['key']
+            v = setting['value']
+            type = setting['type']
+            cast = self._cast_value(v, type)
+            spec[k] = cast
+        
+        spec['versions'] = []
+        for modpack in modpacks:
+            if not isinstance(modpack, dict):
+                raise TypeError(f"Each modpack must be a dict, got {type(modpack).__name__}: {modpack!r}")
+        
+            id = modpack.pop("id")
+            print(f"id[{id}] added to spec")
+            modpack['include'] = [
+                {
+                    "path": "mods",
+                    "overwrite": True
+                },
+                {
+                    "path": "config",
+                    "overwrite": False
+                }
+            ]
+            spec["versions"].append(modpack)
+        
+        save_spec_file(spec)
+
+    def _cast_value(self, value: str, type: str) -> str | bool:
+        if type == 'bool':
+            return bool(value)
+        return str(value)
 
     def update(self, modpack: Modpack) -> Modpack:
         data = read_file()
