@@ -16,8 +16,8 @@ from app.services.mc_versions_service import (
     get_vanilla_versions,
 )
 
-# TODO вернуться к папкам когда будем запускать скрипт
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# TODO вернуться к папкам когда будем запускать скрипт +-
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _BUILD_DIR = _PROJECT_ROOT / "instance_builder"
 
 
@@ -37,7 +37,10 @@ class RunnerService:
 
 
     async def run_build(self) -> bool:
-        # TODO uncomment
+
+        # TODO need to generate spec.json from list[Modpacks] and list[Settings]
+
+        # TODO next need to validate it
         # await self._validate_spec(spec_path)
 
         should_notify = False
@@ -60,7 +63,7 @@ class RunnerService:
 
         return True
 
-    # TODO temp only for debug
+    # TODO temp only for debug (Delete after the main build will be done)
     async def _dummy_build(self, seconds: int) -> None:
         try:
             await asyncio.sleep(seconds)
@@ -81,23 +84,28 @@ class RunnerService:
             await self._broadcast_status()
 
     async def _execute_instance_builder(self) -> None:
-        # TODO  сделать краше и не с .exe
+        # TODO move from .exe to linux elf :)
         cmd = [
-            "..\\instance_builder\\instance_builder.exe",
+            str((_BUILD_DIR / "instance_builder.exe").resolve()),
             "-s",
-            "..\\instance_builder\\spec.json",
-            "..\\generated",
-            "..\\workdir"
+            str((_BUILD_DIR / "spec.json").resolve()),
+            str((_PROJECT_ROOT / "generated").resolve()),
+            str((_PROJECT_ROOT / "workdir").resolve()),
         ]
+
+        print(_PROJECT_ROOT)
+        print(_BUILD_DIR)
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(_PROJECT_ROOT),
+                cwd=str(_BUILD_DIR),
             )
 
             stdout, stderr = await proc.communicate()
+            print(f"build finised\n")
+
             msg = "ok" if proc.returncode == 0 else f"failed (code {proc.returncode})"
             # TODO log stdout/stderr here
 
@@ -110,11 +118,13 @@ class RunnerService:
                 self._message = f"command not found: {exc}"
                 self._busy = False
             await self._broadcast_status()
+            print(f"Error on build: {self._message}")
         except Exception as exc:
             async with self._lock:
                 self._message = f"failed: {exc}"
                 self._busy = False
             await self._broadcast_status()
+            print(f"Error on build: {self._message}")
 
     async def _validate_spec(self, spec_path: Path) -> None:
         try:
