@@ -84,6 +84,7 @@ class ApiService {
     const response = await fetch(`${API_BASE}/modpacks/${id}/files`, {
       method: 'POST',
       headers: {
+        // Don't set Content-Type for FormData - browser will set it automatically with boundary
         ...authHeaders,
       },
       body: formData,
