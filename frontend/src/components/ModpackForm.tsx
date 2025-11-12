@@ -1,5 +1,6 @@
 import {useState, useEffect, useCallback} from 'react';
 import * as React from "react";
+import {Upload} from 'lucide-react';
 import {apiService} from '../services/api';
 import {ModpackBase, LoaderType} from '../types/api';
 
@@ -18,8 +19,10 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
     const [minecraftVersions, setMinecraftVersions] = useState<string[]>([]);
     const [availableLoaders, setAvailableLoaders] = useState<string[]>([]);
     const [loaderVersions, setLoaderVersions] = useState<string[]>([]);
-    const [loading] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
+    const [dragActive, setDragActive] = useState(false);
+    const [uploadedFiles, setUploadedFiles] = useState<FileList | null>(null);
 
     useEffect(() => {
         loadMinecraftVersions();
@@ -78,7 +81,7 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
         }
     }, [formData.minecraft_version, formData.loader, loadLoaderVersions]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         const newErrors: { [key: string]: string } = {};
@@ -99,8 +102,28 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
         setErrors(newErrors);
 
         if (Object.keys(newErrors).length === 0) {
-            onSubmit(formData);
-            setFormData({name: '', minecraft_version: '', loader: LoaderType.VANILLA, loader_version: ''});
+            setLoading(true);
+            try {
+                // Create modpack first
+                const newModpack = await apiService.createModpack(formData);
+
+                // Upload files if selected
+                if (uploadedFiles && uploadedFiles.length > 0) {
+                    await apiService.uploadModpackFiles(newModpack.id, uploadedFiles);
+                }
+
+                // Call parent callback
+                onSubmit(formData);
+
+                // Reset form
+                setFormData({name: '', minecraft_version: '', loader: LoaderType.VANILLA, loader_version: ''});
+                setUploadedFiles(null);
+            } catch (err) {
+                console.error('Failed to create modpack:', err);
+                setErrors({submit: err instanceof Error ? err.message : 'Failed to create modpack'});
+            } finally {
+                setLoading(false);
+            }
         }
     };
 
@@ -111,12 +134,44 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
         }
     };
 
+    const handleDrag = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === 'dragenter' || e.type === 'dragover') {
+            setDragActive(true);
+        } else if (e.type === 'dragleave') {
+            setDragActive(false);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            setUploadedFiles(e.dataTransfer.files);
+        }
+    };
+
+    const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setUploadedFiles(e.target.files);
+        }
+    };
+
     return (
         <div className="max-w-2xl mx-auto">
             <div className="bg-gray-800 rounded-lg border border-gray-700 p-8">
                 <h2 className="text-2xl font-bold text-white mb-6">Create New Modpack</h2>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    {errors.submit && (
+                        <div className="p-4 bg-red-900/20 border border-red-500 rounded-md">
+                            <p className="text-red-400 text-sm">{errors.submit}</p>
+                        </div>
+                    )}
+
                     <div>
                         <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
                             Modpack Name *
@@ -227,13 +282,64 @@ export default function ModpackForm({onSubmit}: ModpackFormProps) {
                         )}
                     </div>
 
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                            Upload Modpack Files (Optional)
+                        </label>
+                        <div
+                            className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 ${
+                                dragActive
+                                    ? 'border-green-500 bg-green-500/10'
+                                    : 'border-gray-600 hover:border-gray-500'
+                            }`}
+                            onDragEnter={handleDrag}
+                            onDragLeave={handleDrag}
+                            onDragOver={handleDrag}
+                            onDrop={handleDrop}
+                        >
+                            <input
+                                type="file"
+                                multiple
+                                onChange={handleFileInput}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                webkitdirectory=""
+                                disabled={loading}
+                            />
+                            <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4"/>
+                            <p className="text-gray-300 mb-2">
+                                Drag and drop modpack folder here, or click to browse
+                            </p>
+                            <p className="text-sm text-gray-500">
+                                Upload your modpack files and folders
+                            </p>
+                            {uploadedFiles && (
+                                <div className="mt-4 p-3 bg-gray-700 rounded-md">
+                                    <p className="text-green-400 text-sm">
+                                        {uploadedFiles.length} file(s) selected
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="pt-4">
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                            className={`w-full font-bold py-3 px-6 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800 ${
+                                loading
+                                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                    : 'bg-green-500 hover:bg-green-600 text-white'
+                            }`}
                         >
-                            {loading ? 'Creating...' : 'Create Modpack'}
+                            {loading ? (
+                                <div className="flex items-center justify-center gap-2">
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    Creating...
+                                </div>
+                            ) : (
+                                'Create Modpack'
+                            )}
                         </button>
                     </div>
                 </form>

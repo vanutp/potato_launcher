@@ -61,6 +61,46 @@ class ApiService {
     });
   }
 
+  async updateModpack(id: number, data: ModpackBase): Promise<ModpackResponse> {
+    return this.request<ModpackResponse>(`/modpacks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async uploadModpackFiles(id: number, files: FileList): Promise<void> {
+    const formData = new FormData();
+
+    // Add all files to FormData
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      // Use the webkitRelativePath to preserve folder structure
+      const path = file.webkitRelativePath || file.name;
+      formData.append('files', file, path);
+    }
+
+    const authHeaders = authService.getAuthHeaders();
+
+    const response = await fetch(`${API_BASE}/modpacks/${id}/files`, {
+      method: 'POST',
+      headers: {
+        ...authHeaders,
+      },
+      body: formData,
+    });
+
+    if (response.status === 401) {
+      if (this.handleUnauthorized) {
+        this.handleUnauthorized();
+      }
+      throw new Error('Unauthorized - please login again');
+    }
+
+    if (!response.ok) {
+      throw new Error(`File upload failed: ${response.status} ${response.statusText}`);
+    }
+  }
+
   // Minecraft versions and loaders
   async getMinecraftVersions(): Promise<string[]> {
     return this.request<string[]>('/mc-versions');

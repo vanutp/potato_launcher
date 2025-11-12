@@ -13,9 +13,11 @@ class ConfigEnv(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     ALLOWED_ORIGINS: list[str]
+    TEMP_DIR: Path = Path("/tmp")
+    MODPACKS_SAVES_DIR: Path = Path("/modpacks-saves")
 
     class Config:
-        env_file=str(ROOT / ".env")
+        env_file = str(ROOT / ".env")
         env_file_encoding = "utf-8"
 
 

@@ -107,15 +107,11 @@ function App() {
     };
 
     const handleFormSubmit = async (formData: ModpackBase) => {
-        try {
-            const newModpack = await apiService.createModpack(formData);
-            setModpacks(prev => [...prev, newModpack]);
-            setShowForm(false);
-            setSelectedModpack(newModpack.id);
-            setShowSettings(false);
-        } catch (err) {
-            console.error('Failed to create modpack:', err);
-        }
+        // The form handles creation and file upload internally
+        // Just reload modpacks and update UI state
+        await loadModpacks();
+        setShowForm(false);
+        setShowSettings(false);
     };
 
     const handleSettingsSave = (settings: any) => {

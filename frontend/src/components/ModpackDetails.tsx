@@ -28,6 +28,7 @@ export default function ModpackDetails({ modpack, onUpdate, onDelete }: ModpackD
     const [loadingLoaderVersions, setLoadingLoaderVersions] = useState(false);
     const [dragActive, setDragActive] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState<FileList | null>(null);
+    const [updating, setUpdating] = useState(false);
 
     const loadMinecraftVersions = async () => {
         setLoadingVersions(true);
@@ -123,11 +124,30 @@ export default function ModpackDetails({ modpack, onUpdate, onDelete }: ModpackD
         });
     };
 
-    const handleUpdate = () => {
-        onUpdate(modpack.id, editData);
-        setIsEditing(false);
-        setShowDeleteConfirm(false);
-        setUploadedFiles(null);
+    const handleUpdate = async () => {
+        setUpdating(true);
+        try {
+            // Upload files first if selected
+            if (uploadedFiles && uploadedFiles.length > 0) {
+                await apiService.uploadModpackFiles(modpack.id, uploadedFiles);
+            }
+
+            // Update modpack metadata
+            await apiService.updateModpack(modpack.id, editData);
+
+            // Update parent state
+            onUpdate(modpack.id, editData);
+
+            // Reset form state
+            setIsEditing(false);
+            setShowDeleteConfirm(false);
+            setUploadedFiles(null);
+        } catch (err) {
+            console.error('Failed to update modpack:', err);
+            // Could add error state here if needed
+        } finally {
+            setUpdating(false);
+        }
     };
 
     const handleInputChange = (field: keyof typeof editData, value: string | LoaderType) => {
@@ -348,13 +368,28 @@ export default function ModpackDetails({ modpack, onUpdate, onDelete }: ModpackD
                             <div className="flex gap-3 pt-4">
                                 <button
                                     onClick={handleUpdate}
-                                    className="flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-medium rounded-md transition-colors duration-200"
+                                    disabled={updating}
+                                    className={`flex items-center gap-2 px-6 py-3 font-medium rounded-md transition-colors duration-200 ${
+                                        updating
+                                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                            : 'bg-green-500 hover:bg-green-600 text-white'
+                                    }`}
                                 >
-                                    <Save size={16}/>
-                                    Update
+                                    {updating ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                            Updating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save size={16}/>
+                                            Update
+                                        </>
+                                    )}
                                 </button>
                                 <button
                                     onClick={handleCancel}
+                                    disabled={updating}
                                     className="flex items-center gap-2 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-md transition-colors duration-200"
                                 >
                                     <X size={16}/>

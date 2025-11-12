@@ -31,7 +31,7 @@ class RunnerService:
         _BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
 
-    async def get_status(self) -> bool:
+    async def is_running(self) -> bool:
         async with self._lock:
             return self._busy
 
