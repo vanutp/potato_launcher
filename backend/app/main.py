@@ -1,6 +1,7 @@
 import uvicorn
 from fastapi import FastAPI, APIRouter
 from starlette import status
+from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -42,6 +43,14 @@ def register_routers(app: FastAPI) -> None:
 
 def create_app() -> FastAPI:
     app = FastAPI()
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     app.dependency_overrides[SettingGateway] = lambda: JsonSettingGateway()
     app.dependency_overrides[ModpackGateway] = lambda: JsonModpackGateway()
