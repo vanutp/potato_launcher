@@ -9,6 +9,17 @@ services:
     env_file:
       - ./backend/.env
     volumes:
-      - ./out:/backend/out
-      - backend_db:/backend/db.json
+      - ./out:/backend/out # тут вопросики к структуре папок
+      - ./backend/db.json:/backend/db.json
       - backend_modpacks:/backend/app/instance_builder/modpacks-saves
+
+  frontend:
+    image: my_frontend
+    ports:
+      - "5173:5173"
+    env_file:
+      - ./frontend/.env
+
+volumes:
+  backend_db:
+  backend_modpacks:
