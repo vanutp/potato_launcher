@@ -1,16 +1,14 @@
-version: '3.8'
-
 services:
   backend:
-    image: "my_backend"
-    #build:
-    #  context: .
-    #  dockerfile: backend.dockerfile
+    image: "potato-launcher-backend"
+    build:
+      context: .
+      dockerfile: backend.dockerfile
     ports:
       - "8000:8000"
     env_file:
       - ./backend/.env
     volumes:
-      - ./out:/backend/out # тут вопросики к структуре папок
+      - ./out:/backend/out
       - backend_db:/backend/db.json
       - backend_modpacks:/backend/app/instance_builder/modpacks-saves
