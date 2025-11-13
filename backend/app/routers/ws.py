@@ -14,8 +14,8 @@ ws_router = APIRouter(prefix="/ws", include_in_schema=False)
 
 @ws_router.websocket("")
 async def websocket_endpoint(
-        websocket: WebSocket,
-        manager: Annotated[ConnectionManager, Depends(Stub(ConnectionManager))]
+    websocket: WebSocket,
+    manager: Annotated[ConnectionManager, Depends(Stub(ConnectionManager))],
 ):
     try:
         token = websocket.query_params.get("token")

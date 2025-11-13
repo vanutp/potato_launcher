@@ -79,7 +79,9 @@ class OfflineAuth(ApiModel):
     kind: Literal["offline"] = "offline"
 
 
-AuthConfigPyd = Annotated[Union[MojangAuth, TelegramAuth, ElyAuth, OfflineAuth], Field(discriminator="kind")]
+AuthConfigPyd = Annotated[
+    Union[MojangAuth, TelegramAuth, ElyAuth, OfflineAuth], Field(discriminator="kind")
+]
 AuthAdapter = TypeAdapter(AuthConfigPyd)
 
 
@@ -121,8 +123,7 @@ class ModpackBase(ApiModel):
         )
 
 
-class CreateModpackRequest(ModpackBase):
-    ...
+class CreateModpackRequest(ModpackBase): ...
 
 
 class UpdateModpackRequest(ModpackBase):

@@ -3,7 +3,9 @@ from typing import List
 import httpx
 import xml.etree.ElementTree as ET
 
-NEOFORGE_MAVEN_METADATA_URL = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
+NEOFORGE_MAVEN_METADATA_URL = (
+    "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
+)
 
 
 async def _fetch_neoforge_versions() -> List[str]:

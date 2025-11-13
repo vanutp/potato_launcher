@@ -10,37 +10,38 @@ from starlette import status
 
 from app.config import config
 from app.gateway.modpack import ModpackGateway
-from app.models.modpack import ModpackResponse, CreateModpackRequest, UpdateModpackRequest
+from app.models.modpack import (
+    ModpackResponse,
+    CreateModpackRequest,
+    UpdateModpackRequest,
+)
 from app.services.runner_service import RunnerService
 from app.utils.security import verify_access_token
 from app.utils.stub import Stub
 
-router = APIRouter(prefix="/modpacks", tags=["Modpacks"], dependencies=[Depends(verify_access_token)])
-
-
-@router.get(
-    path="",
-    summary="List modpacks",
-    response_model=list[ModpackResponse]
+router = APIRouter(
+    prefix="/modpacks", tags=["Modpacks"], dependencies=[Depends(verify_access_token)]
 )
-def get(
-        modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))]
-):
+
+
+@router.get(path="", summary="List modpacks", response_model=list[ModpackResponse])
+def get(modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))]):
     return modpack_gateway.get_all()
 
 
 @router.post("", summary="Create new modpack", response_model=ModpackResponse)
 def get(
-        modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))],
-        body: CreateModpackRequest
+    modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))],
+    body: CreateModpackRequest,
 ):
     return modpack_gateway.save(body.to_model())
 
 
-@router.get("/{id}", summary="Get info about the modpack", response_model=ModpackResponse)
+@router.get(
+    "/{id}", summary="Get info about the modpack", response_model=ModpackResponse
+)
 def get(
-        modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))],
-        id: int
+    modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))], id: int
 ):
     modpack = modpack_gateway.get_by_id(id)
     if modpack is None:
@@ -50,17 +51,19 @@ def get(
 
 @router.patch("/{id}", summary="Edit modpack")
 def get(
-        id: int,
-        body: UpdateModpackRequest,
-        modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))]
+    id: int,
+    body: UpdateModpackRequest,
+    modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))],
 ):
     return modpack_gateway.update(body.as_model(id))
 
 
-@router.delete("/{id}", summary="Delete modpack", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{id}", summary="Delete modpack", status_code=status.HTTP_204_NO_CONTENT
+)
 def get(
-        id: int,
-        modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))],
+    id: int,
+    modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))],
 ):
     modpack = modpack_gateway.get_by_id(id)
     if modpack is None:
@@ -73,8 +76,8 @@ def get(
     summary="Run build",
 )
 async def build(
-        runner_service: Annotated[RunnerService, Depends(Stub(RunnerService))],
-        modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))]
+    runner_service: Annotated[RunnerService, Depends(Stub(RunnerService))],
+    modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))],
 ):
     modpack_gateway.generate_spec()
     is_success = await runner_service.run_build()
@@ -86,10 +89,10 @@ async def build(
 @router.get(
     "/build/status",
     summary="Get build status",
-    response_model=Literal["running", "idle"]
+    response_model=Literal["running", "idle"],
 )
 async def get_build_status(
-        runner_service: Annotated[RunnerService, Depends(Stub(RunnerService))]
+    runner_service: Annotated[RunnerService, Depends(Stub(RunnerService))],
 ):
     is_running = await runner_service.is_running()
     return "running" if is_running else "idle"
@@ -107,14 +110,11 @@ def strip_top_folder(p: str) -> str:
     return "/".join(parts[1:]) if len(parts) > 1 else parts[0]
 
 
-@router.post(
-    path="/{id}/files",
-    summary="Upload modpack files"
-)
+@router.post(path="/{id}/files", summary="Upload modpack files")
 async def upload_modpack_files(
-        id: int,
-        modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))],
-        files: list[UploadFile] = File(...),
+    id: int,
+    modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))],
+    files: list[UploadFile] = File(...),
 ):
     if not files:
         raise HTTPException(status_code=400, detail="No modpack files to upload")
@@ -130,7 +130,13 @@ async def upload_modpack_files(
         tmp_dir.mkdir(parents=True, exist_ok=True)
 
         for number, file in enumerate(files):
-            rel = sanitize_relative(file.filename or file.filename == "" and file.filename) if file.filename else None
+            rel = (
+                sanitize_relative(
+                    file.filename or file.filename == "" and file.filename
+                )
+                if file.filename
+                else None
+            )
             if not rel:
                 rel = sanitize_relative(Path(file.filename or f"file_{number}").name)
 

@@ -2,10 +2,14 @@ from __future__ import annotations
 from typing import Any, Dict, List
 import httpx
 
-FORGE_MAVEN_METADATA_URL = "https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.json"
+FORGE_MAVEN_METADATA_URL = (
+    "https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.json"
+)
 
 # TODO for recommended & latest description
-FORGE_PROMOTIONS_URL = "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json"
+FORGE_PROMOTIONS_URL = (
+    "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json"
+)
 
 
 async def _fetch_forge_metadata() -> Dict[str, Any]:
@@ -40,7 +44,7 @@ async def get_forge_loader_versions(mc_version: str) -> List[str]:
 
     for full_ver in versions_for_mc:
         if full_ver.startswith(prefix):
-            build = full_ver[len(prefix):]
+            build = full_ver[len(prefix) :]
             result.append(build)
         else:
             result.append(full_ver)

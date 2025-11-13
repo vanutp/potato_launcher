@@ -2,7 +2,14 @@ from typing import Any
 
 from app.gateway.json.db import read_file, save_file, save_spec_file
 from app.gateway.modpack import ModpackGateway
-from app.models.modpack import Modpack, TelegramAuth, ElyAuth, MojangAuth, OfflineAuth, AuthConfig
+from app.models.modpack import (
+    Modpack,
+    TelegramAuth,
+    ElyAuth,
+    MojangAuth,
+    OfflineAuth,
+    AuthConfig,
+)
 
 
 class JsonModpackGateway(ModpackGateway):
@@ -23,7 +30,9 @@ class JsonModpackGateway(ModpackGateway):
         if kind == "telegram":
             return TelegramAuth(auth_base_url=data["auth_base_url"])
         elif kind == "ely.by":
-            return ElyAuth(client_id=data["client_id"], client_secret=data["client_secret"])
+            return ElyAuth(
+                client_id=data["client_id"], client_secret=data["client_secret"]
+            )
         elif kind == "mojang":
             return MojangAuth()
         elif kind == "offline":
@@ -35,7 +44,7 @@ class JsonModpackGateway(ModpackGateway):
         data = read_file()
         modpacks = data.get("modpacks", [])
 
-        new_id = (max((int(m.get("id", 0)) for m in modpacks), default=0) + 1)
+        new_id = max((int(m.get("id", 0)) for m in modpacks), default=0) + 1
 
         modpacks.append(
             {
@@ -44,7 +53,7 @@ class JsonModpackGateway(ModpackGateway):
                 "minecraft_version": modpack.minecraft_version,
                 "loader": modpack.loader,
                 "loader_version": modpack.loader_version,
-                "auth_config": self._auth_as_dict(modpack)
+                "auth_config": self._auth_as_dict(modpack),
             }
         )
         data["modpacks"] = modpacks
@@ -56,7 +65,7 @@ class JsonModpackGateway(ModpackGateway):
             minecraft_version=modpack.minecraft_version,
             loader=modpack.loader.value,
             loader_version=modpack.loader_version,
-            auth_config=self._dict_to_auth(modpacks[-1]["auth_config"])
+            auth_config=self._dict_to_auth(modpacks[-1]["auth_config"]),
         )
 
     def get_by_id(self, id: int) -> Modpack | None:
@@ -67,7 +76,7 @@ class JsonModpackGateway(ModpackGateway):
             if raw_modpack["id"] == id:
                 return Modpack(**raw_modpack)
         return None
-    
+
     def generate_spec(self) -> None:
         data = read_file()
         modpacks = data.get("modpacks", [])
@@ -76,39 +85,37 @@ class JsonModpackGateway(ModpackGateway):
         spec = {}
         for setting in settings:
             if not isinstance(setting, dict):
-                raise TypeError(f"Each setting must be a dict, got {type(setting).__name__}: {setting!r}")
-            k = setting['key']
-            v = setting['value']
-            type = setting['type']
+                raise TypeError(
+                    f"Each setting must be a dict, got {type(setting).__name__}: {setting!r}"
+                )
+            k = setting["key"]
+            v = setting["value"]
+            type = setting["type"]
             cast = self._cast_value(v, type)
             spec[k] = cast
-        
-        spec['versions'] = []
+
+        spec["versions"] = []
         for modpack in modpacks:
             if not isinstance(modpack, dict):
-                raise TypeError(f"Each modpack must be a dict, got {type(modpack).__name__}: {modpack!r}")
-        
+                raise TypeError(
+                    f"Each modpack must be a dict, got {type(modpack).__name__}: {modpack!r}"
+                )
+
             id = modpack.pop("id")
             print(f"id[{id}] added to spec")
-            modpack['include'] = [
-                {
-                    "path": "mods",
-                    "overwrite": True
-                },
-                {
-                    "path": "config",
-                    "overwrite": False
-                }
+            modpack["include"] = [
+                {"path": "mods", "overwrite": True},
+                {"path": "config", "overwrite": False},
             ]
-            modpack['include_from'] = f'./modpacks-saves/{id}'
+            modpack["include_from"] = f"./modpacks-saves/{id}"
             loader_name = modpack.pop("loader")
-            modpack['loader_name'] = loader_name
+            modpack["loader_name"] = loader_name
             spec["versions"].append(modpack)
-        
+
         save_spec_file(spec)
 
     def _cast_value(self, value: str, type: str) -> str | bool:
-        if type == 'boolean':
+        if type == "boolean":
             return bool(value)
         return str(value)
 
@@ -125,7 +132,7 @@ class JsonModpackGateway(ModpackGateway):
                     "minecraft_version": modpack.minecraft_version,
                     "loader": modpack.loader.value,
                     "loader_version": modpack.loader_version,
-                    "auth_config": self._auth_as_dict(modpack)
+                    "auth_config": self._auth_as_dict(modpack),
                 }
                 data["modpacks"] = modpacks
                 save_file(data)

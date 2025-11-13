@@ -12,7 +12,7 @@ from app.services.mc_versions_service import (
 router = APIRouter(
     prefix="/mc-versions",
     tags=["MC Versions"],
-    dependencies=[Depends(verify_access_token)]
+    dependencies=[Depends(verify_access_token)],
 )
 
 
@@ -25,7 +25,7 @@ async def get() -> list[str]:
 @router.get(
     "/{version}/loaders",
     response_model=list[LoaderType],
-    summary="List available loaders for version"
+    summary="List available loaders for version",
 )
 async def get(version: str) -> list[LoaderType]:
     loaders = await get_loaders_for_version(version)
@@ -35,7 +35,7 @@ async def get(version: str) -> list[LoaderType]:
 @router.get(
     path="/{version}/{loader}",
     response_model=list[str],
-    summary="List loader version for specified minecraft version"
+    summary="List loader version for specified minecraft version",
 )
 async def get(version: str, loader: LoaderType) -> list[str]:
     loader_versions = await get_loader_versions(version, loader.value)

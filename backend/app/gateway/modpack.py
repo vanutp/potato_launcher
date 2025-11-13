@@ -25,7 +25,7 @@ class ModpackGateway(Protocol):
     @abstractmethod
     def save(self, modpack: Modpack) -> Modpack:
         raise NotImplementedError
-    
+
     @abstractmethod
     def generate_spec(self) -> None:
         raise NotImplementedError

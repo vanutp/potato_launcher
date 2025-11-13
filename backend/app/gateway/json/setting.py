@@ -37,7 +37,8 @@ class JsonSettingGateway(SettingGateway):
             if key in index_by_key:
                 if existing_settings[index_by_key[key]]["type"] != setting.type.value:
                     raise ValueError(
-                        f"Incorrect string type {setting.type.value}. Expected {existing_settings[index_by_key[key]]['type']}")
+                        f"Incorrect string type {setting.type.value}. Expected {existing_settings[index_by_key[key]]['type']}"
+                    )
                 existing_settings[index_by_key[key]] = item_json
             else:
                 index_by_key[key] = len(existing_settings)

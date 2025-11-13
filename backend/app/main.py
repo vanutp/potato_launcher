@@ -20,10 +20,7 @@ from app.services.runner_service import RunnerService
 
 async def handle_error(_: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "details": str(exc)
-        }
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"details": str(exc)}
     )
 
 

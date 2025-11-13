@@ -23,20 +23,13 @@ class SettingBase(ApiModel):
     type: SettingType
 
     def to_model(self) -> Setting:
-        return Setting(
-            key=self.key,
-            type=self.type,
-            value=self.value
-        )
+        return Setting(key=self.key, type=self.type, value=self.value)
 
 
-class SettingRequest(SettingBase):
-    ...
+class SettingRequest(SettingBase): ...
 
 
-class UpdateSettingRequest(SettingBase):
-    ...
+class UpdateSettingRequest(SettingBase): ...
 
 
-class SettingResponse(SettingBase):
-    ...
+class SettingResponse(SettingBase): ...
