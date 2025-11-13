@@ -7,6 +7,7 @@ use crate::constants::{XMX_DEFAULT, XMX_MAX, XMX_MIN, XMX_STEP};
 use crate::lang::LangMessage;
 use crate::utils;
 use crate::version::complete_version_metadata::CompleteVersionMetadata;
+use crate::version::instance_storage::InstanceStorage;
 use shared::java;
 use tokio::runtime::Runtime;
 
@@ -59,6 +60,7 @@ impl SettingsState {
         runtime: &Runtime,
         manifest_state: &mut ManifestState,
         ctx: &egui::Context,
+        instance_storage: &InstanceStorage,
     ) {
         if ui.button("📂").clicked() {
             open::that(config.get_launcher_dir()).unwrap();
@@ -73,7 +75,7 @@ impl SettingsState {
 
         self.language_selector.render_ui(ui, config);
 
-        self.render_settings_window(ui, config, runtime, manifest_state, ctx);
+        self.render_settings_window(ui, config, runtime, manifest_state, ctx, instance_storage);
     }
 
     pub fn render_settings_window(
@@ -83,6 +85,7 @@ impl SettingsState {
         runtime: &Runtime,
         manifest_state: &mut ManifestState,
         ctx: &egui::Context,
+        instance_storage: &InstanceStorage,
     ) {
         let lang = config.lang;
         let mut settings_opened = self.settings_opened;
@@ -92,7 +95,14 @@ impl SettingsState {
             .show(ui.ctx(), |ui| {
                 self.render_close_launcher_checkbox(ui, config);
                 ui.separator();
-                self.render_manifest_controls(ui, config, runtime, manifest_state, ctx);
+                self.render_manifest_controls(
+                    ui,
+                    config,
+                    runtime,
+                    manifest_state,
+                    ctx,
+                    instance_storage,
+                );
                 self.render_add_manifest_window(ui, config);
             });
 
@@ -106,6 +116,7 @@ impl SettingsState {
         runtime: &Runtime,
         manifest_state: &mut ManifestState,
         ctx: &egui::Context,
+        instance_storage: &InstanceStorage,
     ) {
         if ui
             .button(LangMessage::AddManifestUrl.to_string(config.lang))
@@ -160,7 +171,12 @@ impl SettingsState {
             for url in &config.extra_version_manifest_urls {
                 ui.horizontal(|ui| {
                     ui.label(url);
-                    if ui.button("🗑").clicked() {
+                    let in_use = instance_storage.count_instances_with_manifest_url(url) > 0;
+                    let delete_enabled = !in_use;
+                    if ui
+                        .add_enabled(delete_enabled, egui::Button::new("🗑"))
+                        .clicked()
+                    {
                         to_remove = Some(url.clone());
                     }
                 });

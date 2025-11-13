@@ -193,10 +193,11 @@ impl InstanceStorage {
         }
     }
 
-    pub fn get_all_names(&self) -> (Vec<String>, Vec<String>) {
+    pub fn get_all_names_for_manifest_url(&self, url: &str) -> (Vec<String>, Vec<String>) {
         let local_names: HashSet<String> = self
             .instances
             .iter()
+            .filter(|instance| instance.manifest_url.as_deref().unwrap_or(url) == url)
             .map(|x| x.version_info.get_name())
             .collect();
         let remote_names: Vec<String> = self
@@ -210,6 +211,13 @@ impl InstanceStorage {
         local_names.sort();
 
         (local_names, remote_names)
+    }
+
+    pub fn count_instances_with_manifest_url(&self, url: &str) -> usize {
+        self.instances
+            .iter()
+            .filter(|i| i.manifest_url.as_deref() == Some(url))
+            .count()
     }
 
     pub async fn add_local_instance(&mut self, config: &Config, version_info: VersionInfo) {
