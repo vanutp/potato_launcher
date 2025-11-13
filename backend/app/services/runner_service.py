@@ -15,9 +15,7 @@ from app.services.mc_versions_service import (
     get_loaders_for_version,
     get_vanilla_versions,
 )
-
-_PROJECT_ROOT = Path(__file__).resolve().parents[1]
-_BUILD_DIR = _PROJECT_ROOT / "instance_builder"
+from app.config import config
 
 
 class RunnerService:
@@ -26,15 +24,13 @@ class RunnerService:
         self._lock = asyncio.Lock()
         self._connection_manager = connection_manager
         self._message: Optional[str] = None
-        _BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
     async def is_running(self) -> bool:
         async with self._lock:
             return self._busy
 
     async def run_build(self) -> bool:
-
-        await self._validate_spec(_BUILD_DIR / "spec.json")
+        await self._validate_spec(config.SPEC_FILE)
 
         should_notify = False
         async with self._lock:
@@ -55,20 +51,18 @@ class RunnerService:
 
     async def _execute_instance_builder(self) -> None:
         cmd = [
-            str((_BUILD_DIR / "instance_builder").resolve()),
+            config.INSTANCE_BUILDER_BINARY,
             "-s",
-            str((_BUILD_DIR / "spec.json").resolve()),
-            str((_PROJECT_ROOT / "../out/generated").resolve()),
-            str((_PROJECT_ROOT / "../out/workdir").resolve()),
+            str(config.SPEC_FILE),
+            str(config.GENERATED_DIR),
+            str(config.WORKDIR_DIR),
         ]
 
-        print(_BUILD_DIR)
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 # stdout=asyncio.subprocess.PIPE,
                 # stderr=asyncio.subprocess.PIPE,
-                cwd=str(_BUILD_DIR),
             )
 
             # TODO log stdout/stderr here

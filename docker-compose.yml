@@ -1,25 +1,35 @@
 services:
   backend:
-    image: "potato-launcher-backend"
+    image: potato-launcher-backend
+    container_name: potato-launcher-backend
     build:
       context: .
       dockerfile: backend.dockerfile
-    ports:
-      - "8000:8000"
     env_file:
       - ./backend/.env
     volumes:
-      - ./out:/backend/out # тут вопросики к структуре папок
-      - ./backend/db.json:/backend/db.json
-      - backend_modpacks:/backend/app/instance_builder/modpacks-saves
+      - ./backend/:/backend/
+      - ./modpacks-saves:/modpacks-saves
+      - ./generated:/generated
+      - ./workdir:/workdir
 
   frontend:
-    image: my_frontend
-    ports:
-      - "5173:5173"
+    image: potato-launcher-frontend
+    container_name: potato-launcher-frontend
+    build:
+      context: .
+      dockerfile: frontend.dockerfile
     env_file:
       - ./frontend/.env
 
-volumes:
-  backend_db:
-  backend_modpacks:
+  nginx:
+    image: nginx:alpine
+    container_name: potato-launcher-nginx
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./generated:/var/www/generated:ro

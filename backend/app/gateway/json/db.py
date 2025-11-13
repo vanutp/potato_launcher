@@ -2,8 +2,10 @@ import json
 import os.path
 from typing import Any
 
+from app.config import config
+
+
 _DB_FILE_NAME = "db.json"
-_SPEC_FILE_NAME = "./app/instance_builder/spec.json"
 
 
 def read_file() -> dict[str, Any]:
@@ -22,7 +24,6 @@ def save_file(data: dict[str, Any]) -> None:
 
 
 def save_spec_file(data: dict[str, Any]) -> None:
-
-    with open(_SPEC_FILE_NAME, "w") as spec_file:
+    with open(config.SPEC_FILE, "w") as spec_file:
         json.dump(data, spec_file)
-        print(f"saved to {_SPEC_FILE_NAME}")
+        print(f"saved to {config.SPEC_FILE}")

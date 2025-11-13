@@ -30,7 +30,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh && ln -s /root/.local/bin/uv
 
 COPY backend/app/ ./app
 
-COPY --from=builder /build/target/release/instance_builder /backend/app/instance_builder/instance_builder
+COPY --from=builder /build/target/release/instance_builder /usr/local/bin/instance_builder
 
 EXPOSE 8000
 

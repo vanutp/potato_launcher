@@ -1,5 +1,6 @@
 from typing import Any
 
+from app.config import config
 from app.gateway.json.db import read_file, save_file, save_spec_file
 from app.gateway.modpack import ModpackGateway
 from app.models.modpack import (
@@ -13,7 +14,6 @@ from app.models.modpack import (
 
 
 class JsonModpackGateway(ModpackGateway):
-
     def _auth_as_dict(self, modpack: Modpack) -> dict[str, Any]:
         auth = {
             "kind": modpack.auth_config.kind,
@@ -107,7 +107,7 @@ class JsonModpackGateway(ModpackGateway):
                 {"path": "mods", "overwrite": True},
                 {"path": "config", "overwrite": False},
             ]
-            modpack["include_from"] = f"./modpacks-saves/{id}"
+            modpack["include_from"] = f"{config.MODPACKS_SAVES_DIR}/{id}"
             loader_name = modpack.pop("loader")
             modpack["loader_name"] = loader_name
             spec["versions"].append(modpack)

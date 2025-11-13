@@ -28,7 +28,10 @@ result
 # flatpak
 .flatpak-builder/
 gpg/
-/backend/app/instance_builder/modpacks-saves
 
 # backend
 out/
+
+generated/
+workdir/
+modpacks-saves/
