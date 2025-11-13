@@ -16,14 +16,12 @@ from app.services.mc_versions_service import (
     get_vanilla_versions,
 )
 
-# TODO вернуться к папкам когда будем запускать скрипт +-
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _BUILD_DIR = _PROJECT_ROOT / "instance_builder"
 
 
 class RunnerService:
     def __init__(self, connection_manager: ConnectionManager) -> None:
-        self._debug: bool = False  # TODO temp only for debug
         self._busy: bool = False
         self._lock = asyncio.Lock()
         self._connection_manager = connection_manager
@@ -36,10 +34,7 @@ class RunnerService:
 
     async def run_build(self) -> bool:
 
-        # TODO need to generate spec.json from list[Modpacks] and list[Settings]
-
-        # TODO next need to validate it
-        # await self._validate_spec(spec_path)
+        await self._validate_spec(_BUILD_DIR / "spec.json")
 
         should_notify = False
         async with self._lock:
@@ -51,40 +46,14 @@ class RunnerService:
             self._message = "running"
             should_notify = True
 
-            # TODO temp only for debug
-            if self._debug:
-                sleep_seconds = int(60)
-                self._task = asyncio.create_task(self._dummy_build(sleep_seconds))
-            else:
-                self._task = asyncio.create_task(self._execute_instance_builder())
+            self._task = asyncio.create_task(self._execute_instance_builder())
 
         if should_notify:
             await self._broadcast_status()
 
         return True
 
-    # TODO temp only for debug (Delete after the main build will be done)
-    async def _dummy_build(self, seconds: int) -> None:
-        try:
-            await asyncio.sleep(seconds)
-            async with self._lock:
-                self._message = "done (debug)"
-                self._busy = False
-            await self._broadcast_status()
-        except asyncio.CancelledError:
-            async with self._lock:
-                self._message = "cancelled"
-                self._busy = False
-            await self._broadcast_status()
-            raise
-        except Exception as exc:
-            async with self._lock:
-                self._message = f"failed: {exc}"
-                self._busy = False
-            await self._broadcast_status()
-
     async def _execute_instance_builder(self) -> None:
-        # TODO move from .exe to linux elf :)
         cmd = [
             str((_BUILD_DIR / "instance_builder").resolve()),
             "-s",
@@ -102,11 +71,11 @@ class RunnerService:
                 cwd=str(_BUILD_DIR),
             )
 
+            # TODO log stdout/stderr here
             stdout, stderr = await proc.communicate()
             print(f"build finised\n")
 
             msg = "ok" if proc.returncode == 0 else f"failed (code {proc.returncode})"
-            # TODO log stdout/stderr here
 
             async with self._lock:
                 self._message = msg

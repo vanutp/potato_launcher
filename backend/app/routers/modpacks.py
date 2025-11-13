@@ -79,6 +79,9 @@ async def build(
     runner_service: Annotated[RunnerService, Depends(Stub(RunnerService))],
     modpack_gateway: Annotated[ModpackGateway, Depends(Stub(ModpackGateway))],
 ):
+    if len(modpack_gateway.get_all()) == 0:
+        raise HTTPException(status_code=400, detail="Modpacks should be more than 0")
+
     modpack_gateway.generate_spec()
     is_success = await runner_service.run_build()
     if not is_success:
