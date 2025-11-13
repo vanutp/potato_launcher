@@ -115,7 +115,7 @@ impl Config {
 
     pub fn remove_version_manifest_url(&mut self, url: &str) {
         self.extra_version_manifest_urls.retain(|u| u != url);
-        if &self.selected_version_manifest_url == url {
+        if self.selected_version_manifest_url == url {
             self.selected_version_manifest_url = build_config::get_default_version_manifest_url();
         }
         self.save();

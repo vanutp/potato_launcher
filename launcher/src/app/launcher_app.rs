@@ -136,7 +136,7 @@ impl LauncherApp {
         if let Some(manifest) = manifest {
             self.instance_sync_state.cancel_sync();
             let url = self.config.get_effective_version_manifest_url();
-            self.instance_storage.set_remote_manifest(manifest, &url);
+            self.instance_storage.set_remote_manifest(manifest, url);
         }
         if updated {
             let (local_instance_names, remote_instance_names) = self
