@@ -5,8 +5,9 @@ services:
     build:
       context: .
       dockerfile: backend.dockerfile
-    env_file:
-      - ./backend/.env
+    environment:
+      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
+      - ADMIN_SECRET_TOKEN=${ADMIN_SECRET_TOKEN}
     volumes:
       - ./backend/:/backend/
       - ./modpacks-saves:/modpacks-saves
@@ -19,8 +20,8 @@ services:
     build:
       context: .
       dockerfile: frontend.dockerfile
-    env_file:
-      - ./frontend/.env
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
   nginx:
     image: nginx:alpine
@@ -33,3 +34,4 @@ services:
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./generated:/var/www/generated:ro
+      - ./launcher-bins:/var/www/launcher:ro

@@ -35,3 +35,5 @@ out/
 generated/
 workdir/
 modpacks-saves/
+backend-data/
+launcher-bins/
