@@ -13,8 +13,8 @@ class ConfigEnv(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     ALLOWED_ORIGINS: list[str]
-    TEMP_DIR: Path = Path("/tmp")
-    MODPACKS_SAVES_DIR: Path = Path("/instance_builder/modpacks-saves")
+    TEMP_DIR: Path = Path("/backend/app/tmp")
+    MODPACKS_SAVES_DIR: Path = Path("/backend/app/instance_builder/modpacks-saves")
 
     class Config:
         env_file = str(ROOT / ".env")

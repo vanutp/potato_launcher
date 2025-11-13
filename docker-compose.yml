@@ -12,5 +12,5 @@ services:
       - ./backend/.env
     volumes:
       - ./out:/backend/out # тут вопросики к структуре папок
-      # сделать волюмы для остальных данных, которые не должны удаляться после перезапуска
-      #- ./out:/backend/out
+      - backend_db:/backend/db.json
+      - backend_modpacks:/backend/app/instance_builder/modpacks-saves

@@ -90,7 +90,7 @@ class RunnerService:
             "-s",
             str((_BUILD_DIR / "spec.json").resolve()),
             str((_PROJECT_ROOT / "../out/generated").resolve()),
-            str((_PROJECT_ROOT / "workdir").resolve()),
+            str((_PROJECT_ROOT / "../out/workdir").resolve()),
         ]
 
         print(_BUILD_DIR)
