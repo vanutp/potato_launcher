@@ -7,7 +7,3 @@ export interface AuthResponse {
   token_type: string;
 }
 
-export interface AuthState {
-  isAuthenticated: boolean;
-  token: string | null;
-}

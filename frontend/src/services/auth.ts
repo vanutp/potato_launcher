@@ -1,4 +1,4 @@
-import { TokenRequest, AuthResponse } from '../types/auth';
+import type { AuthResponse, TokenRequest } from '@/types/auth';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
   ? `${import.meta.env.VITE_API_BASE_URL}/api/v1`
@@ -8,7 +8,6 @@ class AuthService {
   private token: string | null = null;
 
   constructor() {
-    // Load token from localStorage on initialization
     this.token = localStorage.getItem('auth_token');
   }
 
@@ -26,8 +25,6 @@ class AuthService {
     }
 
     const authResponse: AuthResponse = await response.json();
-
-    // Store token
     this.token = authResponse.access_token;
     localStorage.setItem('auth_token', authResponse.access_token);
 
@@ -50,7 +47,7 @@ class AuthService {
   getAuthHeaders(): Record<string, string> {
     if (this.token) {
       return {
-        'Authorization': `Bearer ${this.token}`,
+        Authorization: `Bearer ${this.token}`,
       };
     }
     return {};
@@ -58,3 +55,4 @@ class AuthService {
 }
 
 export const authService = new AuthService();
+

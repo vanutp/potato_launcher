@@ -1,4 +1,4 @@
-import { ModpackResponse, ModpackBase, SettingResponse } from '../types/api';
+import type { AuthConfig, ModpackBase, ModpackResponse, SettingResponse } from '@/types/api';
 import { authService } from './auth';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -25,7 +25,6 @@ class ApiService {
     });
 
     if (response.status === 401) {
-      // Handle unauthorized - trigger re-authentication
       if (this.handleUnauthorized) {
         this.handleUnauthorized();
       }
@@ -36,10 +35,13 @@ class ApiService {
       throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
 
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
     return response.json();
   }
 
-  // Modpacks
   async getModpacks(): Promise<ModpackResponse[]> {
     return this.request<ModpackResponse[]>('/modpacks');
   }
@@ -61,7 +63,7 @@ class ApiService {
     });
   }
 
-  async updateModpack(id: number, data: ModpackBase): Promise<ModpackResponse> {
+  async updateModpack(id: number, data: Partial<ModpackBase & { auth_config: AuthConfig }>): Promise<ModpackResponse> {
     return this.request<ModpackResponse>(`/modpacks/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -70,21 +72,15 @@ class ApiService {
 
   async uploadModpackFiles(id: number, files: FileList): Promise<void> {
     const formData = new FormData();
-
-    // Add all files to FormData
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      // Use the webkitRelativePath to preserve folder structure
+    Array.from(files).forEach((file) => {
       const path = file.webkitRelativePath || file.name;
       formData.append('files', file, path);
-    }
+    });
 
     const authHeaders = authService.getAuthHeaders();
-
     const response = await fetch(`${API_BASE}/modpacks/${id}/files`, {
       method: 'POST',
       headers: {
-        // Don't set Content-Type for FormData - browser will set it automatically with boundary
         ...authHeaders,
       },
       body: formData,
@@ -102,7 +98,6 @@ class ApiService {
     }
   }
 
-  // Minecraft versions and loaders
   async getMinecraftVersions(): Promise<string[]> {
     return this.request<string[]>('/mc-versions');
   }
@@ -115,7 +110,6 @@ class ApiService {
     return this.request<string[]>(`/mc-versions/${version}/${loader}`);
   }
 
-  // Settings
   async getSettings(): Promise<SettingResponse[]> {
     return this.request<SettingResponse[]>('/settings');
   }
@@ -127,7 +121,6 @@ class ApiService {
     });
   }
 
-  // Build
   async buildModpacks(): Promise<void> {
     await this.request<void>('/modpacks/build', {
       method: 'POST',
@@ -136,3 +129,4 @@ class ApiService {
 }
 
 export const apiService = new ApiService();
+
