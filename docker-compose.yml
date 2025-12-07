@@ -4,24 +4,29 @@ services:
     container_name: potato-launcher-backend
     build:
       context: .
-      dockerfile: backend.dockerfile
+      dockerfile: backend/Dockerfile
     environment:
-      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}
-      - ADMIN_SECRET_TOKEN=${ADMIN_SECRET_TOKEN}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      ADMIN_SECRET_TOKEN: ${ADMIN_SECRET_TOKEN}
+      DOWNLOAD_SERVER_BASE: ${DOWNLOAD_SERVER_BASE}
+      RESOURCES_URL_BASE: ${RESOURCES_URL_BASE-}
+      REPLACE_DOWNLOAD_URLS: ${REPLACE_DOWNLOAD_URLS:-false}
+      EXEC_BEFORE_ALL: ${EXEC_BEFORE_ALL-}
+      EXEC_AFTER_ALL: ${EXEC_AFTER_ALL-}
     volumes:
-      - ./backend/:/backend/
-      - ./modpacks-saves:/modpacks-saves
-      - ./generated:/generated
-      - ./workdir:/workdir
+      - ./metadata:/data/metadata
+      - ./uploaded-modpacks:/data/modpacks
+      - ./generated:/data/generated
+      - ./workdir:/data/workdir
 
   frontend:
     image: potato-launcher-frontend
     container_name: potato-launcher-frontend
     build:
-      context: .
-      dockerfile: frontend.dockerfile
-    environment:
-      - VITE_API_BASE_URL=${VITE_API_BASE_URL}
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
 
   nginx:
     image: nginx:alpine
@@ -34,4 +39,4 @@ services:
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./generated:/var/www/generated:ro
-      - ./launcher-bins:/var/www/launcher:ro
+      - ./launcher-binaries:/var/www/launcher:ro

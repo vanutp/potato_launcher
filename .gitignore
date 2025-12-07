@@ -32,6 +32,7 @@ gpg/
 # backend
 out/
 
+.env
 generated/
 workdir/
 modpacks-saves/

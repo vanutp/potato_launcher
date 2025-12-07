@@ -1,4 +1,4 @@
-import type { AuthConfig, ModpackBase, ModpackResponse, SettingResponse } from '@/types/api';
+import type { AuthBackend, ModpackBase, ModpackResponse, SettingResponse } from '@/types/api';
 import { authService } from './auth';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -63,7 +63,7 @@ class ApiService {
     });
   }
 
-  async updateModpack(id: number, data: Partial<ModpackBase & { auth_config: AuthConfig }>): Promise<ModpackResponse> {
+  async updateModpack(id: number, data: Partial<ModpackBase & { auth_backend: AuthBackend }>): Promise<ModpackResponse> {
     return this.request<ModpackResponse>(`/modpacks/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),

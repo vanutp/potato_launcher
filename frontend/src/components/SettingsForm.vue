@@ -6,7 +6,6 @@ import type { SettingResponse } from '@/types/api';
 import { SettingType } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -15,11 +14,19 @@ const emit = defineEmits<{
   (event: 'saved', payload: SettingResponse[]): void;
 }>();
 
+const normalizeBaseUrl = (url?: string) => (url ? url.replace(/\/+$/, '') : '');
+
+const apiBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
+const downloadServerBase =
+  import.meta.env.VITE_DOWNLOAD_SERVER_BASE ?? (apiBaseUrl ? `${apiBaseUrl}/data` : '');
+const resourcesUrlBase =
+  import.meta.env.VITE_RESOURCES_URL_BASE ??
+  (apiBaseUrl ? `${apiBaseUrl}/data/assets/objects` : '');
+
 const defaultSettings: SettingResponse[] = [
-  { key: 'download_server_base', value: '', type: SettingType.STRING },
-  { key: 'resources_url_base', value: '', type: SettingType.STRING },
+  { key: 'download_server_base', value: downloadServerBase, type: SettingType.STRING },
+  { key: 'resources_url_base', value: resourcesUrlBase, type: SettingType.STRING },
   { key: 'replace_download_urls', value: false, type: SettingType.BOOLEAN },
-  { key: 'version_manifest_url', value: '', type: SettingType.STRING },
 ];
 
 const displaySettings = ref<SettingResponse[]>([]);
@@ -115,24 +122,6 @@ onMounted(() => {
             </AlertDescription>
           </Alert>
           <div v-if="displaySettings.length" class="space-y-6">
-            <div v-if="getSetting('download_server_base')" class="space-y-2">
-              <Label for="download_server_base">Download Server Base URL</Label>
-              <Input id="download_server_base" :model-value="getSetting('download_server_base')?.value as string | ''"
-                placeholder="https://your-server.com"
-                @update:modelValue="(value) => handleInputChange('download_server_base', value?.toString() ?? '')" />
-              <p class="text-sm">
-                Base URL used when generating download links.
-              </p>
-            </div>
-            <div v-if="getSetting('resources_url_base')" class="space-y-2">
-              <Label for="resources_url_base">Resources URL Base</Label>
-              <Input id="resources_url_base" :model-value="getSetting('resources_url_base')?.value as string | ''"
-                placeholder="https://your-server.com/assets/objects"
-                @update:modelValue="(value) => handleInputChange('resources_url_base', value?.toString() ?? '')" />
-              <p class="text-sm">
-                Leave blank to fall back to Mojang asset endpoints.
-              </p>
-            </div>
             <div v-if="getSetting('replace_download_urls')" class="space-y-2">
               <Label>Replace Download URLs</Label>
               <Select :model-value="getSetting('replace_download_urls')?.value?.toString() ?? 'false'"
@@ -147,15 +136,6 @@ onMounted(() => {
               </Select>
               <p class="text-sm">
                 Toggle to redirect every download through your infrastructure.
-              </p>
-            </div>
-            <div v-if="getSetting('version_manifest_url')" class="space-y-2">
-              <Label for="version_manifest_url">Version Manifest URL</Label>
-              <Input id="version_manifest_url" :model-value="getSetting('version_manifest_url')?.value as string | ''"
-                placeholder="https://your-server.com/version_manifest.json"
-                @update:modelValue="(value) => handleInputChange('version_manifest_url', value?.toString() ?? '')" />
-              <p class="text-sm">
-                Merge remote manifest entries with locally defined versions.
               </p>
             </div>
             <div>

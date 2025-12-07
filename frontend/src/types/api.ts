@@ -5,15 +5,15 @@ export enum LoaderType {
   NEOFORGE = 'neoforge',
 }
 
-export enum AuthKind {
+export enum AuthType {
   OFFLINE = 'offline',
   MOJANG = 'mojang',
   TELEGRAM = 'telegram',
   ELY_BY = 'ely.by',
 }
 
-export interface AuthConfig {
-  kind: AuthKind;
+export interface AuthBackend {
+  type: AuthType;
   auth_base_url?: string;
   client_id?: string;
   client_secret?: string;
@@ -23,17 +23,17 @@ export interface ModpackResponse {
   id: number;
   name: string;
   minecraft_version: string;
-  loader: LoaderType;
-  loader_version: string;
-  auth_config: AuthConfig;
+  loader_name: LoaderType;
+  loader_version?: string;
+  auth_backend: AuthBackend;
 }
 
 export interface ModpackBase {
   name: string;
   minecraft_version: string;
-  loader: LoaderType;
-  loader_version: string;
-  auth_config: AuthConfig;
+  loader_name: LoaderType;
+  loader_version?: string;
+  auth_backend: AuthBackend;
 }
 
 export enum SettingType {
