@@ -1,6 +1,7 @@
 *.iml
 .idea/
 .vscode/
+.cursor/
 
 .DS_Store
 
@@ -35,6 +36,4 @@ out/
 .env
 generated/
 workdir/
-modpacks-saves/
-backend-data/
-launcher-bins/
+state/

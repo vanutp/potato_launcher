@@ -3,30 +3,33 @@ import { computed, ref, watch } from 'vue';
 import { Pencil, Trash2 } from 'lucide-vue-next';
 import DeleteConfirmModal from './DeleteConfirmModal.vue';
 import { apiService } from '@/services/api';
-import type { AuthBackend, ModpackBase, ModpackResponse } from '@/types/api';
+import type { AuthBackend, InstanceBase, InstanceResponse } from '@/types/api';
 import { AuthType, LoaderType } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useModpackForm } from '@/composables/useModpackForm';
-import ModpackFormFields from '@/components/ModpackFormFields.vue';
+import { useInstanceForm } from '@/composables/useInstanceForm';
+import InstanceFormFields from '@/components/InstanceFormFields.vue';
+import { useNotification } from '@/composables/useNotification';
 
 const props = defineProps<{
-  modpack: ModpackResponse;
+  instance: InstanceResponse;
 }>();
 
 const emit = defineEmits<{
-  (event: 'updated', payload: { id: number; data: Partial<ModpackResponse> }): void;
-  (event: 'deleted', id: number): void;
+  (event: 'updated', payload: { name: string; data: Partial<InstanceResponse> }): void;
+  (event: 'deleted', name: string): void;
 }>();
 
-type EditableFields = ModpackBase;
+const { showError } = useNotification();
 
-const toEditableFields = (modpack: ModpackResponse): EditableFields => ({
-  name: modpack.name,
-  minecraft_version: modpack.minecraft_version,
-  loader_name: modpack.loader_name,
-  loader_version: modpack.loader_version,
-  auth_backend: { ...modpack.auth_backend },
+type EditableFields = InstanceBase;
+
+const toEditableFields = (instance: InstanceResponse): EditableFields => ({
+  name: instance.name,
+  minecraft_version: instance.minecraft_version,
+  loader_name: instance.loader_name,
+  loader_version: instance.loader_version,
+  auth_backend: { ...instance.auth_backend },
 });
 
 const isEditing = ref(false);
@@ -52,18 +55,18 @@ const {
   loadMinecraftVersions,
   resetFormData,
   resetUploads,
-} = useModpackForm({
-  initialData: toEditableFields(props.modpack),
+} = useInstanceForm({
+  initialData: toEditableFields(props.instance),
   guard,
   mode: 'edit',
 });
 
 const setEditDataFromProps = () => {
-  resetFormData(toEditableFields(props.modpack));
+  resetFormData(toEditableFields(props.instance));
 };
 
 watch(
-  () => props.modpack.id,
+  () => props.instance.name,
   () => {
     isEditing.value = false;
     showDeleteConfirm.value = false;
@@ -94,9 +97,9 @@ const handleUpdate = async () => {
   updating.value = true;
   try {
     if (uploadedFiles.value && uploadedFiles.value.length > 0) {
-      await apiService.uploadModpackFiles(props.modpack.id, uploadedFiles.value);
+      await apiService.uploadInstanceFiles(props.instance.name, uploadedFiles.value);
     }
-    const payload: ModpackBase = {
+    const payload: InstanceBase = {
       ...editData,
       auth_backend: { ...editData.auth_backend },
     };
@@ -105,18 +108,20 @@ const handleUpdate = async () => {
       delete payload.loader_version;
     }
 
-    const updated = await apiService.updateModpack(props.modpack.id, payload);
-    emit('updated', { id: props.modpack.id, data: updated });
+    const updated = await apiService.updateInstance(props.instance.name, payload);
+    emit('updated', { name: props.instance.name, data: updated });
     handleCancel();
   } catch (err) {
-    console.error('Failed to update modpack:', err);
+    const message = err instanceof Error ? err.message : 'Failed to update instance';
+    console.error(message, err);
+    showError(message);
   } finally {
     updating.value = false;
   }
 };
 
 const handleDelete = () => {
-  emit('deleted', props.modpack.id);
+  emit('deleted', props.instance.name);
   showDeleteConfirm.value = false;
 };
 
@@ -137,12 +142,12 @@ const authTypeLabel = computed(() => editData.auth_backend.type);
       <CardHeader>
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle>{{ isEditing ? 'Edit Modpack' : props.modpack.name }}</CardTitle>
+            <CardTitle>{{ isEditing ? 'Edit Instance' : props.instance.name }}</CardTitle>
             <CardDescription>
               {{
                 isEditing
                   ? 'Update the configuration or upload new files.'
-                  : 'Review the active configuration for this modpack.'
+                  : 'Review the active configuration for this instance.'
               }}
             </CardDescription>
           </div>
@@ -162,7 +167,7 @@ const authTypeLabel = computed(() => editData.auth_backend.type);
       <CardContent class="space-y-6">
         <template v-if="isEditing">
           <form class="space-y-5" @submit.prevent="handleUpdate">
-            <ModpackFormFields id-prefix="edit" :form-data="editData" :minecraft-versions="minecraftVersions"
+            <InstanceFormFields id-prefix="edit" :form-data="editData" :minecraft-versions="minecraftVersions"
               :available-loaders="availableLoaders" :loader-versions="loaderVersions"
               :loading-minecraft-versions="loadingMinecraftVersions" :loading-loaders="loadingLoaders"
               :loading-loader-versions="loadingLoaderVersions" :uploaded-files="uploadedFiles" :disabled="updating"
@@ -183,30 +188,30 @@ const authTypeLabel = computed(() => editData.auth_backend.type);
           <dl class="grid gap-4 sm:grid-cols-2">
             <div>
               <dt class="text-sm">Minecraft Version</dt>
-              <dd class="text-sm font-medium">{{ props.modpack.minecraft_version }}</dd>
+              <dd class="text-sm font-medium">{{ props.instance.minecraft_version }}</dd>
             </div>
             <div>
               <dt class="text-sm">Mod Loader</dt>
-              <dd class="text-sm font-medium capitalize">{{ props.modpack.loader_name }}</dd>
+              <dd class="text-sm font-medium capitalize">{{ props.instance.loader_name }}</dd>
             </div>
             <div>
               <dt class="text-sm">Loader Version</dt>
-              <dd class="text-sm font-medium">{{ props.modpack.loader_version }}</dd>
+              <dd class="text-sm font-medium">{{ props.instance.loader_version }}</dd>
             </div>
             <div>
               <dt class="text-sm">Authentication Type</dt>
               <dd class="text-sm font-medium capitalize">{{ authTypeLabel }}</dd>
             </div>
             <div
-              v-if="props.modpack.auth_backend.type === AuthType.TELEGRAM && props.modpack.auth_backend.auth_base_url"
+              v-if="props.instance.auth_backend.type === AuthType.TELEGRAM && props.instance.auth_backend.auth_base_url"
               class="sm:col-span-2">
               <dt class="text-sm">Auth Base URL</dt>
-              <dd class="text-sm font-medium wrap-break-word">{{ props.modpack.auth_backend.auth_base_url }}</dd>
+              <dd class="text-sm font-medium wrap-break-word">{{ props.instance.auth_backend.auth_base_url }}</dd>
             </div>
-            <template v-if="props.modpack.auth_backend.type === AuthType.ELY_BY">
+            <template v-if="props.instance.auth_backend.type === AuthType.ELY_BY">
               <div>
                 <dt class="text-sm">Client ID</dt>
-                <dd class="text-sm font-medium wrap-break-word">{{ props.modpack.auth_backend.client_id }}</dd>
+                <dd class="text-sm font-medium wrap-break-word">{{ props.instance.auth_backend.client_id }}</dd>
               </div>
               <div>
                 <dt class="text-sm">Client Secret</dt>
@@ -217,7 +222,7 @@ const authTypeLabel = computed(() => editData.auth_backend.type);
         </template>
       </CardContent>
     </Card>
-    <DeleteConfirmModal :is-open="showDeleteConfirm" :modpack-name="props.modpack.name" @confirm="handleDelete"
+    <DeleteConfirmModal :is-open="showDeleteConfirm" :instance-name="props.instance.name" @confirm="handleDelete"
       @cancel="showDeleteConfirm = false" />
   </div>
 </template>

@@ -4,18 +4,18 @@ import { webSocketService } from '@/services/websocket';
 
 interface UseWebSocketOptions {
   enabled?: Ref<boolean> | boolean;
-  onModpackChange?: (data: unknown) => void;
+  onInstanceChange?: (data: unknown) => void;
   onNotification?: (data: unknown) => void;
 }
 
-export function useWebSocket({ enabled = true, onModpackChange, onNotification }: UseWebSocketOptions = {}) {
+export function useWebSocket({ enabled = true, onInstanceChange, onNotification }: UseWebSocketOptions = {}) {
   const isConnected = ref(webSocketService.isConnected());
   let listenersAttached = false;
 
-  const handleModpackChange = (event: Event) => {
-    if (!onModpackChange) return;
+  const handleInstanceChange = (event: Event) => {
+    if (!onInstanceChange) return;
     const customEvent = event as CustomEvent;
-    onModpackChange(customEvent.detail);
+    onInstanceChange(customEvent.detail);
   };
 
   const handleNotification = (event: Event) => {
@@ -26,8 +26,8 @@ export function useWebSocket({ enabled = true, onModpackChange, onNotification }
 
   const attachListeners = () => {
     if (listenersAttached) return;
-    if (onModpackChange) {
-      window.addEventListener('modpack_change', handleModpackChange as EventListener);
+    if (onInstanceChange) {
+      window.addEventListener('instance_change', handleInstanceChange as EventListener);
       listenersAttached = true;
     }
     if (onNotification) {
@@ -38,8 +38,8 @@ export function useWebSocket({ enabled = true, onModpackChange, onNotification }
 
   const detachListeners = () => {
     if (!listenersAttached) return;
-    if (onModpackChange) {
-      window.removeEventListener('modpack_change', handleModpackChange as EventListener);
+    if (onInstanceChange) {
+      window.removeEventListener('instance_change', handleInstanceChange as EventListener);
     }
     if (onNotification) {
       window.removeEventListener('notification', handleNotification as EventListener);

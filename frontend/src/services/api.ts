@@ -1,4 +1,4 @@
-import type { AuthBackend, ModpackBase, ModpackResponse, SettingResponse } from '@/types/api';
+import type { AuthBackend, InstanceBase, InstanceResponse, SettingResponse } from '@/types/api';
 import { authService } from './auth';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -42,35 +42,41 @@ class ApiService {
     return response.json();
   }
 
-  async getModpacks(): Promise<ModpackResponse[]> {
-    return this.request<ModpackResponse[]>('/modpacks');
+  async getInstances(): Promise<InstanceResponse[]> {
+    return this.request<InstanceResponse[]>('/instances');
   }
 
-  async getModpack(id: number): Promise<ModpackResponse> {
-    return this.request<ModpackResponse>(`/modpacks/${id}`);
+  async getInstance(name: string): Promise<InstanceResponse> {
+    const encoded = encodeURIComponent(name);
+    return this.request<InstanceResponse>(`/instances/${encoded}`);
   }
 
-  async createModpack(data: ModpackBase): Promise<ModpackResponse> {
-    return this.request<ModpackResponse>('/modpacks', {
+  async createInstance(data: InstanceBase): Promise<InstanceResponse> {
+    return this.request<InstanceResponse>('/instances', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async deleteModpack(id: number): Promise<void> {
-    await this.request<void>(`/modpacks/${id}`, {
+  async deleteInstance(name: string): Promise<void> {
+    const encoded = encodeURIComponent(name);
+    await this.request<void>(`/instances/${encoded}`, {
       method: 'DELETE',
     });
   }
 
-  async updateModpack(id: number, data: Partial<ModpackBase & { auth_backend: AuthBackend }>): Promise<ModpackResponse> {
-    return this.request<ModpackResponse>(`/modpacks/${id}`, {
+  async updateInstance(
+    name: string,
+    data: Partial<InstanceBase & { auth_backend: AuthBackend }>,
+  ): Promise<InstanceResponse> {
+    const encoded = encodeURIComponent(name);
+    return this.request<InstanceResponse>(`/instances/${encoded}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
   }
 
-  async uploadModpackFiles(id: number, files: FileList): Promise<void> {
+  async uploadInstanceFiles(name: string, files: FileList): Promise<void> {
     const formData = new FormData();
     Array.from(files).forEach((file) => {
       const path = file.webkitRelativePath || file.name;
@@ -78,7 +84,8 @@ class ApiService {
     });
 
     const authHeaders = authService.getAuthHeaders();
-    const response = await fetch(`${API_BASE}/modpacks/${id}/files`, {
+    const encoded = encodeURIComponent(name);
+    const response = await fetch(`${API_BASE}/instances/${encoded}/files`, {
       method: 'POST',
       headers: {
         ...authHeaders,
@@ -121,12 +128,11 @@ class ApiService {
     });
   }
 
-  async buildModpacks(): Promise<void> {
-    await this.request<void>('/modpacks/build', {
+  async buildInstances(): Promise<void> {
+    await this.request<void>('/instances/build', {
       method: 'POST',
     });
   }
 }
 
 export const apiService = new ApiService();
-

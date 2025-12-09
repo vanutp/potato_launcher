@@ -1,14 +1,14 @@
 import { reactive, ref, watch, type Ref } from 'vue';
 import { apiService } from '@/services/api';
-import type { AuthBackend, ModpackBase } from '@/types/api';
+import type { AuthBackend, InstanceBase } from '@/types/api';
 import { AuthType, LoaderType } from '@/types/api';
 
-type PartialModpackBase = Partial<Omit<ModpackBase, 'auth_backend'>> & {
+type PartialInstanceBase = Partial<Omit<InstanceBase, 'auth_backend'>> & {
   auth_backend?: Partial<AuthBackend>;
 };
 
-interface UseModpackFormOptions {
-  initialData?: PartialModpackBase;
+interface UseInstanceFormOptions {
+  initialData?: PartialInstanceBase;
   guard?: Ref<boolean>;
   mode?: 'create' | 'edit';
 }
@@ -20,7 +20,7 @@ const buildAuthBackend = (source?: Partial<AuthBackend>): AuthBackend => ({
   client_secret: source?.client_secret,
 });
 
-const buildFormData = (source?: PartialModpackBase): ModpackBase => ({
+const buildFormData = (source?: PartialInstanceBase): InstanceBase => ({
   name: source?.name ?? '',
   minecraft_version: source?.minecraft_version ?? '',
   loader_name: source?.loader_name ?? LoaderType.VANILLA,
@@ -28,11 +28,11 @@ const buildFormData = (source?: PartialModpackBase): ModpackBase => ({
   auth_backend: buildAuthBackend(source?.auth_backend),
 });
 
-export const useModpackForm = (options: UseModpackFormOptions = {}) => {
+export const useInstanceForm = (options: UseInstanceFormOptions = {}) => {
   const mode = options.mode ?? 'create';
   const guardRef = options.guard ?? ref(true);
 
-  const formData = reactive<ModpackBase>(buildFormData(options.initialData));
+  const formData = reactive<InstanceBase>(buildFormData(options.initialData));
   const minecraftVersions = ref<string[]>([]);
   const availableLoaders = ref<string[]>([]);
   const loaderVersions = ref<string[]>([]);
@@ -57,7 +57,7 @@ export const useModpackForm = (options: UseModpackFormOptions = {}) => {
     resetLoaderVersion();
   };
 
-  const resetFormData = (next?: PartialModpackBase) => {
+  const resetFormData = (next?: PartialInstanceBase) => {
     const data = buildFormData(next);
     formData.name = data.name;
     formData.minecraft_version = data.minecraft_version;
@@ -175,7 +175,7 @@ export const useModpackForm = (options: UseModpackFormOptions = {}) => {
     { immediate: true },
   );
 
-  const handleInputChange = (field: keyof ModpackBase, value: string | LoaderType) => {
+  const handleInputChange = (field: keyof InstanceBase, value: string | LoaderType) => {
     (formData as Record<string, unknown>)[field] = value;
   };
 
@@ -241,4 +241,3 @@ export const useModpackForm = (options: UseModpackFormOptions = {}) => {
     resetUploads,
   };
 };
-

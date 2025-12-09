@@ -75,10 +75,10 @@ class WebSocketService {
 
   private handleMessage(data: any): void {
     switch (data.type) {
-      case 'modpack_created':
-      case 'modpack_updated':
-      case 'modpack_deleted':
-        window.dispatchEvent(new CustomEvent('modpack_change', { detail: data }));
+      case 'instance_created':
+      case 'instance_updated':
+      case 'instance_deleted':
+        window.dispatchEvent(new CustomEvent('instance_change', { detail: data }));
         break;
       case 'notification':
         window.dispatchEvent(new CustomEvent('notification', { detail: data }));

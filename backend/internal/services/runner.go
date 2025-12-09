@@ -95,7 +95,7 @@ func (r *RunnerService) prepareSpecFile() error {
 		ExecAfterAll:        r.cfg.ExecAfterAll,
 		Versions:            spec.Versions,
 	}
-	raw, err := json.MarshalIndent(builderSpec, "", "  ")
+	raw, err := json.MarshalIndent(builderSpec, "", "    ")
 	if err != nil {
 		return err
 	}

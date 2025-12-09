@@ -42,7 +42,7 @@ const handleTokenChange = (value: string | number) => {
   <div class="flex min-h-screen items-center justify-center p-4">
     <Card class="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Modpack Manager</CardTitle>
+        <CardTitle>Instance Manager</CardTitle>
         <CardDescription>Sign in with your access token.</CardDescription>
       </CardHeader>
       <CardContent class="space-y-4">

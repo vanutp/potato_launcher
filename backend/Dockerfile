@@ -23,7 +23,7 @@ FROM debian:bookworm-slim AS runtime
 ENV SPEC_FILE=/data/spec.json \
     GENERATED_DIR=/data/generated \
     WORKDIR_DIR=/data/workdir \
-    MODPACKS_SAVES_DIR=/data/modpacks \
+    UPLOADED_INSTANCES_DIR=/data/uploaded-instances \
     TEMP_DIR=/tmp/potato \
     HOST=0.0.0.0 \
     PORT=8000
@@ -36,7 +36,7 @@ WORKDIR /app
 COPY --from=backend-builder /out/server /usr/local/bin/server
 COPY --from=instance-builder /src/target/release/instance_builder /usr/local/bin/instance_builder
 
-RUN mkdir -p /data/modpacks /data/generated /data/workdir /data/metadata \
+RUN mkdir -p /data/uploaded-instances /data/generated /data/workdir /data/metadata \
     && chown -R app:app /data
 
 USER app

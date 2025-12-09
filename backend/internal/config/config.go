@@ -17,7 +17,7 @@ type Config struct {
 	AccessTokenExpireMinutes int
 	AllowedOrigins           []string
 	TempDir                  string
-	UploadedModpacksDir      string
+	UploadedInstancesDir     string
 	SpecFile                 string
 	InstanceBuilderBinary    string
 	GeneratedDir             string
@@ -38,7 +38,7 @@ func Load() (*Config, error) {
 		AccessTokenExpireMinutes: getEnvInt("ACCESS_TOKEN_EXPIRE_MINUTES", 1440),
 		AllowedOrigins:           splitAndClean(getEnv("ALLOWED_ORIGINS", "*")),
 		TempDir:                  getEnv("TEMP_DIR", os.TempDir()),
-		UploadedModpacksDir:      getEnv("UPLOADED_MODPACKS_DIR", "/data/modpacks"),
+		UploadedInstancesDir:     getEnv("UPLOADED_INSTANCES_DIR", "/data/uploaded-instances"),
 		SpecFile:                 getEnv("SPEC_FILE", "/data/metadata/spec.json"),
 		InstanceBuilderBinary:    getEnv("INSTANCE_BUILDER_BINARY", "instance_builder"),
 		GeneratedDir:             getEnv("GENERATED_DIR", "/data/generated"),
@@ -71,7 +71,7 @@ func Load() (*Config, error) {
 
 	for _, dir := range []string{
 		cfg.TempDir,
-		cfg.UploadedModpacksDir,
+		cfg.UploadedInstancesDir,
 		cfg.GeneratedDir,
 		cfg.WorkdirDir,
 		filepath.Dir(cfg.SpecFile),
@@ -85,7 +85,7 @@ func Load() (*Config, error) {
 	if cfg.TempDir, err = filepath.Abs(cfg.TempDir); err != nil {
 		return nil, err
 	}
-	if cfg.UploadedModpacksDir, err = filepath.Abs(cfg.UploadedModpacksDir); err != nil {
+	if cfg.UploadedInstancesDir, err = filepath.Abs(cfg.UploadedInstancesDir); err != nil {
 		return nil, err
 	}
 	if cfg.SpecFile, err = filepath.Abs(cfg.SpecFile); err != nil {

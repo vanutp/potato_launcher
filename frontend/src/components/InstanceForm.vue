@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { apiService } from '@/services/api';
-import type { AuthBackend, ModpackBase } from '@/types/api';
+import type { AuthBackend, InstanceBase } from '@/types/api';
 import { AuthType, LoaderType } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useModpackForm } from '@/composables/useModpackForm';
-import ModpackFormFields from '@/components/ModpackFormFields.vue';
+import { useInstanceForm } from '@/composables/useInstanceForm';
+import InstanceFormFields from '@/components/InstanceFormFields.vue';
 
 const emit = defineEmits<{
-  (event: 'submitted', payload: ModpackBase): void;
+  (event: 'submitted', payload: InstanceBase): void;
 }>();
 
 const {
@@ -30,7 +30,7 @@ const {
   loadMinecraftVersions,
   resetFormData,
   resetUploads,
-} = useModpackForm({ mode: 'create' });
+} = useInstanceForm({ mode: 'create' });
 
 const loading = ref(false);
 const errors = reactive<Record<string, string>>({});
@@ -76,7 +76,7 @@ const handleSubmit = async () => {
 
   try {
     loading.value = true;
-    const payload: ModpackBase = {
+    const payload: InstanceBase = {
       ...formData,
       auth_backend: { ...formData.auth_backend },
     };
@@ -85,20 +85,20 @@ const handleSubmit = async () => {
       delete payload.loader_version;
     }
 
-    const created = await apiService.createModpack(payload);
+    const created = await apiService.createInstance(payload);
     if (uploadedFiles.value && uploadedFiles.value.length > 0) {
-      await apiService.uploadModpackFiles(created.id, uploadedFiles.value);
+      await apiService.uploadInstanceFiles(created.name, uploadedFiles.value);
     }
     emit('submitted', payload);
     resetForm();
   } catch (err) {
-    errors.submit = err instanceof Error ? err.message : 'Failed to create modpack';
+    errors.submit = err instanceof Error ? err.message : 'Failed to create instance';
   } finally {
     loading.value = false;
   }
 };
 
-const updateField = (field: keyof ModpackBase, value: string | LoaderType) => {
+const updateField = (field: keyof InstanceBase, value: string | LoaderType) => {
   handleInputChange(field, value);
   if (errors[field as string]) {
     delete errors[field as string];
@@ -107,8 +107,9 @@ const updateField = (field: keyof ModpackBase, value: string | LoaderType) => {
 
 const updateAuthField = (field: keyof AuthBackend, value: string | AuthType) => {
   handleAuthBackendChange(field, value);
-  if (errors[field as string]) {
-    delete errors[field as string];
+  const errorKey = field === 'type' ? 'auth_kind' : (field as string);
+  if (errors[errorKey]) {
+    delete errors[errorKey];
   }
 };
 
@@ -121,7 +122,7 @@ onMounted(() => {
   <div class="p-4">
     <Card>
       <CardHeader>
-        <CardTitle>Create New Modpack</CardTitle>
+        <CardTitle>Create New Instance</CardTitle>
         <CardDescription>Provision a new entry for Potato Launcher.</CardDescription>
       </CardHeader>
       <CardContent>
@@ -129,7 +130,7 @@ onMounted(() => {
           <Alert v-if="errors.submit" variant="destructive">
             <AlertDescription>{{ errors.submit }}</AlertDescription>
           </Alert>
-          <ModpackFormFields id-prefix="create" :form-data="formData" :errors="errors"
+          <InstanceFormFields id-prefix="create" :form-data="formData" :errors="errors"
             :minecraft-versions="minecraftVersions" :available-loaders="availableLoaders"
             :loader-versions="loaderVersions" :loading-minecraft-versions="loadingMinecraftVersions"
             :loading-loaders="loadingLoaders" :loading-loader-versions="loadingLoaderVersions"
@@ -138,7 +139,7 @@ onMounted(() => {
           <div>
             <Button type="submit" class="w-full" :disabled="loading">
               <span v-if="loading">Creating...</span>
-              <span v-else>Create Modpack</span>
+              <span v-else>Create Instance</span>
             </Button>
           </div>
         </form>

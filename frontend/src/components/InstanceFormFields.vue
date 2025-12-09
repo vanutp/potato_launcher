@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Upload } from 'lucide-vue-next';
-import type { AuthBackend, ModpackBase } from '@/types/api';
+import type { AuthBackend, InstanceBase } from '@/types/api';
 import { AuthType, LoaderType } from '@/types/api';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const props = withDefaults(
     defineProps<{
-        formData: ModpackBase;
+        formData: InstanceBase;
         minecraftVersions: string[];
         availableLoaders: string[];
         loaderVersions: string[];
@@ -31,12 +31,12 @@ const props = withDefaults(
         disabled: false,
         uploadedFiles: null,
         showFileUpload: true,
-        idPrefix: 'modpack',
+        idPrefix: 'instance',
     },
 );
 
 const emit = defineEmits<{
-    (event: 'update-field', field: keyof ModpackBase, value: string | LoaderType): void;
+    (event: 'update-field', field: keyof InstanceBase, value: string | LoaderType): void;
     (event: 'update-auth-field', field: keyof AuthBackend, value: string | AuthType): void;
     (event: 'file-drag', eventObj: DragEvent): void;
     (event: 'file-drop', eventObj: DragEvent): void;
@@ -50,9 +50,9 @@ const isVanillaLoader = computed(() => props.formData.loader_name === LoaderType
     <div class="space-y-5">
         <div class="grid gap-4 sm:grid-cols-2">
             <div class="space-y-2 sm:col-span-2">
-                <Label :for="`${props.idPrefix}-name`">Modpack Name *</Label>
+                <Label :for="`${props.idPrefix}-name`">Instance Name *</Label>
                 <Input :id="`${props.idPrefix}-name`" :model-value="props.formData.name" :disabled="props.disabled"
-                    placeholder="Enter modpack name"
+                    placeholder="Enter instance name"
                     @update:modelValue="(value) => emit('update-field', 'name', value?.toString() ?? '')" />
                 <p v-if="props.errors?.name" class="text-sm">
                     {{ props.errors.name }}
@@ -188,7 +188,7 @@ const isVanillaLoader = computed(() => props.formData.loader_name === LoaderType
             </div>
         </div>
         <div v-if="props.showFileUpload" class="space-y-3">
-            <Label>Upload Modpack Files (optional)</Label>
+            <Label>Upload Instance Files (optional)</Label>
             <div class="relative rounded-md border border-dashed p-6 text-center text-sm"
                 @dragenter="(event) => emit('file-drag', event)" @dragleave="(event) => emit('file-drag', event)"
                 @dragover="(event) => emit('file-drag', event)" @drop="(event) => emit('file-drop', event)">

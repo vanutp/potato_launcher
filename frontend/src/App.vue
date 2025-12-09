@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import LoginForm from '@/components/LoginForm.vue';
-import ModpackSidebar from '@/components/ModpackSidebar.vue';
-import ModpackForm from '@/components/ModpackForm.vue';
-import ModpackDetails from '@/components/ModpackDetails.vue';
+import InstanceSidebar from '@/components/InstanceSidebar.vue';
+import InstanceForm from '@/components/InstanceForm.vue';
+import InstanceDetails from '@/components/InstanceDetails.vue';
 import SettingsForm from '@/components/SettingsForm.vue';
 import NotificationToast from '@/components/NotificationToast.vue';
 import { Button } from '@/components/ui/button';
@@ -12,39 +12,39 @@ import { useAuth } from '@/composables/useAuth';
 import { useNotification } from '@/composables/useNotification';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { apiService } from '@/services/api';
-import type { ModpackBase, ModpackResponse, SettingResponse } from '@/types/api';
+import type { InstanceBase, InstanceResponse, SettingResponse } from '@/types/api';
 
 const { isAuthenticated, loading: authLoading, error: authError, login, logout } = useAuth();
 const { notification, hideNotification, showSuccess, showError, showInfo } = useNotification();
 
-const modpacks = ref<ModpackResponse[]>([]);
+const instances = ref<InstanceResponse[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const selectedModpack = ref<number | null>(null);
+const selectedInstance = ref<string | null>(null);
 const showForm = ref(false);
 const showSettings = ref(false);
 const building = ref(false);
 const fetching = ref(false);
 
-const selectedModpackData = computed(() =>
-  modpacks.value.find((m) => m.id === selectedModpack.value) ?? null,
+const selectedInstanceData = computed(() =>
+  instances.value.find((m) => m.name === selectedInstance.value) ?? null,
 );
 
-const loadModpacks = async () => {
+const loadInstances = async () => {
   if (fetching.value) return;
   fetching.value = true;
   try {
     loading.value = true;
     error.value = null;
-    modpacks.value = await apiService.getModpacks();
-    if (selectedModpack.value) {
-      const exists = modpacks.value.some((m) => m.id === selectedModpack.value);
+    instances.value = await apiService.getInstances();
+    if (selectedInstance.value) {
+      const exists = instances.value.some((m) => m.name === selectedInstance.value);
       if (!exists) {
-        selectedModpack.value = null;
+        selectedInstance.value = null;
       }
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load modpacks';
+    error.value = err instanceof Error ? err.message : 'Failed to load instances';
   } finally {
     loading.value = false;
     fetching.value = false;
@@ -61,10 +61,10 @@ watch(
   isAuthenticated,
   (authed) => {
     if (authed) {
-      loadModpacks().catch((err) => console.error(err));
+      loadInstances().catch((err) => console.error(err));
     } else {
-      modpacks.value = [];
-      selectedModpack.value = null;
+      instances.value = [];
+      selectedInstance.value = null;
       showForm.value = false;
       showSettings.value = false;
       loading.value = false;
@@ -76,8 +76,8 @@ watch(
 
 useWebSocket({
   enabled: isAuthenticated,
-  onModpackChange: () => {
-    loadModpacks().catch((err) => console.error(err));
+  onInstanceChange: () => {
+    loadInstances().catch((err) => console.error(err));
   },
   onNotification: (data) => {
     if (data && typeof data === 'object' && 'message' in data) {
@@ -95,14 +95,14 @@ const handleLogin = async (payload: { token: string }) => {
   }
 };
 
-const handleNewModpack = () => {
+const handleNewInstance = () => {
   showForm.value = true;
   showSettings.value = false;
-  selectedModpack.value = null;
+  selectedInstance.value = null;
 };
 
-const handleSelectModpack = (id: number) => {
-  selectedModpack.value = id;
+const handleSelectInstance = (name: string) => {
+  selectedInstance.value = name;
   showForm.value = false;
   showSettings.value = false;
 };
@@ -110,30 +110,31 @@ const handleSelectModpack = (id: number) => {
 const handleShowSettings = () => {
   showSettings.value = true;
   showForm.value = false;
-  selectedModpack.value = null;
+  selectedInstance.value = null;
 };
 
-const handleModpackUpdate = (payload: { id: number; data: Partial<ModpackResponse> }) => {
-  modpacks.value = modpacks.value.map((modpack) =>
-    modpack.id === payload.id ? { ...modpack, ...payload.data } : modpack,
+const handleInstanceUpdate = (payload: { name: string; data: Partial<InstanceResponse> }) => {
+  instances.value = instances.value.map((instance) =>
+    instance.name === payload.name ? { ...instance, ...payload.data } : instance,
   );
 };
 
-const handleModpackDelete = async (id: number) => {
+const handleInstanceDelete = async (name: string) => {
   try {
-    await apiService.deleteModpack(id);
-    modpacks.value = modpacks.value.filter((modpack) => modpack.id !== id);
-    if (selectedModpack.value === id) {
-      selectedModpack.value = null;
+    await apiService.deleteInstance(name);
+    instances.value = instances.value.filter((instance) => instance.name !== name);
+    if (selectedInstance.value === name) {
+      selectedInstance.value = null;
     }
   } catch (err) {
-    console.error('Failed to delete modpack:', err);
-    await loadModpacks();
+    console.error('Failed to delete instance:', err);
+    showError(err instanceof Error ? err.message : 'Failed to delete instance');
+    await loadInstances();
   }
 };
 
-const handleFormSubmit = async (_: ModpackBase) => {
-  await loadModpacks();
+const handleFormSubmit = async (_: InstanceBase) => {
+  await loadInstances();
   showForm.value = false;
   showSettings.value = false;
 };
@@ -146,7 +147,7 @@ const handleSettingsSave = (settings: SettingResponse[]) => {
 const handleBuild = async () => {
   try {
     building.value = true;
-    await apiService.buildModpacks();
+    await apiService.buildInstances();
     showSuccess('Build started successfully!');
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Build failed';
@@ -165,8 +166,8 @@ const handleBuild = async () => {
     <LoginForm v-if="!isAuthenticated" :loading="authLoading" :error="authError" @login="handleLogin" />
 
     <div v-else class="flex min-h-screen">
-      <ModpackSidebar :modpacks="modpacks" :selected-modpack="selectedModpack" :show-form="showForm"
-        :show-settings="showSettings" :building="building" @select="handleSelectModpack" @new="handleNewModpack"
+      <InstanceSidebar :instances="instances" :selected-instance="selectedInstance" :show-form="showForm"
+        :show-settings="showSettings" :building="building" @select="handleSelectInstance" @new="handleNewInstance"
         @show-settings="handleShowSettings" @logout="logout" @build="handleBuild" />
 
       <main class="flex-1 p-8">
@@ -179,28 +180,28 @@ const handleBuild = async () => {
             <div class="text-xl mb-4">
               Error: {{ error }}
             </div>
-            <Button @click="loadModpacks">
+            <Button @click="loadInstances">
               Retry
             </Button>
           </div>
         </div>
 
         <div v-else>
-          <ModpackForm v-if="showForm" @submitted="handleFormSubmit" />
+          <InstanceForm v-if="showForm" @submitted="handleFormSubmit" />
           <SettingsForm v-else-if="showSettings" @saved="handleSettingsSave" />
-          <ModpackDetails v-else-if="selectedModpackData" :key="selectedModpackData.id" :modpack="selectedModpackData"
-            @updated="handleModpackUpdate" @deleted="handleModpackDelete" />
+          <InstanceDetails v-else-if="selectedInstanceData" :key="selectedInstanceData.name" :instance="selectedInstanceData"
+            @updated="handleInstanceUpdate" @deleted="handleInstanceDelete" />
           <div v-else class="flex items-center justify-center min-h-[60vh] p-4">
             <Card class="w-full max-w-xl">
               <CardHeader class="text-center">
-                <CardTitle class="text-2xl">Welcome to Modpack Manager</CardTitle>
+                <CardTitle class="text-2xl">Welcome to Instance Manager</CardTitle>
                 <CardDescription>
-                  Select a modpack from the sidebar or create a new one to get started.
+                  Select an instance from the sidebar or create a new one to get started.
                 </CardDescription>
               </CardHeader>
               <CardContent class="text-center">
-                <Button size="lg" @click="handleNewModpack">
-                  Create New Modpack
+                <Button size="lg" @click="handleNewInstance">
+                  Create New Instance
                 </Button>
               </CardContent>
             </Card>

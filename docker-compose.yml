@@ -14,10 +14,10 @@ services:
       EXEC_BEFORE_ALL: ${EXEC_BEFORE_ALL-}
       EXEC_AFTER_ALL: ${EXEC_AFTER_ALL-}
     volumes:
-      - ./metadata:/data/metadata
-      - ./uploaded-modpacks:/data/modpacks
-      - ./generated:/data/generated
-      - ./workdir:/data/workdir
+      - ./state/metadata:/data/metadata
+      - ./state/uploaded-instances:/data/uploaded-instances
+      - ./state/generated:/data/generated
+      - ./state/workdir:/data/workdir
 
   frontend:
     image: potato-launcher-frontend

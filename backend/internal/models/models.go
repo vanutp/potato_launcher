@@ -7,10 +7,6 @@ type Spec struct {
 	Versions            []VersionSpec `json:"versions"`
 }
 
-type SpecSettings struct {
-	ReplaceDownloadURLs bool `json:"replace_download_urls"`
-}
-
 type BuilderSpec struct {
 	DownloadServerBase  string        `json:"download_server_base"`
 	ResourcesURLBase    *string       `json:"resources_url_base,omitempty"`
@@ -65,15 +61,6 @@ type VersionSpec struct {
 	ExecAfter        string        `json:"exec_after,omitempty"`
 }
 
-type TokenRequest struct {
-	Token string `json:"token"`
-}
-
-type TokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-}
-
 type BuildStatus string
 
 const (
@@ -83,5 +70,5 @@ const (
 
 type JWTClaims struct {
 	Sub string `json:"sub"`
-	exp time.Time
+	Exp time.Time
 }

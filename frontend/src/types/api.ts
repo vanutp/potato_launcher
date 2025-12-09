@@ -19,8 +19,7 @@ export interface AuthBackend {
   client_secret?: string;
 }
 
-export interface ModpackResponse {
-  id: number;
+export interface InstanceResponse {
   name: string;
   minecraft_version: string;
   loader_name: LoaderType;
@@ -28,7 +27,7 @@ export interface ModpackResponse {
   auth_backend: AuthBackend;
 }
 
-export interface ModpackBase {
+export interface InstanceBase {
   name: string;
   minecraft_version: string;
   loader_name: LoaderType;
@@ -46,4 +45,3 @@ export interface SettingResponse {
   value: string | boolean;
   type: SettingType;
 }
-
