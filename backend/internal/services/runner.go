@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"sync"
@@ -22,13 +23,15 @@ type RunnerService struct {
 	status  models.BuildStatus
 	mu      sync.RWMutex
 	running bool
+	logger  *slog.Logger
 }
 
-func NewRunnerService(cfg *config.Config, store SpecProvider) *RunnerService {
+func NewRunnerService(cfg *config.Config, store SpecProvider, logger *slog.Logger) *RunnerService {
 	return &RunnerService{
 		cfg:    cfg,
 		store:  store,
 		status: models.BuildIdle,
+		logger: logger,
 	}
 }
 
@@ -48,11 +51,12 @@ func (r *RunnerService) RunBuild(ctx context.Context) error {
 	r.status = models.BuildRunning
 	r.mu.Unlock()
 
-	go r.execute(ctx)
+	go r.execute(context.Background())
 	return nil
 }
 
 func (r *RunnerService) execute(ctx context.Context) {
+	r.logger.Info("starting build process")
 	if err := r.prepareSpecFile(); err != nil {
 		r.finish(err)
 		return
@@ -78,7 +82,9 @@ func (r *RunnerService) finish(runErr error) {
 	r.mu.Unlock()
 
 	if runErr != nil {
-		fmt.Fprintf(os.Stderr, "runner failed: %v\n", runErr)
+		r.logger.Error("runner failed", "error", runErr)
+	} else {
+		r.logger.Info("build finished successfully")
 	}
 }
 

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -25,6 +26,7 @@ type Dependencies struct {
 	Store  SpecStore
 	Auth   *services.AuthService
 	Runner *services.RunnerService
+	Logger *slog.Logger
 }
 
 func NewAPI(deps *Dependencies) (huma.API, chi.Router) {
@@ -101,6 +103,7 @@ func (d *Dependencies) ensureAuth(header string) error {
 		return huma.Error401Unauthorized("expected Bearer token")
 	}
 	if _, err := d.Auth.ValidateToken(parts[1]); err != nil {
+		d.Logger.Warn("invalid token attempt", "error", err)
 		return huma.Error401Unauthorized("invalid token")
 	}
 	return nil

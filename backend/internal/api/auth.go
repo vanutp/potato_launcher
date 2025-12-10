@@ -21,12 +21,15 @@ func registerAuth(api huma.API, deps *Dependencies) {
 		Body TokenResponse
 	}, error) {
 		if input.Body.Token != deps.Config.AdminSecretToken {
+			deps.Logger.Warn("login failed: invalid admin token")
 			return nil, huma.Error401Unauthorized("invalid token")
 		}
 		token, err := deps.Auth.CreateAccessToken("single_user")
 		if err != nil {
+			deps.Logger.Error("failed to create access token", "error", err)
 			return nil, huma.Error500InternalServerError("failed to sign token")
 		}
+		deps.Logger.Info("login successful")
 		return &struct {
 			Body TokenResponse
 		}{

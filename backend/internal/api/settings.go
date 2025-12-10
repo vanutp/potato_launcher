@@ -57,6 +57,7 @@ func registerSettings(api huma.API, deps *Dependencies) {
 		if err != nil {
 			return nil, huma.Error500InternalServerError(err.Error())
 		}
+		deps.Logger.Info("settings updated", "replace_download_urls", input.Body.ReplaceDownloadURLs)
 		return &struct{ Body Settings }{Body: toAPISettings(spec)}, nil
 	})
 }

@@ -100,6 +100,7 @@ func registerInstances(api huma.API, deps *Dependencies) {
 		if created == nil {
 			return nil, huma.Error500InternalServerError("failed to create instance")
 		}
+		deps.Logger.Info("instance created", "name", version.Name)
 		return &struct{ Body Instance }{Body: toAPIInstance(*created)}, nil
 	})
 
@@ -179,7 +180,6 @@ func registerInstances(api huma.API, deps *Dependencies) {
 				}
 			}
 
-			// Preserve internal/protected fields
 			newVersion.ExecBefore = existing.ExecBefore
 			newVersion.ExecAfter = existing.ExecAfter
 			if newVersion.IncludeFrom == "" {
@@ -199,6 +199,7 @@ func registerInstances(api huma.API, deps *Dependencies) {
 		}
 
 		_, current := findVersion(updated, newVersion.Name)
+		deps.Logger.Info("instance updated", "name", input.Name, "new_name", newVersion.Name)
 		return &struct{ Body Instance }{Body: toAPIInstance(*current)}, nil
 	})
 
@@ -233,6 +234,7 @@ func registerInstances(api huma.API, deps *Dependencies) {
 		if err != nil {
 			return nil, mapAppError(err)
 		}
+		deps.Logger.Info("instance deleted", "name", input.Name)
 		return &struct{}{}, nil
 	})
 
@@ -270,6 +272,7 @@ func registerInstances(api huma.API, deps *Dependencies) {
 		if err := deps.Runner.RunBuild(ctx); err != nil {
 			return nil, huma.Error409Conflict(err.Error())
 		}
+		deps.Logger.Info("build triggered")
 		return &struct {
 			Body struct {
 				Status string `json:"status"`
@@ -348,6 +351,7 @@ func registerUpload(api huma.API, deps *Dependencies) {
 		if err := saveUploadedFiles(targetDir, input.Files, deps.Config); err != nil {
 			return nil, huma.Error500InternalServerError(err.Error())
 		}
+		deps.Logger.Info("files uploaded", "instance", input.Name, "count", len(input.Files))
 		return &struct{}{}, nil
 	})
 }

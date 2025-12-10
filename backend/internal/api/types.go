@@ -2,8 +2,6 @@ package api
 
 import "github.com/Petr1Furious/potato-launcher/backend/internal/models"
 
-// Auth
-
 type TokenRequest struct {
 	Token string `json:"token" doc:"Admin secret token"`
 }
@@ -13,13 +11,9 @@ type TokenResponse struct {
 	TokenType   string `json:"token_type"`
 }
 
-// Settings
-
 type Settings struct {
 	ReplaceDownloadURLs bool `json:"replace_download_urls" doc:"Whether to replace download URLs in the client"`
 }
-
-// Instances
 
 type AuthBackend struct {
 	Type         models.AuthType `json:"type"`

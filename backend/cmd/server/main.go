@@ -1,8 +1,9 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/Petr1Furious/potato-launcher/backend/internal/api"
 	"github.com/Petr1Furious/potato-launcher/backend/internal/config"
@@ -11,27 +12,34 @@ import (
 )
 
 func main() {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("load config: %v", err)
+		logger.Error("failed to load config", "error", err)
+		os.Exit(1)
 	}
 
 	store, err := store.New(cfg.SpecFile, cfg.ReplaceDownloadURLs)
 	if err != nil {
-		log.Fatalf("init storage: %v", err)
+		logger.Error("failed to init storage", "error", err)
+		os.Exit(1)
 	}
 
 	deps := &api.Dependencies{
 		Config: cfg,
 		Store:  store,
 		Auth:   services.NewAuthService(cfg),
-		Runner: services.NewRunnerService(cfg, store),
+		Runner: services.NewRunnerService(cfg, store, logger),
+		Logger: logger,
 	}
 
 	_, router := api.NewAPI(deps)
 
-	log.Printf("listening on %s", cfg.Address())
+	logger.Info("starting server", "address", cfg.Address())
 	if err := http.ListenAndServe(cfg.Address(), router); err != nil {
-		log.Fatalf("server error: %v", err)
+		logger.Error("server failed", "error", err)
+		os.Exit(1)
 	}
 }
