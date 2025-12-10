@@ -1,22 +1,22 @@
-FROM node:25-alpine AS deps
+FROM node:24-alpine AS builder
+
 WORKDIR /app
 
-RUN rm -f /usr/local/bin/yarn /usr/local/bin/yarnpkg \
-    && npm install -g corepack \
-    && corepack enable
+RUN corepack enable
 
-COPY package.json yarn.lock ./
-COPY .yarnrc.yml ./
+COPY package.json yarn.lock .yarnrc.yml ./
 RUN yarn install --immutable
 
-FROM deps AS build
+COPY . .
+
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
-COPY . .
-RUN yarn build
+RUN yarn build-only
 
-FROM nginx:1.29-alpine AS runtime
-COPY --from=build /app/dist /usr/share/nginx/html
+FROM nginx:alpine
+
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 80
-ENTRYPOINT ["nginx", "-g", "daemon off;"]
+
+CMD ["nginx", "-g", "daemon off;"]
