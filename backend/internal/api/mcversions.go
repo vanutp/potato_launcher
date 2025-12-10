@@ -18,6 +18,7 @@ func registerMCVersions(api huma.API, deps *Dependencies) {
 		Summary:     "List Minecraft Versions",
 		Description: "Get a list of available Minecraft versions.",
 		Tags:        []string{"MC Versions"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 	}, func(ctx context.Context, input *struct {
 		AuthHeaders
 	}) (*struct {
@@ -40,6 +41,7 @@ func registerMCVersions(api huma.API, deps *Dependencies) {
 		Summary:     "List Loaders",
 		Description: "Get available loaders for a specific Minecraft version.",
 		Tags:        []string{"MC Versions"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 	}, func(ctx context.Context, input *struct {
 		AuthHeaders
 		Version string `path:"version" doc:"Minecraft version"`
@@ -63,6 +65,7 @@ func registerMCVersions(api huma.API, deps *Dependencies) {
 		Summary:     "List Loader Versions",
 		Description: "Get specific versions for a loader on a Minecraft version.",
 		Tags:        []string{"MC Versions"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 	}, func(ctx context.Context, input *struct {
 		AuthHeaders
 		Version string            `path:"version" doc:"Minecraft version"`

@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Pencil, Trash2 } from 'lucide-vue-next';
 import DeleteConfirmModal from './DeleteConfirmModal.vue';
 import { apiService } from '@/services/api';
-import type { AuthBackend, InstanceBase, InstanceResponse } from '@/types/api';
+import type { AuthBackend, InstanceBase, InstanceResponse, IncludeRule } from '@/types/api';
 import { AuthType, LoaderType } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +30,7 @@ const toEditableFields = (instance: InstanceResponse): EditableFields => ({
   loader_name: instance.loader_name,
   loader_version: instance.loader_version,
   auth_backend: { ...instance.auth_backend },
+  include: instance.include?.map(rule => ({ ...rule })) || [],
 });
 
 const isEditing = ref(false);
@@ -49,6 +50,9 @@ const {
   uploadedFiles,
   handleInputChange: setFieldValue,
   handleAuthBackendChange: setAuthFieldValue,
+  addIncludeRule,
+  removeIncludeRule,
+  updateIncludeRule,
   handleDrag,
   handleDrop,
   handleFileInput,
@@ -102,6 +106,7 @@ const handleUpdate = async () => {
     const payload: InstanceBase = {
       ...editData,
       auth_backend: { ...editData.auth_backend },
+      include: editData.include?.map(rule => ({ ...rule })),
     };
 
     if (payload.loader_name === LoaderType.VANILLA) {
@@ -171,7 +176,8 @@ const authTypeLabel = computed(() => editData.auth_backend.type);
               :available-loaders="availableLoaders" :loader-versions="loaderVersions"
               :loading-minecraft-versions="loadingMinecraftVersions" :loading-loaders="loadingLoaders"
               :loading-loader-versions="loadingLoaderVersions" :uploaded-files="uploadedFiles" :disabled="updating"
-              @update-field="updateField" @update-auth-field="updateAuthField" @file-drag="handleDrag"
+              @update-field="updateField" @update-auth-field="updateAuthField" @add-include-rule="addIncludeRule"
+              @remove-include-rule="removeIncludeRule" @update-include-rule="updateIncludeRule" @file-drag="handleDrag"
               @file-drop="handleDrop" @file-input="handleFileInput" />
             <div class="flex flex-wrap justify-end gap-3">
               <Button type="button" :disabled="updating" @click="handleCancel">
@@ -218,6 +224,22 @@ const authTypeLabel = computed(() => editData.auth_backend.type);
                 <dd class="text-sm font-medium">••••••••••</dd>
               </div>
             </template>
+            <div class="sm:col-span-2" v-if="props.instance.include && props.instance.include.length > 0">
+              <dt class="text-sm mb-2">Include Rules</dt>
+              <dd class="text-sm font-medium">
+                <div class="border rounded-md divide-y">
+                  <div v-for="(rule, index) in props.instance.include" :key="index"
+                    class="p-3 flex items-start justify-between gap-4">
+                    <div class="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{{ rule.path }}</div>
+                    <div class="flex gap-2 text-xs text-muted-foreground">
+                      <span v-if="rule.overwrite" class="text-primary font-medium">Overwrite</span>
+                      <span v-if="rule.recursive" class="text-primary font-medium">Recursive</span>
+                      <span v-if="rule.delete_extra" class="text-destructive font-medium">Delete Extra</span>
+                    </div>
+                  </div>
+                </div>
+              </dd>
+            </div>
           </dl>
         </template>
       </CardContent>

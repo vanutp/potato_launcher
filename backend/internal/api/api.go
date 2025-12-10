@@ -44,6 +44,13 @@ func NewAPI(deps *Dependencies) (huma.API, chi.Router) {
 	cfg.OpenAPI.OpenAPI = "3.1.0"
 	cfg.OpenAPI.Info.Description = "Go rewrite powered by Huma"
 	cfg.OpenAPI.Servers = []*huma.Server{{URL: "/api/v1"}}
+	cfg.OpenAPI.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
+		"bearerAuth": {
+			Type:         "http",
+			Scheme:       "bearer",
+			BearerFormat: "JWT",
+		},
+	}
 
 	api := humachi.New(apiRouter, cfg)
 
@@ -82,7 +89,7 @@ func NewAPI(deps *Dependencies) (huma.API, chi.Router) {
 }
 
 type AuthHeaders struct {
-	Authorization string `header:"Authorization" doc:"Bearer <token>"`
+	Authorization string `header:"Authorization" hidden:"true"`
 }
 
 func (d *Dependencies) ensureAuth(header string) error {

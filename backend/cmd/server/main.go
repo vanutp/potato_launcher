@@ -7,7 +7,7 @@ import (
 	"github.com/Petr1Furious/potato-launcher/backend/internal/api"
 	"github.com/Petr1Furious/potato-launcher/backend/internal/config"
 	"github.com/Petr1Furious/potato-launcher/backend/internal/services"
-	"github.com/Petr1Furious/potato-launcher/backend/internal/storage/specstore"
+	store "github.com/Petr1Furious/potato-launcher/backend/internal/storage"
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
-	store, err := specstore.New(cfg.SpecFile, cfg.ReplaceDownloadURLs)
+	store, err := store.New(cfg.SpecFile, cfg.ReplaceDownloadURLs)
 	if err != nil {
 		log.Fatalf("init storage: %v", err)
 	}

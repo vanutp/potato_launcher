@@ -19,12 +19,20 @@ export interface AuthBackend {
   client_secret?: string;
 }
 
+export interface IncludeRule {
+  path: string;
+  overwrite?: boolean;
+  recursive?: boolean;
+  delete_extra?: boolean;
+}
+
 export interface InstanceResponse {
   name: string;
   minecraft_version: string;
   loader_name: LoaderType;
   loader_version?: string;
   auth_backend: AuthBackend;
+  include?: IncludeRule[];
 }
 
 export interface InstanceBase {
@@ -33,6 +41,7 @@ export interface InstanceBase {
   loader_name: LoaderType;
   loader_version?: string;
   auth_backend: AuthBackend;
+  include?: IncludeRule[];
 }
 
 export enum SettingType {

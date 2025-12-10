@@ -1,10 +1,11 @@
 import { reactive, ref, watch, type Ref } from 'vue';
 import { apiService } from '@/services/api';
-import type { AuthBackend, InstanceBase } from '@/types/api';
+import type { AuthBackend, InstanceBase, IncludeRule } from '@/types/api';
 import { AuthType, LoaderType } from '@/types/api';
 
-type PartialInstanceBase = Partial<Omit<InstanceBase, 'auth_backend'>> & {
+type PartialInstanceBase = Partial<Omit<InstanceBase, 'auth_backend' | 'include'>> & {
   auth_backend?: Partial<AuthBackend>;
+  include?: IncludeRule[];
 };
 
 interface UseInstanceFormOptions {
@@ -20,12 +21,18 @@ const buildAuthBackend = (source?: Partial<AuthBackend>): AuthBackend => ({
   client_secret: source?.client_secret,
 });
 
+const buildIncludeRules = (source?: IncludeRule[]): IncludeRule[] => {
+  if (!source) return [];
+  return source.map((rule) => ({ ...rule }));
+};
+
 const buildFormData = (source?: PartialInstanceBase): InstanceBase => ({
   name: source?.name ?? '',
   minecraft_version: source?.minecraft_version ?? '',
   loader_name: source?.loader_name ?? LoaderType.VANILLA,
   loader_version: source?.loader_version ?? '',
   auth_backend: buildAuthBackend(source?.auth_backend),
+  include: buildIncludeRules(source?.include),
 });
 
 export const useInstanceForm = (options: UseInstanceFormOptions = {}) => {
@@ -64,6 +71,7 @@ export const useInstanceForm = (options: UseInstanceFormOptions = {}) => {
     formData.loader_name = data.loader_name;
     formData.loader_version = data.loader_version;
     formData.auth_backend = { ...data.auth_backend };
+    formData.include = [...(data.include || [])];
   };
 
   const resetUploads = () => {
@@ -193,6 +201,26 @@ export const useInstanceForm = (options: UseInstanceFormOptions = {}) => {
     };
   };
 
+  const addIncludeRule = () => {
+    if (!formData.include) {
+      formData.include = [];
+    }
+    formData.include.push({ path: '', overwrite: false, recursive: false, delete_extra: false });
+  };
+
+  const removeIncludeRule = (index: number) => {
+    if (formData.include) {
+      formData.include.splice(index, 1);
+    }
+  };
+
+  const updateIncludeRule = (index: number, field: keyof IncludeRule, value: string | boolean) => {
+    if (formData.include && formData.include[index]) {
+      // @ts-ignore
+      formData.include[index][field] = value;
+    }
+  };
+
   const handleDrag = (event: DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
@@ -234,6 +262,9 @@ export const useInstanceForm = (options: UseInstanceFormOptions = {}) => {
     loadLoaderVersions,
     handleInputChange,
     handleAuthBackendChange,
+    addIncludeRule,
+    removeIncludeRule,
+    updateIncludeRule,
     handleDrag,
     handleDrop,
     handleFileInput,

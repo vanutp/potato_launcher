@@ -31,6 +31,7 @@ func registerInstances(api huma.API, deps *Dependencies) {
 		Summary:     "List Instances",
 		Description: "Get a list of all configured instances.",
 		Tags:        []string{"Instances"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 		Responses: map[string]*huma.Response{
 			"200": {Description: "List of instances"},
 			"500": {Description: "Internal server error"},
@@ -62,6 +63,7 @@ func registerInstances(api huma.API, deps *Dependencies) {
 		Summary:     "Create Instance",
 		Description: "Create a new instance configuration.",
 		Tags:        []string{"Instances"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 		Responses: map[string]*huma.Response{
 			"200": {Description: "Instance created successfully"},
 			"409": {Description: "Instance already exists"},
@@ -108,6 +110,7 @@ func registerInstances(api huma.API, deps *Dependencies) {
 		Summary:     "Get Instance",
 		Description: "Get a specific instance by name.",
 		Tags:        []string{"Instances"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 		Responses: map[string]*huma.Response{
 			"200": {Description: "Instance details"},
 			"404": {Description: "Instance not found"},
@@ -140,6 +143,7 @@ func registerInstances(api huma.API, deps *Dependencies) {
 		Summary:     "Update Instance",
 		Description: "Update an existing instance configuration.",
 		Tags:        []string{"Instances"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 		Responses: map[string]*huma.Response{
 			"200": {Description: "Instance updated successfully"},
 			"404": {Description: "Instance not found"},
@@ -205,6 +209,7 @@ func registerInstances(api huma.API, deps *Dependencies) {
 		Summary:     "Delete Instance",
 		Description: "Delete an instance configuration.",
 		Tags:        []string{"Instances"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 		Responses: map[string]*huma.Response{
 			"200": {Description: "Instance deleted successfully"},
 			"404": {Description: "Instance not found"},
@@ -238,6 +243,7 @@ func registerInstances(api huma.API, deps *Dependencies) {
 		Summary:     "Build Instances",
 		Description: "Trigger a build process for all instances.",
 		Tags:        []string{"Instances"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 		Responses: map[string]*huma.Response{
 			"200": {Description: "Build started successfully"},
 			"400": {Description: "No instances to build"},
@@ -280,6 +286,7 @@ func registerInstances(api huma.API, deps *Dependencies) {
 		Summary:     "Get Build Status",
 		Description: "Get the current status of the build process.",
 		Tags:        []string{"Instances"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 		Responses: map[string]*huma.Response{
 			"200": {Description: "Current build status"},
 			"401": {Description: "Unauthorized"},
@@ -308,6 +315,7 @@ func registerUpload(api huma.API, deps *Dependencies) {
 		Summary:     "Upload Instance Files",
 		Description: "Upload files for a specific instance.",
 		Tags:        []string{"Instances"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 		Responses: map[string]*huma.Response{
 			"200": {Description: "Files uploaded successfully"},
 			"400": {Description: "Invalid request (no files or invalid path)"},

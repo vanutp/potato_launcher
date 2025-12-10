@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { apiService } from '@/services/api';
-import type { AuthBackend, InstanceBase } from '@/types/api';
+import type { AuthBackend, InstanceBase, IncludeRule } from '@/types/api';
 import { AuthType, LoaderType } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,9 @@ const {
   uploadedFiles,
   handleInputChange,
   handleAuthBackendChange,
+  addIncludeRule,
+  removeIncludeRule,
+  updateIncludeRule,
   handleDrag,
   handleDrop,
   handleFileInput,
@@ -79,6 +82,7 @@ const handleSubmit = async () => {
     const payload: InstanceBase = {
       ...formData,
       auth_backend: { ...formData.auth_backend },
+      include: formData.include?.map(rule => ({ ...rule })),
     };
 
     if (payload.loader_name === LoaderType.VANILLA) {
@@ -135,7 +139,9 @@ onMounted(() => {
             :loader-versions="loaderVersions" :loading-minecraft-versions="loadingMinecraftVersions"
             :loading-loaders="loadingLoaders" :loading-loader-versions="loadingLoaderVersions"
             :uploaded-files="uploadedFiles" @update-field="updateField" @update-auth-field="updateAuthField"
-            @file-drag="handleDrag" @file-drop="handleDrop" @file-input="handleFileInput" />
+            @add-include-rule="addIncludeRule" @remove-include-rule="removeIncludeRule"
+            @update-include-rule="updateIncludeRule" @file-drag="handleDrag" @file-drop="handleDrop"
+            @file-input="handleFileInput" />
           <div>
             <Button type="submit" class="w-full" :disabled="loading">
               <span v-if="loading">Creating...</span>

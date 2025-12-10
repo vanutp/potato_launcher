@@ -1,4 +1,4 @@
-package specstore
+package store
 
 import (
 	"encoding/json"

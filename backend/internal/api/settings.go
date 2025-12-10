@@ -17,6 +17,7 @@ func registerSettings(api huma.API, deps *Dependencies) {
 		Summary:     "Get Settings",
 		Description: "Retrieve current application settings.",
 		Tags:        []string{"Settings"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 	}, func(ctx context.Context, input *struct {
 		AuthHeaders
 	}) (*struct {
@@ -39,6 +40,7 @@ func registerSettings(api huma.API, deps *Dependencies) {
 		Summary:     "Update Settings",
 		Description: "Update application settings.",
 		Tags:        []string{"Settings"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
 	}, func(ctx context.Context, input *struct {
 		AuthHeaders
 		Body Settings
