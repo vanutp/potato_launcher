@@ -27,11 +27,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	authService := services.NewAuthService(cfg)
+	hub := services.NewHub(logger, authService)
+	go hub.Run()
+
 	deps := &api.Dependencies{
 		Config: cfg,
 		Store:  store,
-		Auth:   services.NewAuthService(cfg),
-		Runner: services.NewRunnerService(cfg, store, logger),
+		Auth:   authService,
+		Runner: services.NewRunnerService(cfg, store, logger, hub),
+		Hub:    hub,
 		Logger: logger,
 	}
 

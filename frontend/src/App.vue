@@ -6,6 +6,7 @@ import InstanceForm from '@/components/InstanceForm.vue';
 import InstanceDetails from '@/components/InstanceDetails.vue';
 import SettingsForm from '@/components/SettingsForm.vue';
 import NotificationToast from '@/components/NotificationToast.vue';
+import BuildLogs from '@/components/BuildLogs.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/composables/useAuth';
@@ -25,6 +26,7 @@ const showForm = ref(false);
 const showSettings = ref(false);
 const building = ref(false);
 const fetching = ref(false);
+const showLogs = ref(false);
 
 const selectedInstanceData = computed(() =>
   instances.value.find((m) => m.name === selectedInstance.value) ?? null,
@@ -147,6 +149,7 @@ const handleSettingsSave = (settings: SettingResponse[]) => {
 const handleBuild = async () => {
   try {
     building.value = true;
+    showLogs.value = true; // Auto-open logs on build
     await apiService.buildInstances();
     showSuccess('Build started successfully!');
   } catch (err) {
@@ -168,7 +171,7 @@ const handleBuild = async () => {
     <div v-else class="flex min-h-screen">
       <InstanceSidebar :instances="instances" :selected-instance="selectedInstance" :show-form="showForm"
         :show-settings="showSettings" :building="building" @select="handleSelectInstance" @new="handleNewInstance"
-        @show-settings="handleShowSettings" @logout="logout" @build="handleBuild" />
+        @show-settings="handleShowSettings" @logout="logout" @build="handleBuild" @show-logs="showLogs = true" />
 
       <main class="flex-1 p-8">
         <div v-if="loading" class="min-h-[60vh] flex items-center justify-center">
@@ -189,8 +192,8 @@ const handleBuild = async () => {
         <div v-else>
           <InstanceForm v-if="showForm" @submitted="handleFormSubmit" />
           <SettingsForm v-else-if="showSettings" @saved="handleSettingsSave" />
-          <InstanceDetails v-else-if="selectedInstanceData" :key="selectedInstanceData.name" :instance="selectedInstanceData"
-            @updated="handleInstanceUpdate" @deleted="handleInstanceDelete" />
+          <InstanceDetails v-else-if="selectedInstanceData" :key="selectedInstanceData.name"
+            :instance="selectedInstanceData" @updated="handleInstanceUpdate" @deleted="handleInstanceDelete" />
           <div v-else class="flex items-center justify-center min-h-[60vh] p-4">
             <Card class="w-full max-w-xl">
               <CardHeader class="text-center">
@@ -209,5 +212,7 @@ const handleBuild = async () => {
         </div>
       </main>
     </div>
+
+    <BuildLogs :is-open="showLogs" @update:open="showLogs = $event" />
   </div>
 </template>

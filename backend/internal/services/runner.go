@@ -1,9 +1,11 @@
 package services
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -24,14 +26,16 @@ type RunnerService struct {
 	mu      sync.RWMutex
 	running bool
 	logger  *slog.Logger
+	hub     *Hub
 }
 
-func NewRunnerService(cfg *config.Config, store SpecProvider, logger *slog.Logger) *RunnerService {
+func NewRunnerService(cfg *config.Config, store SpecProvider, logger *slog.Logger, hub *Hub) *RunnerService {
 	return &RunnerService{
 		cfg:    cfg,
 		store:  store,
 		status: models.BuildIdle,
 		logger: logger,
+		hub:    hub,
 	}
 }
 
@@ -57,6 +61,8 @@ func (r *RunnerService) RunBuild(ctx context.Context) error {
 
 func (r *RunnerService) execute(ctx context.Context) {
 	r.logger.Info("starting build process")
+	r.broadcastLog("Starting build process...")
+
 	if err := r.prepareSpecFile(); err != nil {
 		r.finish(err)
 		return
@@ -71,8 +77,44 @@ func (r *RunnerService) execute(ctx context.Context) {
 		r.cfg.WorkdirDir,
 	)
 
-	err := cmd.Run()
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+
+	if err := cmd.Start(); err != nil {
+		r.finish(err)
+		return
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		r.streamLog(stdout)
+	}()
+	go func() {
+		defer wg.Done()
+		r.streamLog(stderr)
+	}()
+
+	err := cmd.Wait()
+	wg.Wait()
 	r.finish(err)
+}
+
+func (r *RunnerService) streamLog(pipe io.ReadCloser) {
+	scanner := bufio.NewScanner(pipe)
+	for scanner.Scan() {
+		text := scanner.Text()
+		r.logger.Debug("build log", "line", text)
+		r.broadcastLog(text)
+	}
+}
+
+func (r *RunnerService) broadcastLog(text string) {
+	r.hub.Broadcast(map[string]interface{}{
+		"type":    "build_log",
+		"message": text,
+	})
 }
 
 func (r *RunnerService) finish(runErr error) {
@@ -83,8 +125,10 @@ func (r *RunnerService) finish(runErr error) {
 
 	if runErr != nil {
 		r.logger.Error("runner failed", "error", runErr)
+		r.broadcastLog(fmt.Sprintf("Build failed: %v", runErr))
 	} else {
 		r.logger.Info("build finished successfully")
+		r.broadcastLog("Build finished successfully")
 	}
 }
 

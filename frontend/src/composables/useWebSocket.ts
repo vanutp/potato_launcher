@@ -6,9 +6,10 @@ interface UseWebSocketOptions {
   enabled?: Ref<boolean> | boolean;
   onInstanceChange?: (data: unknown) => void;
   onNotification?: (data: unknown) => void;
+  onBuildLog?: (data: { message: string }) => void;
 }
 
-export function useWebSocket({ enabled = true, onInstanceChange, onNotification }: UseWebSocketOptions = {}) {
+export function useWebSocket({ enabled = true, onInstanceChange, onNotification, onBuildLog }: UseWebSocketOptions = {}) {
   const isConnected = ref(webSocketService.isConnected());
   let listenersAttached = false;
 
@@ -24,16 +25,24 @@ export function useWebSocket({ enabled = true, onInstanceChange, onNotification 
     onNotification(customEvent.detail);
   };
 
+  const handleBuildLog = (event: Event) => {
+    if (!onBuildLog) return;
+    const customEvent = event as CustomEvent;
+    onBuildLog(customEvent.detail);
+  };
+
   const attachListeners = () => {
     if (listenersAttached) return;
     if (onInstanceChange) {
       window.addEventListener('instance_change', handleInstanceChange as EventListener);
-      listenersAttached = true;
     }
     if (onNotification) {
       window.addEventListener('notification', handleNotification as EventListener);
-      listenersAttached = true;
     }
+    if (onBuildLog) {
+      window.addEventListener('build_log', handleBuildLog as EventListener);
+    }
+    listenersAttached = true;
   };
 
   const detachListeners = () => {
@@ -43,6 +52,9 @@ export function useWebSocket({ enabled = true, onInstanceChange, onNotification 
     }
     if (onNotification) {
       window.removeEventListener('notification', handleNotification as EventListener);
+    }
+    if (onBuildLog) {
+      window.removeEventListener('build_log', handleBuildLog as EventListener);
     }
     listenersAttached = false;
   };
@@ -64,7 +76,6 @@ export function useWebSocket({ enabled = true, onInstanceChange, onNotification 
 
   const stopConnection = () => {
     detachListeners();
-    webSocketService.disconnect();
     isConnected.value = false;
   };
 
@@ -89,4 +100,3 @@ export function useWebSocket({ enabled = true, onInstanceChange, onNotification 
     isConnected,
   };
 }
-

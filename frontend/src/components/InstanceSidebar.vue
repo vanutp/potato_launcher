@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Terminal } from 'lucide-vue-next';
 import type { InstanceResponse } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,6 +18,7 @@ const emit = defineEmits<{
   (event: 'show-settings'): void;
   (event: 'logout'): void;
   (event: 'build'): void;
+  (event: 'show-logs'): void;
 }>();
 </script>
 
@@ -29,9 +31,14 @@ const emit = defineEmits<{
           <Button class="w-full" size="sm" @click="emit('new')">
             New Instance
           </Button>
-          <Button class="w-full" size="sm" :disabled="props.building" @click="emit('build')">
-            {{ props.building ? 'Building…' : 'Build' }}
-          </Button>
+          <div class="flex gap-2">
+            <Button class="flex-1" size="sm" :disabled="props.building" @click="emit('build')">
+              {{ props.building ? 'Building…' : 'Build' }}
+            </Button>
+            <Button size="sm" variant="outline" title="Show Logs" @click="emit('show-logs')">
+              <Terminal class="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <div class="flex-1 space-y-3 overflow-y-auto">

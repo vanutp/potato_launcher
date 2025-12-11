@@ -26,6 +26,7 @@ type Dependencies struct {
 	Store  SpecStore
 	Auth   *services.AuthService
 	Runner *services.RunnerService
+	Hub    *services.Hub
 	Logger *slog.Logger
 }
 
@@ -40,6 +41,8 @@ func NewAPI(deps *Dependencies) (huma.API, chi.Router) {
 	apiRouter := chi.NewRouter()
 	root.Mount("/api/v1", apiRouter)
 
+	apiRouter.Get("/ws", deps.Hub.HandleWebSocket)
+
 	cfg := huma.DefaultConfig("Potato Launcher Backend", "1.0.0")
 	cfg.OpenAPIPath = "/openapi"
 	cfg.DocsPath = ""
@@ -51,6 +54,31 @@ func NewAPI(deps *Dependencies) (huma.API, chi.Router) {
 			Type:         "http",
 			Scheme:       "bearer",
 			BearerFormat: "JWT",
+		},
+	}
+
+	if cfg.OpenAPI.Paths == nil {
+		cfg.OpenAPI.Paths = make(map[string]*huma.PathItem)
+	}
+	cfg.OpenAPI.Paths["/ws"] = &huma.PathItem{
+		Get: &huma.Operation{
+			OperationID: "connect-websocket",
+			Summary:     "Connect WebSocket",
+			Description: "Establish a WebSocket connection for real-time updates (build logs, notifications). Expects a 'token' query parameter for authentication.",
+			Tags:        []string{"System"},
+			Parameters: []*huma.Param{
+				{
+					Name:        "token",
+					In:          "query",
+					Description: "Access token",
+					Required:    true,
+					Schema:      &huma.Schema{Type: "string"},
+				},
+			},
+			Responses: map[string]*huma.Response{
+				"101": {Description: "Switching Protocols"},
+				"401": {Description: "Unauthorized"},
+			},
 		},
 	}
 

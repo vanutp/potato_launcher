@@ -1,4 +1,4 @@
-FROM rust:1.89-slim AS instance-builder
+FROM rust:1.91-slim-bookworm AS instance-builder
 WORKDIR /src
 
 COPY shared ./shared
@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/server ./cmd/server
 
 
 FROM debian:bookworm-slim AS runtime
-ENV SPEC_FILE=/data/spec.json \
+ENV SPEC_FILE=/data/metadata/spec.json \
     GENERATED_DIR=/data/generated \
     WORKDIR_DIR=/data/workdir \
     UPLOADED_INSTANCES_DIR=/data/uploaded-instances \
@@ -29,7 +29,7 @@ ENV SPEC_FILE=/data/spec.json \
     PORT=8000
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 10001 --create-home app
+    && useradd --system --uid 1000 --create-home app
 
 WORKDIR /app
 
