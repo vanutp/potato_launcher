@@ -114,6 +114,7 @@ func NewAPI(deps *Dependencies) (huma.API, chi.Router) {
 	registerSettings(api, deps)
 	registerInstances(api, deps)
 	registerMCVersions(api, deps)
+	registerLaunchers(api, deps)
 
 	return api, root
 }

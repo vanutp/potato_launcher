@@ -82,13 +82,7 @@ class WebSocketService {
 
   private handleMessage(data: any): void {
     switch (data.type) {
-      case 'modpack_created':
-      case 'modpack_updated':
-      case 'modpack_deleted':
-        // Legacy support if needed, but we should use instance_*
-        window.dispatchEvent(new CustomEvent('instance_change', { detail: data }));
-        break;
-      case 'instance_created': // Assuming backend uses this now or generic change
+      case 'instance_created':
       case 'instance_updated':
       case 'instance_deleted':
         window.dispatchEvent(new CustomEvent('instance_change', { detail: data }));

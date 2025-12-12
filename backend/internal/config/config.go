@@ -27,6 +27,8 @@ type Config struct {
 	ReplaceDownloadURLs      bool
 	ExecBeforeAll            string
 	ExecAfterAll             string
+	LauncherDir              string
+	LauncherName             string
 }
 
 func Load() (*Config, error) {
@@ -47,6 +49,8 @@ func Load() (*Config, error) {
 		ExecBeforeAll:            os.Getenv("EXEC_BEFORE_ALL"),
 		ExecAfterAll:             os.Getenv("EXEC_AFTER_ALL"),
 		ReplaceDownloadURLs:      getEnvBool("REPLACE_DOWNLOAD_URLS", false),
+		LauncherDir:              getEnv("LAUNCHER_DIR", "/data/launcher"),
+		LauncherName:             getEnv("LAUNCHER_NAME", "Potato Launcher"),
 	}
 
 	if resources := os.Getenv("RESOURCES_URL_BASE"); resources != "" {

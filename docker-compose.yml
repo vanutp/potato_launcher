@@ -14,6 +14,7 @@ services:
       REPLACE_DOWNLOAD_URLS: ${REPLACE_DOWNLOAD_URLS:-false}
       EXEC_BEFORE_ALL: ${EXEC_BEFORE_ALL-}
       EXEC_AFTER_ALL: ${EXEC_AFTER_ALL-}
+      LAUNCHER_NAME: ${LAUNCHER_NAME:-Potato Launcher}
     volumes:
       - ./state/metadata:/data/metadata
       - ./state/uploaded-instances:/data/uploaded-instances
@@ -29,6 +30,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_LAUNCHER_NAME: ${LAUNCHER_NAME:-Potato Launcher}
+        VITE_GITHUB_URL: ${VITE_GITHUB_URL}
     depends_on:
       - backend
     ports:

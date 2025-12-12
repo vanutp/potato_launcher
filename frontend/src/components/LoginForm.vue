@@ -1,33 +1,36 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { Loader2 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import type { TokenRequest } from '@/types/auth';
+import { useAuth } from '@/composables/useAuth';
+import { useNotification } from '@/composables/useNotification';
 
-const props = defineProps<{
-  loading: boolean;
-  error: string | null;
-}>();
-
-const emit = defineEmits<{
-  (event: 'login', payload: TokenRequest): void;
-}>();
+const router = useRouter();
+const { login, loading, error } = useAuth();
+const { showSuccess, showError } = useNotification();
 
 const token = ref('');
 const tokenError = ref('');
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (!token.value.trim()) {
     tokenError.value = 'Access token is required';
     return;
   }
 
   tokenError.value = '';
-  emit('login', { token: token.value.trim() });
+  try {
+    await login({ token: token.value.trim() });
+    showSuccess('Logged in successfully');
+    router.push('/admin');
+  } catch (err) {
+    showError(err instanceof Error ? err.message : 'Login failed');
+  }
 };
 
 const handleTokenChange = (value: string | number) => {
@@ -46,24 +49,29 @@ const handleTokenChange = (value: string | number) => {
         <CardDescription>Sign in with your access token.</CardDescription>
       </CardHeader>
       <CardContent class="space-y-4">
-        <Alert v-if="props.error" variant="destructive">
-          <AlertDescription>{{ props.error }}</AlertDescription>
+        <Alert v-if="error" variant="destructive">
+          <AlertDescription>{{ error }}</AlertDescription>
         </Alert>
         <form class="space-y-4" @submit.prevent="handleSubmit">
           <div class="space-y-2">
             <Label for="token">Access Token *</Label>
-            <Input id="token" type="password" :disabled="props.loading" :model-value="token" placeholder="Enter token"
+            <Input id="token" type="password" :disabled="loading" :model-value="token" placeholder="Enter token"
               autocomplete="off" autocapitalize="off" spellcheck="false" @update:modelValue="handleTokenChange" />
-            <p v-if="tokenError">{{ tokenError }}</p>
+            <p v-if="tokenError" class="text-sm text-destructive">{{ tokenError }}</p>
           </div>
-          <Button type="submit" class="w-full" :disabled="props.loading || !token.trim()">
-            <Loader2 v-if="props.loading" class="h-4 w-4 animate-spin" />
+          <Button type="submit" class="w-full" :disabled="loading || !token.trim()">
+            <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
             <span v-else>Sign In</span>
           </Button>
         </form>
-        <p class="text-center">
+        <p class="text-center text-sm text-muted-foreground">
           Use the token provided when Potato Launcher provisioning completes.
         </p>
+        <div class="text-center pt-2 border-t">
+          <router-link to="/" class="text-sm text-primary hover:underline">
+            Download Launcher
+          </router-link>
+        </div>
       </CardContent>
     </Card>
   </div>
