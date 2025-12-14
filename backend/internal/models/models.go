@@ -2,20 +2,6 @@ package models
 
 import "time"
 
-type Spec struct {
-	ReplaceDownloadURLs bool          `json:"replace_download_urls"`
-	Versions            []VersionSpec `json:"versions"`
-}
-
-type BuilderSpec struct {
-	DownloadServerBase  string        `json:"download_server_base"`
-	ResourcesURLBase    *string       `json:"resources_url_base,omitempty"`
-	ReplaceDownloadURLs bool          `json:"replace_download_urls"`
-	ExecBeforeAll       string        `json:"exec_before_all,omitempty"`
-	ExecAfterAll        string        `json:"exec_after_all,omitempty"`
-	Versions            []VersionSpec `json:"versions"`
-}
-
 type LoaderType string
 
 const (
@@ -48,7 +34,7 @@ type IncludeRule struct {
 	DeleteExtra *bool  `json:"delete_extra,omitempty"`
 }
 
-type VersionSpec struct {
+type BuilderInstance struct {
 	Name             string        `json:"name"`
 	MinecraftVersion string        `json:"minecraft_version"`
 	LoaderName       LoaderType    `json:"loader_name"`
@@ -59,6 +45,15 @@ type VersionSpec struct {
 	RecommendedXmx   string        `json:"recommended_xmx,omitempty"`
 	ExecBefore       string        `json:"exec_before,omitempty"`
 	ExecAfter        string        `json:"exec_after,omitempty"`
+}
+
+type BuilderSpec struct {
+	DownloadServerBase  string            `json:"download_server_base"`
+	ResourcesURLBase    *string           `json:"resources_url_base,omitempty"`
+	ReplaceDownloadURLs bool              `json:"replace_download_urls"`
+	ExecBeforeAll       string            `json:"exec_before_all,omitempty"`
+	ExecAfterAll        string            `json:"exec_after_all,omitempty"`
+	Instances           []BuilderInstance `json:"instances"`
 }
 
 type BuildStatus string

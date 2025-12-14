@@ -40,3 +40,26 @@ func registerAuth(api huma.API, deps *Dependencies) {
 		}, nil
 	})
 }
+
+func registerAuthCheck(api huma.API, deps *Dependencies) {
+	huma.Register(api, huma.Operation{
+		OperationID: "auth-check",
+		Method:      http.MethodGet,
+		Path:        "/auth/check",
+		Summary:     "Auth check",
+		Description: "Check if the provided Authorization header contains a valid admin JWT. Returns 204 when authorized.",
+		Tags:        []string{"System"},
+		Security:    []map[string][]string{{"bearerAuth": {}}},
+		Responses: map[string]*huma.Response{
+			"204": {Description: "Authorized"},
+			"401": {Description: "Unauthorized"},
+		},
+	}, func(ctx context.Context, input *struct {
+		AuthHeaders
+	}) (*struct{}, error) {
+		if err := deps.ensureAuth(input.Authorization); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	})
+}

@@ -5,6 +5,18 @@ class AuthService {
 
   constructor() {
     this.token = localStorage.getItem('auth_token');
+    this.syncCookie();
+  }
+
+  private syncCookie() {
+    if (typeof document === 'undefined') return;
+    if (this.token) {
+      const encoded = encodeURIComponent(this.token);
+      const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = `pl_admin_token=${encoded}; Path=/; SameSite=Lax; Max-Age=86400${secure}`;
+    } else {
+      document.cookie = 'pl_admin_token=; Path=/; Max-Age=0; SameSite=Lax';
+    }
   }
 
   async login(tokenRequest: TokenRequest): Promise<AuthResponse> {
@@ -23,6 +35,7 @@ class AuthService {
     const authResponse: AuthResponse = await response.json();
     this.token = authResponse.access_token;
     localStorage.setItem('auth_token', authResponse.access_token);
+    this.syncCookie();
 
     return authResponse;
   }
@@ -30,6 +43,7 @@ class AuthService {
   logout(): void {
     this.token = null;
     localStorage.removeItem('auth_token');
+    this.syncCookie();
   }
 
   getToken(): string | null {

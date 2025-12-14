@@ -41,7 +41,7 @@ fn vanilla() -> String {
 }
 
 #[derive(Deserialize)]
-pub struct Version {
+pub struct Instances {
     pub name: String,
     pub minecraft_version: String,
 
@@ -64,7 +64,7 @@ pub struct Version {
 }
 
 #[derive(Deserialize)]
-pub struct VersionsSpec {
+pub struct Spec {
     pub download_server_base: String,
     pub resources_url_base: Option<String>,
 
@@ -73,7 +73,7 @@ pub struct VersionsSpec {
 
     pub version_manifest_url: Option<String>,
 
-    pub versions: Vec<Version>,
+    pub instances: Vec<Instances>,
     pub exec_before_all: Option<String>,
     pub exec_after_all: Option<String>,
 }
@@ -82,8 +82,8 @@ pub fn get_manifest_path(data_dir: &Path) -> PathBuf {
     data_dir.join("version_manifest.json")
 }
 
-impl VersionsSpec {
-    pub async fn from_file(path: &Path) -> anyhow::Result<VersionsSpec> {
+impl Spec {
+    pub async fn from_file(path: &Path) -> anyhow::Result<Spec> {
         let content = fs::read_to_string(path).await?;
         let spec = serde_json::from_str(&content)?;
         Ok(spec)
@@ -146,7 +146,7 @@ impl VersionsSpec {
         let mut synced_metadata = HashSet::new();
         let mut mapping = HashMap::new();
 
-        for version in self.versions {
+        for version in self.instances {
             if let Some(command) = &version.exec_before {
                 exec_string_command(command).await?;
             }

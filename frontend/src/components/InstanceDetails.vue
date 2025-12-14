@@ -129,6 +129,30 @@ const updateAuthField = (field: keyof AuthBackend, value: string | AuthType) => 
 };
 
 const authTypeLabel = computed(() => editData.auth_backend.type);
+
+const slugifyName = (name: string) => {
+  const s = name.trim().toLowerCase();
+  if (!s) return 'instance';
+  let out = '';
+  let lastDash = false;
+  for (const ch of s) {
+    const isAlpha = ch >= 'a' && ch <= 'z';
+    const isNum = ch >= '0' && ch <= '9';
+    if (isAlpha || isNum) {
+      out += ch;
+      lastDash = false;
+      continue;
+    }
+    if (!lastDash) {
+      out += '-';
+      lastDash = true;
+    }
+  }
+  out = out.replace(/^-+|-+$/g, '');
+  return out || 'instance';
+};
+
+const filebrowserUrl = computed(() => `/filebrowser/files/${slugifyName(props.instance.name)}`);
 </script>
 
 <template>
@@ -168,9 +192,14 @@ const authTypeLabel = computed(() => editData.auth_backend.type);
               :loading-loader-versions="loadingLoaderVersions" :disabled="updating" @update-field="updateField"
               @update-auth-field="updateAuthField" @add-include-rule="addIncludeRule"
               @remove-include-rule="removeIncludeRule" @update-include-rule="updateIncludeRule" />
-            <div class="flex flex-wrap justify-end gap-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
               <Button type="button" :disabled="updating" @click="handleCancel">
                 Cancel
+              </Button>
+              <Button variant="outline" type="button" as-child>
+                <a :href="filebrowserUrl" target="_blank" rel="noopener noreferrer">
+                  Manage instance files
+                </a>
               </Button>
               <Button type="submit" :disabled="updating">
                 <span v-if="updating">Saving...</span>

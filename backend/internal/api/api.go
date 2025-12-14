@@ -17,8 +17,8 @@ import (
 )
 
 type SpecStore interface {
-	GetSpec() (*models.Spec, error)
-	Update(func(*models.Spec) error) (*models.Spec, error)
+	GetSpec() (*models.BuilderSpec, error)
+	Update(func(*models.BuilderSpec) error) (*models.BuilderSpec, error)
 }
 
 type Dependencies struct {
@@ -115,6 +115,7 @@ func NewAPI(deps *Dependencies) (huma.API, chi.Router) {
 	registerInstances(api, deps)
 	registerMCVersions(api, deps)
 	registerLaunchers(api, deps)
+	registerAuthCheck(api, deps)
 
 	return api, root
 }

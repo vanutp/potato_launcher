@@ -5,7 +5,7 @@ mod utils;
 
 use clap::{Arg, Command};
 use shared::logs::setup_logger;
-use spec::VersionsSpec;
+use spec::Spec;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tokio::runtime::Runtime;
@@ -76,7 +76,7 @@ fn main() -> anyhow::Result<()> {
     setup_logger(&get_logs_path(&work_dir));
 
     let rt = Runtime::new().unwrap();
-    let spec = rt.block_on(VersionsSpec::from_file(&spec_file_path))?;
+    let spec = rt.block_on(Spec::from_file(&spec_file_path))?;
     let delete_remote_set: Option<HashSet<String>> = matches
         .get_many::<String>("delete_remote_instances")
         .map(|vals| vals.map(|s| s.to_string()).collect());

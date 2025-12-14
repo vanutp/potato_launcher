@@ -4,8 +4,9 @@ use sha1::{Digest, Sha1};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::fs;
+use tokio::fs::File;
 use tokio::io::AsyncReadExt as _;
+use tokio::{fs, io};
 use walkdir::WalkDir;
 
 use crate::progress::{run_tasks_with_progress, ProgressBar};
@@ -226,7 +227,10 @@ pub async fn sync_mapping(
             fs::remove_dir(&target).await?;
         }
         if !target.exists() || hash_file(&source).await? != hash_file(&target).await? {
-            fs::copy(&source, &target).await?;
+            // copy and let umask set the permissions instead of fs::copy
+            let mut src = File::open(&source).await?;
+            let mut dst = File::create(&target).await?;
+            io::copy(&mut src, &mut dst).await?;
         }
         Ok(())
     }

@@ -21,7 +21,7 @@ func registerSettings(api huma.API, deps *Dependencies) {
 	}, func(ctx context.Context, input *struct {
 		AuthHeaders
 	}) (*struct {
-		Body Settings
+		Body APISettings
 	}, error) {
 		if err := deps.ensureAuth(input.Authorization); err != nil {
 			return nil, err
@@ -30,7 +30,7 @@ func registerSettings(api huma.API, deps *Dependencies) {
 		if err != nil {
 			return nil, huma.Error500InternalServerError(err.Error())
 		}
-		return &struct{ Body Settings }{Body: toAPISettings(spec)}, nil
+		return &struct{ Body APISettings }{Body: toAPISettings(spec)}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -43,14 +43,14 @@ func registerSettings(api huma.API, deps *Dependencies) {
 		Security:    []map[string][]string{{"bearerAuth": {}}},
 	}, func(ctx context.Context, input *struct {
 		AuthHeaders
-		Body Settings
+		Body APISettings
 	}) (*struct {
-		Body Settings
+		Body APISettings
 	}, error) {
 		if err := deps.ensureAuth(input.Authorization); err != nil {
 			return nil, err
 		}
-		spec, err := deps.Store.Update(func(spec *models.Spec) error {
+		spec, err := deps.Store.Update(func(spec *models.BuilderSpec) error {
 			applySettingsToSpec(spec, input.Body)
 			return nil
 		})
@@ -58,6 +58,6 @@ func registerSettings(api huma.API, deps *Dependencies) {
 			return nil, huma.Error500InternalServerError(err.Error())
 		}
 		deps.Logger.Info("settings updated", "replace_download_urls", input.Body.ReplaceDownloadURLs)
-		return &struct{ Body Settings }{Body: toAPISettings(spec)}, nil
+		return &struct{ Body APISettings }{Body: toAPISettings(spec)}, nil
 	})
 }

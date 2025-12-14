@@ -1,79 +1,113 @@
 package api
 
-import "github.com/Petr1Furious/potato-launcher/backend/internal/models"
+import (
+	"os"
+	"path/filepath"
+	"strings"
 
-func toAPISettings(spec *models.Spec) Settings {
-	return Settings{
+	"github.com/Petr1Furious/potato-launcher/backend/internal/config"
+	"github.com/Petr1Furious/potato-launcher/backend/internal/models"
+)
+
+func toAPISettings(spec *models.BuilderSpec) APISettings {
+	return APISettings{
 		ReplaceDownloadURLs: spec.ReplaceDownloadURLs,
 	}
 }
 
-func applySettingsToSpec(spec *models.Spec, settings Settings) {
+func applySettingsToSpec(spec *models.BuilderSpec, settings APISettings) {
 	spec.ReplaceDownloadURLs = settings.ReplaceDownloadURLs
 }
 
-func toAPIInstance(v models.VersionSpec) Instance {
-	m := Instance{
+func toAPIInstance(v models.BuilderInstance) APIInstance {
+	return APIInstance{
 		Name:             v.Name,
 		MinecraftVersion: v.MinecraftVersion,
 		LoaderName:       v.LoaderName,
 		LoaderVersion:    v.LoaderVersion,
 		RecommendedXmx:   v.RecommendedXmx,
+		Include:          v.Include,
+		AuthBackend:      v.AuthBackend,
 	}
-
-	if v.AuthBackend != nil {
-		m.AuthBackend = &AuthBackend{
-			Type:         v.AuthBackend.Type,
-			AuthBaseURL:  v.AuthBackend.AuthBaseURL,
-			ClientID:     v.AuthBackend.ClientID,
-			ClientSecret: v.AuthBackend.ClientSecret,
-		}
-	}
-
-	if len(v.Include) > 0 {
-		m.Include = make([]IncludeRule, len(v.Include))
-		for i, rule := range v.Include {
-			m.Include[i] = IncludeRule{
-				Path:        rule.Path,
-				Overwrite:   rule.Overwrite,
-				Recursive:   rule.Recursive,
-				DeleteExtra: rule.DeleteExtra,
-			}
-		}
-	}
-
-	return m
 }
 
-func toModelInstance(m Instance) models.VersionSpec {
-	v := models.VersionSpec{
+func slugifyName(name string) string {
+	name = strings.TrimSpace(strings.ToLower(name))
+	if name == "" {
+		return "instance"
+	}
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			builder.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			builder.WriteRune('-')
+			lastDash = true
+		}
+	}
+	slug := strings.Trim(builder.String(), "-")
+	if slug == "" {
+		return "instance"
+	}
+	return slug
+}
+
+func getInstanceDir(cfg *config.Config, instanceName string) string {
+	return filepath.Join(cfg.UploadedInstancesDir, slugifyName(instanceName))
+}
+
+func ensureIncludeFrom(cfg *config.Config, instance *models.BuilderInstance) {
+	instance.IncludeFrom = filepath.ToSlash(getInstanceDir(cfg, instance.Name))
+}
+
+func ensureInstanceDir(cfg *config.Config, instanceName string) error {
+	dir := getInstanceDir(cfg, instanceName)
+	return os.MkdirAll(dir, 0o755)
+}
+
+func ensureAuthBackend(instance *models.BuilderInstance) {
+	if instance.AuthBackend == nil {
+		instance.AuthBackend = &models.AuthBackend{Type: models.AuthOffline}
+	}
+}
+
+func normalizeInstance(cfg *config.Config, instance *models.BuilderInstance) error {
+	instance.Name = strings.TrimSpace(instance.Name)
+	if instance.Name == "" {
+		return NewValidationError("name", "name is required")
+	}
+	instance.MinecraftVersion = strings.TrimSpace(instance.MinecraftVersion)
+	if instance.MinecraftVersion == "" {
+		return NewValidationError("minecraft_version", "minecraft_version is required")
+	}
+	if instance.LoaderName == "" {
+		instance.LoaderName = models.LoaderVanilla
+	}
+	if instance.LoaderName != models.LoaderVanilla && strings.TrimSpace(instance.LoaderVersion) == "" {
+		return NewValidationError("loader_version", "loader_version is required")
+	}
+
+	ensureIncludeFrom(cfg, instance)
+	ensureAuthBackend(instance)
+	return nil
+}
+
+func toBuilderInstance(cfg *config.Config, m APIInstance) (*models.BuilderInstance, error) {
+	instance := models.BuilderInstance{
 		Name:             m.Name,
 		MinecraftVersion: m.MinecraftVersion,
 		LoaderName:       m.LoaderName,
 		LoaderVersion:    m.LoaderVersion,
 		RecommendedXmx:   m.RecommendedXmx,
+		Include:          m.Include,
+		AuthBackend:      m.AuthBackend,
 	}
-
-	if m.AuthBackend != nil {
-		v.AuthBackend = &models.AuthBackend{
-			Type:         m.AuthBackend.Type,
-			AuthBaseURL:  m.AuthBackend.AuthBaseURL,
-			ClientID:     m.AuthBackend.ClientID,
-			ClientSecret: m.AuthBackend.ClientSecret,
-		}
+	if err := normalizeInstance(cfg, &instance); err != nil {
+		return nil, err
 	}
-
-	if len(m.Include) > 0 {
-		v.Include = make([]models.IncludeRule, len(m.Include))
-		for i, rule := range m.Include {
-			v.Include[i] = models.IncludeRule{
-				Path:        rule.Path,
-				Overwrite:   rule.Overwrite,
-				Recursive:   rule.Recursive,
-				DeleteExtra: rule.DeleteExtra,
-			}
-		}
-	}
-
-	return v
+	return &instance, nil
 }

@@ -16,7 +16,7 @@ import (
 )
 
 type SpecProvider interface {
-	GetSpec() (*models.Spec, error)
+	GetSpec() (*models.BuilderSpec, error)
 }
 
 type RunnerService struct {
@@ -144,7 +144,7 @@ func (r *RunnerService) prepareSpecFile() error {
 		ReplaceDownloadURLs: spec.ReplaceDownloadURLs,
 		ExecBeforeAll:       r.cfg.ExecBeforeAll,
 		ExecAfterAll:        r.cfg.ExecAfterAll,
-		Versions:            spec.Versions,
+		Instances:           spec.Instances,
 	}
 	raw, err := json.MarshalIndent(builderSpec, "", "    ")
 	if err != nil {

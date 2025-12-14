@@ -3,7 +3,7 @@
     "resources_url_base": "https://your.domain/<some path>/assets/objects",
     "replace_download_urls": true,
     "version_manifest_url": "https://your.domain/<some path>/version_manifest.json",
-    "versions": [
+    "instances": [
         {
             "name": "Monifactory",
             "minecraft_version": "1.20.1",

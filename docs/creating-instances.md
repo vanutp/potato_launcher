@@ -30,7 +30,7 @@ This will create a `generated` directory, which should then be uploaded to your 
   "resources_url_base": "string",
   "replace_download_urls": "boolean",
   "version_manifest_url": "string",
-  "versions": [
+  "instances": [
     {
       "name": "string",
       "minecraft_version": "string",
@@ -78,13 +78,13 @@ This will create a `generated` directory, which should then be uploaded to your 
 - **version_manifest_url**: The URL from which to fetch a remote version manifest. If specified, the instance builder will fetch the existing manifest from this URL and merge the local versions with it, preserving any versions that exist in the remote manifest but not in the local specification.
 
   In other words, set this to `<download_server_base>/version_manifest.json` if you want to manage different instances from different devices (for example, when you have multiple server admins responsible for different servers).
-- **versions** (required): An array of version specification objects (see below for details).
+- **instances** (required): An array of instance specification objects (see below for details).
 - **exec_before_all**: A console command to execute before processing all versions.
 - **exec_after_all**: A console command to execute after processing all versions. This is useful for automatically deploying the generated files (for example, by `rsync`'ing them to a server with `nginx`).
 
   If you followed the [Server configuration](/setting-up/server) guide and are running Linux/macOS on your machine, you can use the `chmod -R +r ./generated && rsync -za --info=progress2 ./generated/ user@server:/srv/potatosmp/data/` command here. Note the trailing slashes; they matter in rsync!
 
-### Version Fields
+### Instance Fields
 
 - **name** (required): The name of the instance.
 - **minecraft_version** (required): The Minecraft version for this instance.
@@ -101,8 +101,8 @@ This will create a `generated` directory, which should then be uploaded to your 
   - **type**: The authentication provider name
   - Any additional fields for the selected authentication provider
 - **recommended_xmx**: The instance's default JVM RAM limit (`-Xmx`). Should be a string with `M` or `G` suffix (for example, "8192M"). If no suffix is given, `M` is assumed. Currently defaults to `4096M` when unset
-- **exec_before**: A command to execute before processing this version
-- **exec_after**: A command to execute after processing this version
+- **exec_before**: A command to execute before processing this instance
+- **exec_after**: A command to execute after processing this instance
 
 ## Authentication providers
 

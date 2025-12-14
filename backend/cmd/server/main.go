@@ -22,9 +22,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	initialSpec := &models.Spec{
+	initialSpec := &models.BuilderSpec{
 		ReplaceDownloadURLs: cfg.ReplaceDownloadURLs,
-		Versions:            []models.VersionSpec{},
+		Instances:           []models.BuilderInstance{},
 	}
 
 	store, err := store.New(cfg.SpecFile, initialSpec)

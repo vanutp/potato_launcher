@@ -15,16 +15,16 @@ type Store struct {
 	mu   sync.RWMutex
 }
 
-func New(path string, initial *models.Spec) (*Store, error) {
+func New(path string, initial *models.BuilderSpec) (*Store, error) {
 	if path == "" {
 		return nil, errors.New("spec path is required")
 	}
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		if initial == nil {
-			initial = &models.Spec{}
+			initial = &models.BuilderSpec{}
 		}
-		if initial.Versions == nil {
-			initial.Versions = []models.VersionSpec{}
+		if initial.Instances == nil {
+			initial.Instances = []models.BuilderInstance{}
 		}
 		if err := writeFile(path, initial); err != nil {
 			return nil, err
@@ -33,13 +33,13 @@ func New(path string, initial *models.Spec) (*Store, error) {
 	return &Store{path: path}, nil
 }
 
-func (s *Store) GetSpec() (*models.Spec, error) {
+func (s *Store) GetSpec() (*models.BuilderSpec, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return readFile(s.path)
 }
 
-func (s *Store) Update(mutator func(*models.Spec) error) (*models.Spec, error) {
+func (s *Store) Update(mutator func(*models.BuilderSpec) error) (*models.BuilderSpec, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -47,8 +47,8 @@ func (s *Store) Update(mutator func(*models.Spec) error) (*models.Spec, error) {
 	if err != nil {
 		return nil, err
 	}
-	if spec.Versions == nil {
-		spec.Versions = []models.VersionSpec{}
+	if spec.Instances == nil {
+		spec.Instances = []models.BuilderInstance{}
 	}
 	if err := mutator(spec); err != nil {
 		return nil, err
@@ -59,27 +59,27 @@ func (s *Store) Update(mutator func(*models.Spec) error) (*models.Spec, error) {
 	return spec, nil
 }
 
-func readFile(path string) (*models.Spec, error) {
+func readFile(path string) (*models.BuilderSpec, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read spec: %w", err)
 	}
 	if len(raw) == 0 {
-		return &models.Spec{Versions: []models.VersionSpec{}}, nil
+		return &models.BuilderSpec{Instances: []models.BuilderInstance{}}, nil
 	}
-	var spec models.Spec
+	var spec models.BuilderSpec
 	if err := json.Unmarshal(raw, &spec); err != nil {
 		return nil, fmt.Errorf("decode spec: %w", err)
 	}
-	if spec.Versions == nil {
-		spec.Versions = []models.VersionSpec{}
+	if spec.Instances == nil {
+		spec.Instances = []models.BuilderInstance{}
 	}
 	return &spec, nil
 }
 
-func writeFile(path string, spec *models.Spec) error {
-	if spec.Versions == nil {
-		spec.Versions = []models.VersionSpec{}
+func writeFile(path string, spec *models.BuilderSpec) error {
+	if spec.Instances == nil {
+		spec.Instances = []models.BuilderInstance{}
 	}
 	raw, err := json.MarshalIndent(spec, "", "  ")
 	if err != nil {
