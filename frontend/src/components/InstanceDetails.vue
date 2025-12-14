@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Pencil, Trash2 } from 'lucide-vue-next';
 import DeleteConfirmModal from './DeleteConfirmModal.vue';
-import { apiService } from '@/services/api';
+import { apiService, formatError } from '@/services/api';
 import type { AuthBackend, InstanceBase, InstanceResponse, IncludeRule } from '@/types/api';
 import { AuthType, LoaderType } from '@/types/api';
 import { Button } from '@/components/ui/button';
@@ -47,18 +47,13 @@ const {
   loadingMinecraftVersions,
   loadingLoaders,
   loadingLoaderVersions,
-  uploadedFiles,
   handleInputChange: setFieldValue,
   handleAuthBackendChange: setAuthFieldValue,
   addIncludeRule,
   removeIncludeRule,
   updateIncludeRule,
-  handleDrag,
-  handleDrop,
-  handleFileInput,
   loadMinecraftVersions,
   resetFormData,
-  resetUploads,
 } = useInstanceForm({
   initialData: toEditableFields(props.instance),
   guard,
@@ -74,7 +69,6 @@ watch(
   () => {
     isEditing.value = false;
     showDeleteConfirm.value = false;
-    resetUploads();
     minecraftVersions.value = [];
     availableLoaders.value = [];
     loaderVersions.value = [];
@@ -91,7 +85,6 @@ const handleEdit = async () => {
 const handleCancel = () => {
   isEditing.value = false;
   showDeleteConfirm.value = false;
-  resetUploads();
   availableLoaders.value = [];
   loaderVersions.value = [];
   setEditDataFromProps();
@@ -100,9 +93,6 @@ const handleCancel = () => {
 const handleUpdate = async () => {
   updating.value = true;
   try {
-    if (uploadedFiles.value && uploadedFiles.value.length > 0) {
-      await apiService.uploadInstanceFiles(props.instance.name, uploadedFiles.value);
-    }
     const payload: InstanceBase = {
       ...editData,
       auth_backend: { ...editData.auth_backend },
@@ -117,7 +107,7 @@ const handleUpdate = async () => {
     emit('updated', { name: props.instance.name, data: updated });
     handleCancel();
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to update instance';
+    const message = formatError(err, 'Failed to update instance');
     console.error(message, err);
     showError(message);
   } finally {
@@ -175,10 +165,9 @@ const authTypeLabel = computed(() => editData.auth_backend.type);
             <InstanceFormFields id-prefix="edit" :form-data="editData" :minecraft-versions="minecraftVersions"
               :available-loaders="availableLoaders" :loader-versions="loaderVersions"
               :loading-minecraft-versions="loadingMinecraftVersions" :loading-loaders="loadingLoaders"
-              :loading-loader-versions="loadingLoaderVersions" :uploaded-files="uploadedFiles" :disabled="updating"
-              @update-field="updateField" @update-auth-field="updateAuthField" @add-include-rule="addIncludeRule"
-              @remove-include-rule="removeIncludeRule" @update-include-rule="updateIncludeRule" @file-drag="handleDrag"
-              @file-drop="handleDrop" @file-input="handleFileInput" />
+              :loading-loader-versions="loadingLoaderVersions" :disabled="updating" @update-field="updateField"
+              @update-auth-field="updateAuthField" @add-include-rule="addIncludeRule"
+              @remove-include-rule="removeIncludeRule" @update-include-rule="updateIncludeRule" />
             <div class="flex flex-wrap justify-end gap-3">
               <Button type="button" :disabled="updating" @click="handleCancel">
                 Cancel

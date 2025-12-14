@@ -11,8 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/composables/useAuth';
 import { useNotification } from '@/composables/useNotification';
 import { useWebSocket } from '@/composables/useWebSocket';
-import { apiService } from '@/services/api';
-import type { InstanceBase, InstanceResponse, SettingResponse } from '@/types/api';
+import { apiService, formatError } from '@/services/api';
+import type { InstanceBase, InstanceResponse, Settings } from '@/types/api';
 
 const router = useRouter();
 const { isAuthenticated, logout } = useAuth();
@@ -46,7 +46,8 @@ const loadInstances = async () => {
             }
         }
     } catch (err) {
-        error.value = err instanceof Error ? err.message : 'Failed to load instances';
+        error.value = formatError(err, 'Failed to load instances');
+        showError(error.value);
     } finally {
         loading.value = false;
         fetching.value = false;
@@ -118,8 +119,9 @@ const handleInstanceDelete = async (name: string) => {
             selectedInstance.value = null;
         }
     } catch (err) {
-        console.error('Failed to delete instance:', err);
-        showError(err instanceof Error ? err.message : 'Failed to delete instance');
+        const message = formatError(err, 'Failed to delete instance');
+        console.error(message, err);
+        showError(message);
         await loadInstances();
     }
 };
@@ -130,7 +132,7 @@ const handleFormSubmit = async (_: InstanceBase) => {
     showSettings.value = false;
 };
 
-const handleSettingsSave = (settings: SettingResponse[]) => {
+const handleSettingsSave = (_settings: Settings) => {
     showSuccess('Settings saved successfully');
     showSettings.value = false;
 };
@@ -142,8 +144,7 @@ const handleBuild = async () => {
         await apiService.buildInstances();
         showSuccess('Build started successfully!');
     } catch (err) {
-        const message = err instanceof Error ? err.message : 'Build failed';
-        showError(`Build failed: ${message}`);
+        showError(formatError(err, 'Build failed'));
     } finally {
         building.value = false;
     }

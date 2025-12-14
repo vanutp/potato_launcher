@@ -7,6 +7,7 @@ import (
 
 	"github.com/Petr1Furious/potato-launcher/backend/internal/api"
 	"github.com/Petr1Furious/potato-launcher/backend/internal/config"
+	"github.com/Petr1Furious/potato-launcher/backend/internal/models"
 	"github.com/Petr1Furious/potato-launcher/backend/internal/services"
 	store "github.com/Petr1Furious/potato-launcher/backend/internal/storage"
 )
@@ -21,7 +22,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	store, err := store.New(cfg.SpecFile, cfg.ReplaceDownloadURLs)
+	initialSpec := &models.Spec{
+		ReplaceDownloadURLs: cfg.ReplaceDownloadURLs,
+		Versions:            []models.VersionSpec{},
+	}
+
+	store, err := store.New(cfg.SpecFile, initialSpec)
 	if err != nil {
 		logger.Error("failed to init storage", "error", err)
 		os.Exit(1)

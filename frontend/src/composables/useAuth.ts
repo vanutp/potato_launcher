@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { authService } from '@/services/auth';
 import type { TokenRequest } from '@/types/auth';
+import { formatError } from '@/services/api';
 
 const isAuthenticated = ref(authService.isAuthenticated());
 const loading = ref(false);
@@ -14,7 +15,7 @@ export function useAuth() {
       await authService.login(tokenRequest);
       isAuthenticated.value = true;
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Login failed';
+      error.value = formatError(err, 'Login failed');
       isAuthenticated.value = false;
       throw err;
     } finally {
@@ -36,4 +37,3 @@ export function useAuth() {
     logout,
   };
 }
-

@@ -15,14 +15,16 @@ type Store struct {
 	mu   sync.RWMutex
 }
 
-func New(path string, defaultReplace bool) (*Store, error) {
+func New(path string, initial *models.Spec) (*Store, error) {
 	if path == "" {
 		return nil, errors.New("spec path is required")
 	}
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		initial := &models.Spec{
-			ReplaceDownloadURLs: defaultReplace,
-			Versions:            []models.VersionSpec{},
+		if initial == nil {
+			initial = &models.Spec{}
+		}
+		if initial.Versions == nil {
+			initial.Versions = []models.VersionSpec{}
 		}
 		if err := writeFile(path, initial); err != nil {
 			return nil, err

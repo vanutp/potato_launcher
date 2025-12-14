@@ -8,6 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useInstanceForm } from '@/composables/useInstanceForm';
 import InstanceFormFields from '@/components/InstanceFormFields.vue';
+import { formatError } from '@/services/api';
+import { useNotification } from '@/composables/useNotification';
+
+const { showError } = useNotification();
 
 const emit = defineEmits<{
   (event: 'submitted', payload: InstanceBase): void;
@@ -21,18 +25,13 @@ const {
   loadingMinecraftVersions,
   loadingLoaders,
   loadingLoaderVersions,
-  uploadedFiles,
   handleInputChange,
   handleAuthBackendChange,
   addIncludeRule,
   removeIncludeRule,
   updateIncludeRule,
-  handleDrag,
-  handleDrop,
-  handleFileInput,
   loadMinecraftVersions,
   resetFormData,
-  resetUploads,
 } = useInstanceForm({ mode: 'create' });
 
 const loading = ref(false);
@@ -69,7 +68,6 @@ const validate = () => {
 
 const resetForm = () => {
   resetFormData();
-  resetUploads();
 };
 
 const handleSubmit = async () => {
@@ -89,14 +87,13 @@ const handleSubmit = async () => {
       delete payload.loader_version;
     }
 
-    const created = await apiService.createInstance(payload);
-    if (uploadedFiles.value && uploadedFiles.value.length > 0) {
-      await apiService.uploadInstanceFiles(created.name, uploadedFiles.value);
-    }
+    await apiService.createInstance(payload);
     emit('submitted', payload);
     resetForm();
   } catch (err) {
-    errors.submit = err instanceof Error ? err.message : 'Failed to create instance';
+    const message = formatError(err, 'Failed to create instance');
+    console.error(message, err);
+    showError(message);
   } finally {
     loading.value = false;
   }
@@ -131,17 +128,12 @@ onMounted(() => {
       </CardHeader>
       <CardContent>
         <form class="space-y-5" @submit.prevent="handleSubmit">
-          <Alert v-if="errors.submit" variant="destructive">
-            <AlertDescription>{{ errors.submit }}</AlertDescription>
-          </Alert>
           <InstanceFormFields id-prefix="create" :form-data="formData" :errors="errors"
             :minecraft-versions="minecraftVersions" :available-loaders="availableLoaders"
             :loader-versions="loaderVersions" :loading-minecraft-versions="loadingMinecraftVersions"
             :loading-loaders="loadingLoaders" :loading-loader-versions="loadingLoaderVersions"
-            :uploaded-files="uploadedFiles" @update-field="updateField" @update-auth-field="updateAuthField"
-            @add-include-rule="addIncludeRule" @remove-include-rule="removeIncludeRule"
-            @update-include-rule="updateIncludeRule" @file-drag="handleDrag" @file-drop="handleDrop"
-            @file-input="handleFileInput" />
+            @update-field="updateField" @update-auth-field="updateAuthField" @add-include-rule="addIncludeRule"
+            @remove-include-rule="removeIncludeRule" @update-include-rule="updateIncludeRule" />
           <div>
             <Button type="submit" class="w-full" :disabled="loading">
               <span v-if="loading">Creating...</span>

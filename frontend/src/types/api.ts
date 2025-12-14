@@ -44,13 +44,6 @@ export interface InstanceBase {
   include?: IncludeRule[];
 }
 
-export enum SettingType {
-  STRING = 'string',
-  BOOLEAN = 'boolean',
-}
-
-export interface SettingResponse {
-  key: string;
-  value: string | boolean;
-  type: SettingType;
+export interface Settings {
+  replace_download_urls: boolean;
 }

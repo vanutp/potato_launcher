@@ -1,56 +1,29 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { Save } from 'lucide-vue-next';
-import { apiService } from '@/services/api';
-import type { SettingResponse } from '@/types/api';
-import { SettingType } from '@/types/api';
+import { apiService, formatError } from '@/services/api';
+import type { Settings } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useNotification } from '@/composables/useNotification';
 
 const emit = defineEmits<{
-  (event: 'saved', payload: SettingResponse[]): void;
+  (event: 'saved', payload: Settings): void;
 }>();
 
-const normalizeBaseUrl = (url?: string) => (url ? url.replace(/\/+$/, '') : '');
-
-const apiBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL);
-const downloadServerBase =
-  import.meta.env.VITE_DOWNLOAD_SERVER_BASE ?? (apiBaseUrl ? `${apiBaseUrl}/data` : '');
-const resourcesUrlBase =
-  import.meta.env.VITE_RESOURCES_URL_BASE ??
-  (apiBaseUrl ? `${apiBaseUrl}/data/assets/objects` : '');
-
-const defaultSettings: SettingResponse[] = [
-  { key: 'download_server_base', value: downloadServerBase, type: SettingType.STRING },
-  { key: 'resources_url_base', value: resourcesUrlBase, type: SettingType.STRING },
-  { key: 'replace_download_urls', value: false, type: SettingType.BOOLEAN },
-];
-
-const displaySettings = ref<SettingResponse[]>([]);
-const originalSettings = ref<SettingResponse[]>([]);
+const displaySettings = ref<Settings>({ replace_download_urls: false });
+const originalSettings = ref<Settings>({ replace_download_urls: false });
 const loading = ref(true);
 const saving = ref(false);
 const error = ref<string | null>(null);
+const { showError } = useNotification();
 
-const mergedDefaultSettings = () =>
-  defaultSettings.map((setting) => {
-    const serverValue = originalSettings.value.find((s) => s.key === setting.key);
-    return serverValue ?? setting;
-  });
-
-const hasChanges = computed(() =>
-  displaySettings.value.some((setting) => {
-    const original = originalSettings.value.find((s) => s.key === setting.key);
-    const fallback = defaultSettings.find((s) => s.key === setting.key);
-    const originalValue = original?.value ?? fallback?.value;
-    return setting.value !== originalValue;
-  }),
+const hasChanges = computed(
+  () => displaySettings.value.replace_download_urls !== originalSettings.value.replace_download_urls,
 );
-
-const getSetting = (key: string) => displaySettings.value.find((s) => s.key === key);
 
 const loadSettings = async () => {
   try {
@@ -58,41 +31,36 @@ const loadSettings = async () => {
     error.value = null;
     const data = await apiService.getSettings();
     originalSettings.value = data;
-    displaySettings.value = mergedDefaultSettings().map((setting) => {
-      const serverSetting = data.find((s) => s.key === setting.key);
-      return serverSetting ?? setting;
-    });
+    displaySettings.value = { ...data };
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load settings';
-    displaySettings.value = mergedDefaultSettings();
+    error.value = formatError(err, 'Failed to load settings');
+    showError(error.value);
+    displaySettings.value = { replace_download_urls: false };
   } finally {
     loading.value = false;
   }
 };
 
-const handleInputChange = (key: string, value: string | boolean) => {
-  displaySettings.value = displaySettings.value.map((setting) =>
-    setting.key === key ? { ...setting, value } : setting,
-  );
+const handleReplaceDownloadUrlsChange = (value: any) => {
+  displaySettings.value = {
+    ...displaySettings.value,
+    replace_download_urls: value === true || value === 'true' || value === 1 || value === '1',
+  };
 };
 
 const handleSave = async () => {
   try {
     saving.value = true;
     error.value = null;
-
-    const changedSettings = displaySettings.value.filter((setting) => {
-      const original = originalSettings.value.find((s) => s.key === setting.key);
-      const fallback = defaultSettings.find((s) => s.key === setting.key);
-      const originalValue = original?.value ?? fallback?.value;
-      return setting.value !== originalValue;
+    const updated = await apiService.updateSettings({
+      replace_download_urls: displaySettings.value.replace_download_urls,
     });
-
-    await apiService.updateSettings(changedSettings);
-    originalSettings.value = displaySettings.value.map((setting) => ({ ...setting }));
-    emit('saved', displaySettings.value);
+    originalSettings.value = { ...updated };
+    displaySettings.value = { ...updated };
+    emit('saved', updated);
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to save settings';
+    error.value = formatError(err, 'Failed to save settings');
+    showError(error.value);
   } finally {
     saving.value = false;
   }
@@ -108,24 +76,24 @@ onMounted(() => {
     <Card>
       <CardHeader>
         <CardTitle>Application Settings</CardTitle>
-        <CardDescription>Update launcher URLs and deployment toggles.</CardDescription>
+        <CardDescription>These settings affect each instance.</CardDescription>
       </CardHeader>
       <CardContent>
         <div v-if="loading" class="text-sm">Loading settings...</div>
         <template v-else>
           <Alert v-if="error" variant="destructive" class="mb-4">
             <AlertDescription class="flex items-center justify-between gap-2">
-              <span>{{ error }}</span>
+              <span class="whitespace-pre-wrap">{{ error }}</span>
               <Button size="sm" @click="loadSettings">
                 Retry
               </Button>
             </AlertDescription>
           </Alert>
-          <div v-if="displaySettings.length" class="space-y-6">
-            <div v-if="getSetting('replace_download_urls')" class="space-y-2">
+          <div class="space-y-6">
+            <div class="space-y-2">
               <Label>Replace Download URLs</Label>
-              <Select :model-value="getSetting('replace_download_urls')?.value?.toString() ?? 'false'"
-                @update:modelValue="(value) => handleInputChange('replace_download_urls', value === 'true')">
+              <Select :model-value="displaySettings.replace_download_urls.toString()"
+                @update:modelValue="handleReplaceDownloadUrlsChange">
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

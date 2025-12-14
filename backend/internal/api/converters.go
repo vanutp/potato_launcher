@@ -1,8 +1,6 @@
 package api
 
-import (
-	"github.com/Petr1Furious/potato-launcher/backend/internal/models"
-)
+import "github.com/Petr1Furious/potato-launcher/backend/internal/models"
 
 func toAPISettings(spec *models.Spec) Settings {
 	return Settings{

@@ -48,9 +48,6 @@ export const useInstanceForm = (options: UseInstanceFormOptions = {}) => {
   const loadingLoaders = ref(false);
   const loadingLoaderVersions = ref(false);
 
-  const uploadedFiles = ref<FileList | null>(null);
-  const dragActive = ref(false);
-
   const setLoaderDefault = () => {
     formData.loader_name = LoaderType.VANILLA;
   };
@@ -72,10 +69,6 @@ export const useInstanceForm = (options: UseInstanceFormOptions = {}) => {
     formData.loader_version = data.loader_version;
     formData.auth_backend = { ...data.auth_backend };
     formData.include = [...(data.include || [])];
-  };
-
-  const resetUploads = () => {
-    uploadedFiles.value = null;
   };
 
   const loadMinecraftVersions = async () => {
@@ -221,32 +214,6 @@ export const useInstanceForm = (options: UseInstanceFormOptions = {}) => {
     }
   };
 
-  const handleDrag = (event: DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.type === 'dragenter' || event.type === 'dragover') {
-      dragActive.value = true;
-    } else if (event.type === 'dragleave') {
-      dragActive.value = false;
-    }
-  };
-
-  const handleDrop = (event: DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    dragActive.value = false;
-    if (event.dataTransfer?.files?.length) {
-      uploadedFiles.value = event.dataTransfer.files;
-    }
-  };
-
-  const handleFileInput = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    if (target.files?.length) {
-      uploadedFiles.value = target.files;
-    }
-  };
-
   return {
     formData,
     minecraftVersions,
@@ -255,8 +222,6 @@ export const useInstanceForm = (options: UseInstanceFormOptions = {}) => {
     loadingMinecraftVersions,
     loadingLoaders,
     loadingLoaderVersions,
-    uploadedFiles,
-    dragActive,
     loadMinecraftVersions,
     loadLoaders,
     loadLoaderVersions,
@@ -265,10 +230,6 @@ export const useInstanceForm = (options: UseInstanceFormOptions = {}) => {
     addIncludeRule,
     removeIncludeRule,
     updateIncludeRule,
-    handleDrag,
-    handleDrop,
-    handleFileInput,
     resetFormData,
-    resetUploads,
   };
 };

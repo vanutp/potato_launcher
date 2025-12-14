@@ -137,6 +137,7 @@ func (r *RunnerService) prepareSpecFile() error {
 	if err != nil {
 		return err
 	}
+
 	builderSpec := models.BuilderSpec{
 		DownloadServerBase:  r.cfg.DownloadServerBase,
 		ResourcesURLBase:    r.cfg.ResourcesURLBase,

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Plus, Trash2, Upload } from 'lucide-vue-next';
+import { Plus, Trash2 } from 'lucide-vue-next';
 import type { AuthBackend, InstanceBase, IncludeRule } from '@/types/api';
 import { AuthType, LoaderType } from '@/types/api';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 
 const props = withDefaults(
@@ -21,8 +20,6 @@ const props = withDefaults(
         loadingLoaderVersions?: boolean;
         errors?: Record<string, string>;
         disabled?: boolean;
-        uploadedFiles: FileList | null;
-        showFileUpload?: boolean;
         idPrefix?: string;
     }>(),
     {
@@ -31,8 +28,6 @@ const props = withDefaults(
         loadingLoaderVersions: false,
         errors: () => ({}),
         disabled: false,
-        uploadedFiles: null,
-        showFileUpload: true,
         idPrefix: 'instance',
     },
 );
@@ -43,9 +38,6 @@ const emit = defineEmits<{
     (event: 'add-include-rule'): void;
     (event: 'remove-include-rule', index: number): void;
     (event: 'update-include-rule', index: number, field: keyof IncludeRule, value: string | boolean): void;
-    (event: 'file-drag', eventObj: DragEvent): void;
-    (event: 'file-drop', eventObj: DragEvent): void;
-    (event: 'file-input', eventObj: Event): void;
 }>();
 
 const isVanillaLoader = computed(() => props.formData.loader_name === LoaderType.VANILLA);
@@ -252,21 +244,6 @@ const isVanillaLoader = computed(() => props.formData.loader_name === LoaderType
                     </CardContent>
                 </Card>
             </div>
-        </div>
-
-        <div v-if="props.showFileUpload" class="space-y-3">
-            <Label>Upload Instance Files (optional)</Label>
-            <div class="relative rounded-md border border-dashed p-6 text-center text-sm hover:bg-muted/50 transition-colors"
-                @dragenter="(event) => emit('file-drag', event)" @dragleave="(event) => emit('file-drag', event)"
-                @dragover="(event) => emit('file-drag', event)" @drop="(event) => emit('file-drop', event)">
-                <input type="file" multiple class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                    webkitdirectory="" :disabled="props.disabled" @change="(event) => emit('file-input', event)" />
-                <Upload class="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-                <p>Drag a folder here or click to browse.</p>
-            </div>
-            <Alert v-if="props.uploadedFiles">
-                <AlertDescription>{{ props.uploadedFiles.length }} file(s) selected</AlertDescription>
-            </Alert>
         </div>
     </div>
 </template>

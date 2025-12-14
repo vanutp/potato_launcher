@@ -28,17 +28,14 @@ ENV SPEC_FILE=/data/metadata/spec.json \
     HOST=0.0.0.0 \
     PORT=8000
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --uid 1000 --create-home app
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY --from=backend-builder /out/server /usr/local/bin/server
 COPY --from=instance-builder /src/target/release/instance_builder /usr/local/bin/instance_builder
 
-RUN mkdir -p /data/uploaded-instances /data/generated /data/workdir /data/metadata \
-    && chown -R app:app /data
+RUN mkdir -p /data/uploaded-instances /data/generated /data/workdir /data/metadata
 
-USER app
 EXPOSE 8000
 ENTRYPOINT ["/usr/local/bin/server"]

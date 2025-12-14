@@ -22,9 +22,7 @@ class WebSocketService {
 
     this.shouldReconnect = true;
     this.connectionPromise = new Promise<void>((resolve, reject) => {
-      const wsUrl = import.meta.env.VITE_API_BASE_URL
-        ? `${import.meta.env.VITE_API_BASE_URL.replace('http', 'ws')}/api/v1/ws`
-        : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/ws`;
+      const wsUrl = `${import.meta.env.VITE_API_BASE_URL!.replace('http', 'ws')}/ws`;
 
       this.ws = new WebSocket(`${wsUrl}?token=${encodeURIComponent(token)}`);
 

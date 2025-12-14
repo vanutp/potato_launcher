@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/composables/useAuth';
 import { useNotification } from '@/composables/useNotification';
+import { formatError } from '@/services/api';
 
 const router = useRouter();
 const { login, loading, error } = useAuth();
@@ -29,7 +30,7 @@ const handleSubmit = async () => {
     showSuccess('Logged in successfully');
     router.push('/admin');
   } catch (err) {
-    showError(err instanceof Error ? err.message : 'Login failed');
+    showError(formatError(err, 'Login failed'));
   }
 };
 

@@ -1,9 +1,5 @@
 import type { AuthResponse, TokenRequest } from '@/types/auth';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL
-  ? `${import.meta.env.VITE_API_BASE_URL}/api/v1`
-  : '/api/v1';
-
 class AuthService {
   private token: string | null = null;
 
@@ -12,7 +8,7 @@ class AuthService {
   }
 
   async login(tokenRequest: TokenRequest): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE}/auth/login`, {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL!}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
