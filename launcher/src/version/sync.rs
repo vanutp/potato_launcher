@@ -9,7 +9,7 @@ use rand::rngs::StdRng;
 use rand::seq::SliceRandom as _;
 use shared::adaptive_download::download_files;
 use shared::paths::{
-    get_authlib_injector_path, get_minecraft_dir, get_libraries_dir, get_natives_dir,
+    get_authlib_injector_path, get_libraries_dir, get_minecraft_dir, get_natives_dir,
 };
 use shared::version::asset_metadata::AssetsMetadata;
 use std::fs;

@@ -1,5 +1,4 @@
 use futures::stream::{FuturesUnordered, StreamExt};
-use log::error;
 use sha1::{Digest, Sha1};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};

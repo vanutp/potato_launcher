@@ -70,7 +70,7 @@ impl Config {
         let data_dir = match &self.data_dir {
             None => dirs::data_dir()
                 .expect("Failed to get data directory")
-                .join(build_config::get_data_launcher_name()),
+                .join(build_config::get_lower_launcher_name()),
 
             Some(dir) => PathBuf::from(dir),
         };

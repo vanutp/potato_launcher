@@ -20,7 +20,7 @@ use shared::{
         vanilla::VanillaGenerator,
     },
     paths::{
-        get_extra_metadata_path, get_minecraft_dir, get_metadata_path, get_versions_dir,
+        get_extra_metadata_path, get_metadata_path, get_minecraft_dir, get_versions_dir,
         get_versions_extra_dir,
     },
     utils::{VANILLA_MANIFEST_URL, get_vanilla_version_info},

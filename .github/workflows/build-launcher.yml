@@ -1,4 +1,4 @@
-name: Build & deploy
+name: Build launcher
 
 on:
   workflow_dispatch:
@@ -12,8 +12,8 @@ defaults:
     shell: bash
 
 env:
-  UPLOAD_TO_SERVER: ${{ github.ref == 'refs/heads/master' && secrets.SSH_KEY != '' && secrets.SERVER_USER != '' && secrets.SERVER_ADDR != '' }}
-  SSH_OPTS: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+#   UPLOAD_LAUNCHERS: ${{ github.ref == 'refs/heads/master' && secrets.UPLOAD_API_BASE_URL != '' && secrets.ADMIN_SECRET_TOKEN != '' }}
+  UPLOAD_LAUNCHERS: ${{ secrets.UPLOAD_API_BASE_URL != '' && secrets.ADMIN_SECRET_TOKEN != '' }}
 
 jobs:
   binaries:
@@ -36,17 +36,19 @@ jobs:
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
             # imagemagick is preinstalled
             pip install tomlkit httpx
+            choco install jq -y
           elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
             sudo apt update
-            sudo apt install -y python3 python3-tomlkit python3-httpx imagemagick
+            sudo apt install -y python3 python3-tomlkit python3-httpx imagemagick jq
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
             brew install imagemagick
             pip install tomlkit httpx
+            brew install jq
           fi
 
       - name: Set environment variables
         run: |
-          # LAUNCHER_NAME, DATA_LAUNCHER_NAME and VERSION are used by CI script
+          # LAUNCHER_NAME, LOWER_LAUNCHER_NAME and VERSION are used by CI script
           if [ -n "${{ vars.LAUNCHER_NAME }}" ]; then
             export LAUNCHER_NAME="${{ vars.LAUNCHER_NAME }}"
           else
@@ -57,19 +59,14 @@ jobs:
             fi
           fi
           echo "LAUNCHER_NAME=$LAUNCHER_NAME" >> $GITHUB_ENV
-          DATA_LAUNCHER_NAME=$(echo "$LAUNCHER_NAME" | tr '[:upper:]' '[:lower:]' | tr -d "'" | tr ' ' '_')
-          echo "DATA_LAUNCHER_NAME=$DATA_LAUNCHER_NAME" >> $GITHUB_ENV
+          LOWER_LAUNCHER_NAME=$(echo "$LAUNCHER_NAME" | tr '[:upper:]' '[:lower:]' | tr -d "'" | tr ' ' '_')
+          echo "LOWER_LAUNCHER_NAME=$LOWER_LAUNCHER_NAME" >> $GITHUB_ENV
           echo "VERSION=$GITHUB_SHA" >> $GITHUB_ENV
 
       - name: Build the launcher
         env:
           VERSION_MANIFEST_URL: ${{ vars.VERSION_MANIFEST_URL }}
           AUTO_UPDATE_BASE: ${{ vars.AUTO_UPDATE_BASE }}
-          LAUNCHER_APP_ID: ${{ vars.LAUNCHER_APP_ID }}
-          LAUNCHER_ICON: ${{ vars.LAUNCHER_ICON }}
-          LAUNCHER_DESCRIPTION: ${{ vars.LAUNCHER_DESCRIPTION }}
-          LAUNCHER_KEYWORDS: ${{ vars.LAUNCHER_KEYWORDS }}
-          GPG_PUBLIC_KEY: ${{ vars.GPG_PUBLIC_KEY }}
         run: |
           python packaging/configure.py
           mkdir -p build
@@ -79,7 +76,7 @@ jobs:
             echo "$VERSION" > build/version_windows.txt
           elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
             cargo build --bin launcher --profile release-lto
-            mv "target/release-lto/launcher" "build/${DATA_LAUNCHER_NAME}"
+            mv "target/release-lto/launcher" "build/${LOWER_LAUNCHER_NAME}"
             echo "$VERSION" > build/version_linux.txt
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
             which cargo-bundle || cargo install cargo-bundle
@@ -88,7 +85,7 @@ jobs:
             # Build Intel binary directly (with older deployment target)
             export MACOSX_DEPLOYMENT_TARGET=10.12
             cargo build --bin launcher --profile release-lto --target x86_64-apple-darwin
-            
+
             # Build ARM binary as part of bundle (with newer deployment target)
             export MACOSX_DEPLOYMENT_TARGET=11.0
             cargo bundle --package launcher --bin launcher --profile release-lto --target aarch64-apple-darwin
@@ -135,25 +132,46 @@ jobs:
             mv "$DMG_FILENAME" build/
 
             mv "app/$LAUNCHER_NAME.app" "app/update.app"
-            tar -czvf "build/${DATA_LAUNCHER_NAME}_macos.tar.gz" -C app "update.app"
+            tar -czvf "build/${LOWER_LAUNCHER_NAME}_macos.tar.gz" -C app "update.app"
 
             echo "$VERSION" > build/version_macos.txt
           fi
 
-      - name: Set up SSH
-        if: ${{ env.UPLOAD_TO_SERVER }}
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_KEY }}
-          known_hosts: no
-
-      - name: Deploy to server
-        if: ${{ env.UPLOAD_TO_SERVER }}
+      - name: Upload launcher artifacts via backend API
+        if: ${{ env.UPLOAD_LAUNCHERS }}
         env:
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-          SERVER_ADDR: ${{ secrets.SERVER_ADDR }}
-          SERVER_PATH: ${{ secrets.SERVER_PATH }}
-        run: scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null build/* $SERVER_USER@$SERVER_ADDR:$SERVER_PATH/
+          UPLOAD_API_BASE_URL: ${{ secrets.UPLOAD_API_BASE_URL }}
+          ADMIN_SECRET_TOKEN: ${{ secrets.ADMIN_SECRET_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "Logging in to get admin JWT..."
+          AUTH_JSON="$(curl -sS -X POST "$UPLOAD_API_BASE_URL/auth/login" \
+            -H 'Content-Type: application/json' \
+            --data "{\"token\":\"$ADMIN_SECRET_TOKEN\"}")"
+          TOKEN="$(echo "$AUTH_JSON" | jq -r '.access_token')"
+
+          echo "Uploading artifacts for ${{ matrix.os }} version=$VERSION"
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            curl -sS -X POST "$UPLOAD_API_BASE_URL/launchers/windows/exe?version=$VERSION" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"build/${LAUNCHER_NAME}.exe"
+          elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            curl -sS -X POST "$UPLOAD_API_BASE_URL/launchers/linux/bin?version=$VERSION" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"build/${LOWER_LAUNCHER_NAME}"
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            curl -sS -X POST "$UPLOAD_API_BASE_URL/launchers/macos/dmg?version=$VERSION" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"build/${LAUNCHER_NAME}.dmg"
+            curl -sS -X POST "$UPLOAD_API_BASE_URL/launchers/macos/archive?version=$VERSION" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"build/${LOWER_LAUNCHER_NAME}_macos.tar.gz"
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -173,7 +191,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install configure.py dependencies
-        run: dnf install -y python3 python3-tomlkit python3-httpx ImageMagick
+        run: dnf install -y python3 python3-tomlkit python3-httpx ImageMagick jq
 
       - name: Install flatpak-cargo-generator dependencies
         run: dnf install -y python3-aiohttp python3-toml wget
@@ -223,45 +241,36 @@ jobs:
           gpg-sign: ${{ steps.gpg.outputs.fingerprint }}
           upload-bundles: true
 
-      - name: Set up SSH
-        if: ${{ env.UPLOAD_TO_SERVER }}
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_KEY }}
-          known_hosts: no
-
-      - name: Upload to server
-        if: ${{ env.UPLOAD_TO_SERVER }}
+      - name: Upload Flatpak artifacts via backend API
+        if: ${{ env.UPLOAD_LAUNCHERS }}
         env:
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-          SERVER_ADDR: ${{ secrets.SERVER_ADDR }}
-          SERVER_PATH: ${{ secrets.SERVER_PATH }}
+          UPLOAD_API_BASE_URL: ${{ secrets.UPLOAD_API_BASE_URL }}
+          ADMIN_SECRET_TOKEN: ${{ secrets.ADMIN_SECRET_TOKEN }}
         run: |
-          TARGET="$SERVER_USER@$SERVER_ADDR:$SERVER_PATH"
-          rsync -av --delete -e "ssh $SSH_OPTS" ${{ steps.flatpak.outputs.repository }}/ $TARGET/flatpak
-          FLATPAKREF_FILENAME=packaging/flatpak/*.flatpakref
-          if [ -e $FLATPAKREF_FILENAME ]; then
-            scp $SSH_OPTS $FLATPAKREF_FILENAME $TARGET/
+          set -euo pipefail
+
+          echo "Logging in to get admin JWT..."
+          AUTH_JSON="$(curl -sS -X POST "$UPLOAD_API_BASE_URL/auth/login" \
+            -H 'Content-Type: application/json' \
+            --data "{\"token\":\"$ADMIN_SECRET_TOKEN\"}")"
+          TOKEN="$(echo "$AUTH_JSON" | jq -r '.access_token')"
+
+          VERSION="${GITHUB_SHA}"
+
+          FLATPAK_FILE="$(ls -1 *.flatpak | head -n 1 || true)"
+          if [ -z "$FLATPAK_FILE" ]; then
+            echo "No .flatpak found to upload"
+            exit 1
           fi
-          scp $SSH_OPTS *.flatpak $TARGET/
+          curl -sS -X POST "$UPLOAD_API_BASE_URL/launchers/linux/flatpak?version=$VERSION" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"$FLATPAK_FILE"
 
-  post-deploy:
-    name: Run post-deploy script
-    runs-on: ubuntu-latest
-    needs: [binaries, flatpak]
-    if: ${{ always() }}
-
-    steps:
-      - name: Set up SSH
-        if: ${{ env.UPLOAD_TO_SERVER }}
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_KEY }}
-          known_hosts: no
-      - name: Run post-deploy script
-        env:
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-          SERVER_ADDR: ${{ secrets.SERVER_ADDR }}
-          POST_DEPLOY_SCRIPT_PATH: ${{ secrets.POST_DEPLOY_SCRIPT_PATH }}
-        if: ${{ env.UPLOAD_TO_SERVER && env.POST_DEPLOY_SCRIPT_PATH }}
-        run: ssh $SSH_OPTS $SERVER_USER@$SERVER_ADDR "bash \"$POST_DEPLOY_SCRIPT_PATH\""
+          FLATPAKREF_FILE="$(ls -1 packaging/flatpak/*.flatpakref 2>/dev/null | head -n 1 || true)"
+          if [ -n "$FLATPAKREF_FILE" ]; then
+            curl -sS -X POST "$UPLOAD_API_BASE_URL/launchers/linux/flatpakref?version=$VERSION" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"$FLATPAKREF_FILE"
+          fi

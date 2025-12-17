@@ -4,7 +4,7 @@ pub fn get_launcher_name() -> String {
     LAUNCHER_NAME.to_string()
 }
 
-pub fn get_data_launcher_name() -> String {
+pub fn get_lower_launcher_name() -> String {
     LAUNCHER_NAME.to_string().to_lowercase().replace(" ", "_")
 }
 

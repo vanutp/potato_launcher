@@ -430,13 +430,10 @@ pub async fn install_forge<M>(
     if !lock_file.exists() {
         let java_version = get_vanilla_java_version(vanilla_metadata)
             .await?
-            .map_or_else(
-                || {
-                    warn!("Java version not found, using default");
-                    "8".to_string()
-                },
-                |v| v,
-            );
+            .unwrap_or_else(|| {
+                warn!("Java version not found, using default");
+                "8".to_string()
+            });
 
         info!("Getting java {}", &java_version);
         let java_installation;

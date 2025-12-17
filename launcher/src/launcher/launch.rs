@@ -1,8 +1,8 @@
 use log::{debug, warn};
 use maplit::hashmap;
 use shared::paths::{
-    get_authlib_injector_path, get_client_jar_path, get_minecraft_dir, get_libraries_dir,
-    get_logs_dir, get_natives_dir,
+    get_authlib_injector_path, get_client_jar_path, get_libraries_dir, get_logs_dir,
+    get_minecraft_dir, get_natives_dir,
 };
 use shared::version::extra_version_metadata::AuthBackend;
 use std::collections::{HashMap, HashSet};

@@ -17,7 +17,7 @@ pub fn set_sigint_handler() {
 
 pub fn get_temp_dir() -> PathBuf {
     let temp_dir = std::env::temp_dir();
-    let temp_dir = temp_dir.join(build_config::get_data_launcher_name());
+    let temp_dir = temp_dir.join(build_config::get_lower_launcher_name());
     if !temp_dir.exists() {
         fs::create_dir_all(&temp_dir).unwrap();
     }
@@ -66,7 +66,7 @@ impl<T> From<SingleOrVec<T>> for Vec<T> {
 pub fn get_data_dir() -> PathBuf {
     let data_dir = dirs::data_dir()
         .expect("Failed to get data directory")
-        .join(build_config::get_data_launcher_name());
+        .join(build_config::get_lower_launcher_name());
     if !data_dir.exists() {
         std::fs::create_dir_all(&data_dir).expect("Failed to create data directory");
     }
