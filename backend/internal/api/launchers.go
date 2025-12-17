@@ -66,6 +66,8 @@ func launcherFileMode(osName, artifact string) os.FileMode {
 	return 0o644
 }
 
+const maxLauncherUploadBytes int64 = 300 * 1024 * 1024
+
 type ArtifactResponse struct {
 	ContentDisposition string `header:"Content-Disposition"`
 	ContentType        string `header:"Content-Type"`
@@ -107,12 +109,13 @@ func registerLaunchers(api huma.API, deps *Dependencies) {
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: "upload-launcher",
-		Method:      http.MethodPost,
-		Path:        "/launchers/{os}/{artifact}",
-		Summary:     "Upload launcher artifact",
-		Description: "Upload launcher artifact for an OS/artifact pair.",
-		Tags:        []string{"Launchers"},
+		OperationID:  "upload-launcher",
+		Method:       http.MethodPost,
+		Path:         "/launchers/{os}/{artifact}",
+		Summary:      "Upload launcher artifact",
+		Description:  "Upload launcher artifact for an OS/artifact pair.",
+		Tags:         []string{"Launchers"},
+		MaxBodyBytes: maxLauncherUploadBytes,
 		Security: []map[string][]string{
 			{"bearerAuth": {}},
 		},
@@ -121,7 +124,7 @@ func registerLaunchers(api huma.API, deps *Dependencies) {
 		OS       string `path:"os" enum:"windows,macos,linux" doc:"Operating system"`
 		Artifact string `path:"artifact" enum:"exe,dmg,archive,bin,flatpak,flatpakref" doc:"Artifact type"`
 		Version  string `query:"version" doc:"Launcher version identifier (e.g. git sha)"`
-		File     []byte `body:"file" content:"application/octet-stream" doc:"Launcher binary file"`
+		RawBody  []byte
 	}) (*struct{}, error) {
 		if err := deps.ensureAuth(input.Authorization); err != nil {
 			return nil, err
@@ -130,6 +133,9 @@ func registerLaunchers(api huma.API, deps *Dependencies) {
 		version := strings.TrimSpace(input.Version)
 		if version == "" {
 			return nil, huma.Error400BadRequest("version is required")
+		}
+		if len(input.RawBody) == 0 {
+			return nil, huma.Error400BadRequest("empty upload")
 		}
 
 		filename, err := getLauncherFilename(input.OS, input.Artifact, deps.Config.LauncherName)
@@ -145,7 +151,7 @@ func registerLaunchers(api huma.API, deps *Dependencies) {
 
 		path := filepath.Join(dir, filename)
 		mode := launcherFileMode(input.OS, input.Artifact)
-		if err := os.WriteFile(path, input.File, mode); err != nil {
+		if err := os.WriteFile(path, input.RawBody, mode); err != nil {
 			deps.Logger.Error("failed to write launcher file", "path", path, "error", err)
 			return nil, huma.Error500InternalServerError("failed to write file")
 		}
