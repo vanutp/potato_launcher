@@ -8,36 +8,33 @@ import AppleIcon from '@/components/icons/AppleIcon.vue';
 const launcherName = import.meta.env.VITE_LAUNCHER_NAME || 'Potato Launcher';
 const githubUrl = import.meta.env.VITE_GITHUB_URL;
 
-const getFilename = (os: 'windows' | 'macos' | 'linux') => {
-  const lowerName = launcherName.toLowerCase().replace(/ /g, '_');
-  switch (os) {
-    case 'windows':
-      return `${launcherName}.exe`;
-    case 'macos':
-      return `${launcherName}.dmg`;
-    case 'linux':
-      return lowerName;
-  }
-};
+const apiDownloadUrl = (os: 'windows' | 'macos' | 'linux', artifact: string) =>
+  `/api/v1/launchers/${os}/${artifact}`;
 
 const downloads = [
   {
     name: 'Windows',
     icon: Monitor,
-    url: `/launcher/${getFilename('windows')}`,
+    url: apiDownloadUrl('windows', 'exe'),
     description: 'Download for Windows (x64)',
   },
   {
     name: 'macOS',
     icon: AppleIcon,
-    url: `/launcher/${getFilename('macos')}`,
+    url: apiDownloadUrl('macos', 'dmg'),
     description: 'Download for macOS (Universal)',
   },
   {
-    name: 'Linux',
+    name: 'Linux (Binary)',
     icon: Terminal,
-    url: `/launcher/${getFilename('linux')}`,
+    url: apiDownloadUrl('linux', 'bin'),
     description: 'Download for Linux (x64)',
+  },
+  {
+    name: 'Linux (Flatpak)',
+    icon: BookOpen,
+    url: apiDownloadUrl('linux', 'flatpak'),
+    description: 'Download Flatpak bundle',
   },
 ];
 </script>
@@ -54,7 +51,7 @@ const downloads = [
           Download the launcher for your operating system
         </CardDescription>
       </CardHeader>
-      <CardContent class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
+      <CardContent class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-8">
         <div v-for="os in downloads" :key="os.name"
           class="h-full border rounded-xl p-6 hover:bg-muted/50 transition-colors flex flex-col items-center text-center space-y-4">
           <component :is="os.icon" class="w-16 h-16 text-primary" />
