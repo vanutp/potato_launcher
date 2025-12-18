@@ -29,6 +29,7 @@ const toEditableFields = (instance: InstanceResponse): EditableFields => ({
   minecraft_version: instance.minecraft_version,
   loader_name: instance.loader_name,
   loader_version: instance.loader_version,
+  recommended_xmx: instance.recommended_xmx,
   auth_backend: { ...instance.auth_backend },
   include: instance.include?.map(rule => ({ ...rule })) || [],
 });
@@ -225,6 +226,10 @@ const filebrowserUrl = computed(() => `/filebrowser/files/${slugifyName(props.in
             <div>
               <dt class="text-sm">Authentication Type</dt>
               <dd class="text-sm font-medium capitalize">{{ authTypeLabel }}</dd>
+            </div>
+            <div v-if="props.instance.recommended_xmx">
+              <dt class="text-sm">Recommended Xmx</dt>
+              <dd class="text-sm font-medium">{{ props.instance.recommended_xmx }}</dd>
             </div>
             <div
               v-if="props.instance.auth_backend.type === AuthType.TELEGRAM && props.instance.auth_backend.auth_base_url"

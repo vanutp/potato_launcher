@@ -1,6 +1,6 @@
 # Launcher configuration
 
-Currently, the only supported deployment method is GitHub Actions, as it's the easiest way to build for Windows and macOS.
+Currently, the only supported deployment method is GitHub Actions, as it's the easiest way to build for all OSes.
 
 Start by forking the https://github.com/Petr1Furious/potato_launcher repository.
 
@@ -33,7 +33,7 @@ To use this option, go to the "Settings" tab, then choose "Secrets and variables
 - **LAUNCHER_APP_ID** (required): An application ID in a [reverse domain notation](https://en.wikipedia.org/wiki/Reverse_domain_name_notation). Used in macOS and Flatpak packages. For example, `me.petr1furious.PotatoLauncher`
 - **LAUNCHER_ICON** (required): A path to the launcher icon, relative to the repository
   root. For example, `packaging/potato_launcher.png`
-  
+
   If you are using the environment variables option, this can also be a URL.
 - **BACKEND_API_BASE** (optional): An URL that will be used to download launcher updates. Doesn't impact instance download. Set it to `https://your.domain/api/v1` if you want the launcher to update automatically (you want to). Also used to generate the `.flatpakref` file
 - **LAUNCHER_DESCRIPTION** (optional): The application description. Used in `.desktop` files in the Nix and Flatpak packages, can safely be omitted.
@@ -41,19 +41,20 @@ To use this option, go to the "Settings" tab, then choose "Secrets and variables
 
 ## Setting up secrets
 
-You also need to set secrets for GitHub Actions to copy the launcher to your server.
+If you want GitHub Actions to upload built launcher artifacts to your backend automatically, set these secrets.
 
 Go to the "Settings" tab, then choose "Secrets and variables" on the left and select "Actions". Then, add the secrets in the "Secrets" tab.
 
 You need to set the following secrets:
-- **SSH_KEY**: Set this to the key you generated when creating the user during server configuration
-- **SERVER_ADDR**: The address of your server to connect to
-- **SERVER_USER**: The created user username
-- **SERVER_PATH**: The path to upload the files to. Should be `<your-root-dir>/launcher`, for example `/srv/potatosmp/launcher`
-- **POST_DEPLOY_SCRIPT_PATH** (optional): The path to a script to run after every deployment. For example, it can be used to clear CloudFlare cache when using it.
+- **ADMIN_SECRET_TOKEN**: Must match the `ADMIN_SECRET_TOKEN` used by your deployed backend (see [Server setup](/setting-up/server))
 
 ## Triggering the build
 
-All done! Make sure to enable actions in your fork by going to the "Actions" tab and clicking "I understand my workflows". Then, you can trigger the build either by pushing to the master branch or by going to the "Actions" tab, selecting "Build & Deploy" on the left and clicking the "Run workflow" button.
+All done! Make sure to enable actions in your fork by going to the "Actions" tab and clicking "I understand my workflows".
+
+Then, you can trigger the build:
+
+- By pushing to the `master` branch (uploads happen automatically on `master` when the upload secrets are set)
+- Or manually via "Run workflow" (you can enable uploads in the workflow inputs)
 
 After a successful workflow run, the launcher binaries and packages should be available at `https://your.domain/launcher`

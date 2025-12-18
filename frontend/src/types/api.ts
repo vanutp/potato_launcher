@@ -33,6 +33,7 @@ export interface InstanceResponse {
   loader_version?: string;
   auth_backend: AuthBackend;
   include?: IncludeRule[];
+  recommended_xmx?: string;
 }
 
 export interface InstanceBase {
@@ -42,6 +43,7 @@ export interface InstanceBase {
   loader_version?: string;
   auth_backend: AuthBackend;
   include?: IncludeRule[];
+  recommended_xmx?: string;
 }
 
 export interface Settings {

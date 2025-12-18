@@ -31,6 +31,7 @@ const buildFormData = (source?: PartialInstanceBase): InstanceBase => ({
   minecraft_version: source?.minecraft_version ?? '',
   loader_name: source?.loader_name ?? LoaderType.VANILLA,
   loader_version: source?.loader_version ?? '',
+  recommended_xmx: source?.recommended_xmx ?? '',
   auth_backend: buildAuthBackend(source?.auth_backend),
   include: buildIncludeRules(source?.include),
 });
@@ -67,6 +68,7 @@ export const useInstanceForm = (options: UseInstanceFormOptions = {}) => {
     formData.minecraft_version = data.minecraft_version;
     formData.loader_name = data.loader_name;
     formData.loader_version = data.loader_version;
+    formData.recommended_xmx = data.recommended_xmx;
     formData.auth_backend = { ...data.auth_backend };
     formData.include = [...(data.include || [])];
   };

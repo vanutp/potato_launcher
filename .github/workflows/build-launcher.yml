@@ -18,7 +18,7 @@ defaults:
     shell: bash
 
 env:
-  UPLOAD_LAUNCHERS: ${{ (github.ref == 'refs/heads/master' || (github.event_name == 'workflow_dispatch' && inputs.upload_launchers)) && secrets.UPLOAD_API_BASE_URL != '' && secrets.ADMIN_SECRET_TOKEN != '' }}
+  UPLOAD_LAUNCHERS: ${{ (github.ref == 'refs/heads/master' || (github.event_name == 'workflow_dispatch' && inputs.upload_launchers)) && vars.BACKEND_API_BASE != '' && secrets.ADMIN_SECRET_TOKEN != '' }}
 
 jobs:
   binaries:
@@ -145,34 +145,34 @@ jobs:
       - name: Upload launcher artifacts via backend API
         if: ${{ env.UPLOAD_LAUNCHERS }}
         env:
-          UPLOAD_API_BASE_URL: ${{ secrets.UPLOAD_API_BASE_URL }}
+          BACKEND_API_BASE: ${{ vars.BACKEND_API_BASE }}
           ADMIN_SECRET_TOKEN: ${{ secrets.ADMIN_SECRET_TOKEN }}
         run: |
           set -euo pipefail
 
           echo "Logging in to get admin JWT..."
-          AUTH_JSON="$(curl -sS -X POST "$UPLOAD_API_BASE_URL/auth/login" \
+          AUTH_JSON="$(curl -sS -X POST "$BACKEND_API_BASE/auth/login" \
             -H 'Content-Type: application/json' \
             --data "{\"token\":\"$ADMIN_SECRET_TOKEN\"}")"
           TOKEN="$(echo "$AUTH_JSON" | jq -r '.access_token')"
 
           echo "Uploading artifacts for ${{ matrix.os }} version=$VERSION"
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            curl -sS -X POST "$UPLOAD_API_BASE_URL/launchers/windows/exe?version=$VERSION" \
+            curl -sS -X POST "$BACKEND_API_BASE/launchers/windows/exe?version=$VERSION" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/octet-stream" \
               --data-binary @"build/${LAUNCHER_NAME}.exe"
           elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            curl -sS -X POST "$UPLOAD_API_BASE_URL/launchers/linux/bin?version=$VERSION" \
+            curl -sS -X POST "$BACKEND_API_BASE/launchers/linux/bin?version=$VERSION" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/octet-stream" \
               --data-binary @"build/${LOWER_LAUNCHER_NAME}"
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            curl -sS -X POST "$UPLOAD_API_BASE_URL/launchers/macos/dmg?version=$VERSION" \
+            curl -sS -X POST "$BACKEND_API_BASE/launchers/macos/dmg?version=$VERSION" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/octet-stream" \
               --data-binary @"build/${LAUNCHER_NAME}.dmg"
-            curl -sS -X POST "$UPLOAD_API_BASE_URL/launchers/macos/archive?version=$VERSION" \
+            curl -sS -X POST "$BACKEND_API_BASE/launchers/macos/archive?version=$VERSION" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/octet-stream" \
               --data-binary @"build/${LOWER_LAUNCHER_NAME}_macos.tar.gz"
@@ -249,13 +249,13 @@ jobs:
       - name: Upload Flatpak artifacts via backend API
         if: ${{ env.UPLOAD_LAUNCHERS }}
         env:
-          UPLOAD_API_BASE_URL: ${{ secrets.UPLOAD_API_BASE_URL }}
+          BACKEND_API_BASE: ${{ vars.BACKEND_API_BASE }}
           ADMIN_SECRET_TOKEN: ${{ secrets.ADMIN_SECRET_TOKEN }}
         run: |
           set -euo pipefail
 
           echo "Logging in to get admin JWT..."
-          AUTH_JSON="$(curl -sS -X POST "$UPLOAD_API_BASE_URL/auth/login" \
+          AUTH_JSON="$(curl -sS -X POST "$BACKEND_API_BASE/auth/login" \
             -H 'Content-Type: application/json' \
             --data "{\"token\":\"$ADMIN_SECRET_TOKEN\"}")"
           TOKEN="$(echo "$AUTH_JSON" | jq -r '.access_token')"
@@ -267,14 +267,14 @@ jobs:
             echo "No .flatpak found to upload"
             exit 1
           fi
-          curl -sS -X POST "$UPLOAD_API_BASE_URL/launchers/linux/flatpak?version=$VERSION" \
+          curl -sS -X POST "$BACKEND_API_BASE/launchers/linux/flatpak?version=$VERSION" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @"$FLATPAK_FILE"
 
           FLATPAKREF_FILE="$(ls -1 packaging/flatpak/*.flatpakref 2>/dev/null | head -n 1 || true)"
           if [ -n "$FLATPAKREF_FILE" ]; then
-            curl -sS -X POST "$UPLOAD_API_BASE_URL/launchers/linux/flatpakref?version=$VERSION" \
+            curl -sS -X POST "$BACKEND_API_BASE/launchers/linux/flatpakref?version=$VERSION" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/octet-stream" \
               --data-binary @"$FLATPAKREF_FILE"

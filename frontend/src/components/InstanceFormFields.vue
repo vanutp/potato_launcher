@@ -155,6 +155,18 @@ const isVanillaLoader = computed(() => props.formData.loader_name === LoaderType
                         {{ props.errors.auth_type }}
                     </p>
                 </div>
+                <div class="space-y-2 sm:col-span-2">
+                    <Label :for="`${props.idPrefix}-recommended-xmx`">Recommended Xmx (RAM)</Label>
+                    <Input :id="`${props.idPrefix}-recommended-xmx`" :model-value="props.formData.recommended_xmx || ''"
+                        :disabled="props.disabled" placeholder="e.g. 4G or 4096M"
+                        @update:modelValue="(value) => emit('update-field', 'recommended_xmx', value?.toString() ?? '')" />
+                    <p v-if="props.errors?.recommended_xmx" class="text-sm text-destructive">
+                        {{ props.errors.recommended_xmx }}
+                    </p>
+                    <p v-else class="text-sm text-muted-foreground">
+                        Optional. Used as the default JVM RAM limit (e.g. <span class="font-mono">4G</span>).
+                    </p>
+                </div>
             </div>
             <div v-if="props.formData.auth_backend.type === AuthType.TELEGRAM" class="space-y-2">
                 <Label :for="`${props.idPrefix}-auth-base-url`">Auth Base URL *</Label>

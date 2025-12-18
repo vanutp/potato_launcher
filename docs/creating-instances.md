@@ -1,6 +1,20 @@
 # Creating instances
 
-## Usage
+## Recommended: use the new Web UI
+
+If you deployed the full server setup (see [Server setup](/setting-up/server)), you can manage instances from the browser. Typical workflow:
+
+- Login into the admin panel at `https://<your-domain>/admin`
+- Click **New Instance** or select an instance you want to update and click **Update**
+- Fill all necessary fields (**Instance Name**, **Minecraft Version**, **Mod Loader**, **Loader version** (if not vanilla) and **Authentication Type**)
+- Click **Create Instance**
+- To upload and include files (e.g. mods) select an existing instance, click **Update** and **Manage instance files**. Upload all files you want to include (e.g. `mods` directory with mods in it)
+- **Important:** add include rules and specify **Path** and rule type. This step is necessary because the launcher doesn't know what to do with each uploaded file/directory when it has been changed on the backend. For example, you may want to set **Recursive** on `config`, and both **Overwrite** and **Delete Extra** on `mods`. The detailed description of different rule types is available in the [Instance fields](#instance-fields) section
+- Click **Build** to generate the `/data/` output served by nginx
+
+The launcher will download metadata from the version manifest at `<DOWNLOAD_SERVER_BASE>/version_manifest.json` (which is usually `https://<your-domain/data/version_manifest.json`)
+
+## Manual
 
 Linux/macOS is recommended for building instances. However, Windows should also work
 
@@ -82,7 +96,10 @@ This will create a `generated` directory, which should then be uploaded to your 
 - **exec_before_all**: A console command to execute before processing all versions.
 - **exec_after_all**: A console command to execute after processing all versions. This is useful for automatically deploying the generated files (for example, by `rsync`'ing them to a server with `nginx`).
 
-  If you followed the [Server configuration](/setting-up/server) guide and are running Linux/macOS on your machine, you can use the `chmod -R +r ./generated && rsync -za --info=progress2 ./generated/ user@server:/srv/potatosmp/data/` command here. Note the trailing slashes; they matter in rsync!
+  If you are running Nginx and have it serving `/data` from `/srv/potato_launcher/generated` on your server, you can use something like:
+  `chmod -R +r ./generated && rsync -vza ./generated/ user@server:/srv/potato_launcher/generated/`
+
+  Note the trailing slashes; they matter in rsync!
 
 ### Instance Fields
 
