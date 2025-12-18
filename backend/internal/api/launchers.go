@@ -74,6 +74,11 @@ type ArtifactResponse struct {
 	Body               []byte `content:"application/octet-stream"`
 }
 
+type VersionResponse struct {
+	ContentType string `header:"Content-Type"`
+	Body        []byte `content:"text/plain"`
+}
+
 func registerLaunchers(api huma.API, deps *Dependencies) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-launcher-artifact",
@@ -105,6 +110,38 @@ func registerLaunchers(api huma.API, deps *Dependencies) {
 			ContentDisposition: fmt.Sprintf("attachment; filename=%q", filename),
 			ContentType:        "application/octet-stream",
 			Body:               raw,
+		}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "get-launcher-version",
+		Method:      http.MethodGet,
+		Path:        "/launchers/{os}/{artifact}/version",
+		Summary:     "Get launcher artifact version",
+		Description: "Return the version string for the latest uploaded launcher artifact.",
+		Tags:        []string{"Launchers"},
+	}, func(ctx context.Context, input *struct {
+		OS       string `path:"os" enum:"windows,macos,linux" doc:"Operating system"`
+		Artifact string `path:"artifact" enum:"exe,dmg,archive,bin,flatpak,flatpakref" doc:"Artifact type"`
+	}) (*VersionResponse, error) {
+		if _, err := getLauncherFilename(input.OS, input.Artifact, deps.Config.LauncherName); err != nil {
+			return nil, huma.Error400BadRequest(err.Error())
+		}
+
+		dir := filepath.Join(deps.Config.LauncherDir, input.OS, input.Artifact)
+		versionPath := filepath.Join(dir, "version.txt")
+
+		raw, err := os.ReadFile(versionPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil, huma.Error404NotFound("artifact not uploaded")
+			}
+			return nil, huma.Error500InternalServerError("failed to read version")
+		}
+
+		return &VersionResponse{
+			ContentType: "text/plain; charset=utf-8",
+			Body:        raw,
 		}, nil
 	})
 

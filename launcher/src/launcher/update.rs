@@ -9,34 +9,23 @@ use crate::lang::LangMessage;
 use crate::utils;
 use shared::progress::ProgressBar;
 
-#[cfg(target_os = "windows")]
-lazy_static::lazy_static! {
-    static ref VERSION_URL: Option<String> = build_config::get_auto_update_base().map(|url| format!("{url}/version_windows.txt"));
-}
-#[cfg(target_os = "linux")]
-lazy_static::lazy_static! {
-    static ref VERSION_URL: Option<String> = build_config::get_auto_update_base().map(|url| format!("{url}/version_linux.txt"));
-}
-#[cfg(target_os = "macos")]
-lazy_static::lazy_static! {
-    static ref VERSION_URL: Option<String> = build_config::get_auto_update_base().map(|url| format!("{url}/version_macos.txt"));
+fn api_base() -> Option<String> {
+    build_config::get_auto_update_base().map(|url| url.trim_end_matches('/').to_string())
 }
 
-#[cfg(target_os = "windows")]
-lazy_static::lazy_static! {
-    static ref LAUNCHER_FILE_NAME: String = format!("{}.exe", build_config::get_launcher_name());
-}
-#[cfg(target_os = "linux")]
-lazy_static::lazy_static! {
-    static ref LAUNCHER_FILE_NAME: String = format!("{}", build_config::get_lower_launcher_name());
-}
-#[cfg(target_os = "macos")]
-lazy_static::lazy_static! {
-    static ref LAUNCHER_FILE_NAME: String = format!("{}_macos.tar.gz", build_config::get_lower_launcher_name());
+fn update_url() -> Option<String> {
+    api_base().map(|url| {
+        #[cfg(target_os = "windows")]
+        return format!("{url}/api/v1/launchers/windows/exe");
+        #[cfg(target_os = "linux")]
+        return format!("{url}/api/v1/launchers/linux/bin");
+        #[cfg(target_os = "macos")]
+        return format!("{url}/api/v1/launchers/macos/archive");
+    })
 }
 
-lazy_static::lazy_static! {
-    static ref UPDATE_URL: Option<String> = build_config::get_auto_update_base().map(|url| format!("{url}/{}", &*LAUNCHER_FILE_NAME));
+fn version_url() -> Option<String> {
+    update_url().map(|url| format!("{url}/version"))
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -46,7 +35,7 @@ pub enum UpdateError {
 }
 
 async fn fetch_new_version() -> anyhow::Result<String> {
-    if let Some(version_url) = &*VERSION_URL {
+    if let Some(version_url) = version_url() {
         let client = Client::new();
         let response = client.get(version_url).send().await?.error_for_status()?;
         let text = response.text().await?;
@@ -65,10 +54,7 @@ pub async fn need_update() -> anyhow::Result<bool> {
 pub async fn download_new_launcher(
     progress_bar: Arc<dyn ProgressBar<LangMessage> + Send + Sync>,
 ) -> anyhow::Result<Vec<u8>> {
-    if UPDATE_URL.is_none() {
-        return Err(UpdateError::AutoUpdateUrlNotSet.into());
-    }
-    let update_url = UPDATE_URL.as_ref().unwrap();
+    let update_url = update_url().ok_or(UpdateError::AutoUpdateUrlNotSet)?;
 
     let client = Client::new();
     let response = client.get(update_url).send().await?.error_for_status()?;
