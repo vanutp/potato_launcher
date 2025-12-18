@@ -2,9 +2,6 @@ services:
   backend:
     image: ghcr.io/petr1furious/potato-launcher-backend:latest
     container_name: potato-launcher-backend
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
     user: "${PUID:-1000}:${PGID:-1000}"
     environment:
       ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
@@ -44,6 +41,6 @@ services:
     ports:
       - "8000:80"
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./state/generated:/var/www/generated:ro
       - ./state/launcher:/var/www/launcher:ro

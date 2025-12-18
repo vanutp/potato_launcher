@@ -17,6 +17,7 @@ mkdir potato-launcher-backend
 cd potato-launcher-backend
 wget https://raw.githubusercontent.com/Petr1Furious/potato-launcher/refs/heads/master/docker-compose.yml
 wget -O .env https://raw.githubusercontent.com/Petr1Furious/potato-launcher/refs/heads/master/.env.example
+wget https://raw.githubusercontent.com/Petr1Furious/potato-launcher/refs/heads/master/nginx.conf
 ```
 
 1. Edit `.env` and set at least:
