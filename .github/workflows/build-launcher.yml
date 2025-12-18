@@ -151,28 +151,33 @@ jobs:
           set -euo pipefail
 
           echo "Logging in to get admin JWT..."
-          AUTH_JSON="$(curl -sS -X POST "$BACKEND_API_BASE/auth/login" \
+          AUTH_JSON="$(curl -sS --fail-with-body -X POST "$BACKEND_API_BASE/auth/login" \
             -H 'Content-Type: application/json' \
             --data "{\"token\":\"$ADMIN_SECRET_TOKEN\"}")"
-          TOKEN="$(echo "$AUTH_JSON" | jq -r '.access_token')"
+          TOKEN="$(echo "$AUTH_JSON" | jq -r '.access_token // empty')"
+          if [ -z "$TOKEN" ]; then
+            echo "Failed to get access token from login response"
+            echo "$AUTH_JSON"
+            exit 1
+          fi
 
           echo "Uploading artifacts for ${{ matrix.os }} version=$VERSION"
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            curl -sS -X POST "$BACKEND_API_BASE/launchers/windows/exe?version=$VERSION" \
+            curl -sS --fail-with-body -X POST "$BACKEND_API_BASE/launchers/windows/exe?version=$VERSION" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/octet-stream" \
               --data-binary @"build/${LAUNCHER_NAME}.exe"
           elif [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            curl -sS -X POST "$BACKEND_API_BASE/launchers/linux/bin?version=$VERSION" \
+            curl -sS --fail-with-body -X POST "$BACKEND_API_BASE/launchers/linux/bin?version=$VERSION" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/octet-stream" \
               --data-binary @"build/${LOWER_LAUNCHER_NAME}"
           elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-            curl -sS -X POST "$BACKEND_API_BASE/launchers/macos/dmg?version=$VERSION" \
+            curl -sS --fail-with-body -X POST "$BACKEND_API_BASE/launchers/macos/dmg?version=$VERSION" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/octet-stream" \
               --data-binary @"build/${LAUNCHER_NAME}.dmg"
-            curl -sS -X POST "$BACKEND_API_BASE/launchers/macos/archive?version=$VERSION" \
+            curl -sS --fail-with-body -X POST "$BACKEND_API_BASE/launchers/macos/archive?version=$VERSION" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/octet-stream" \
               --data-binary @"build/${LOWER_LAUNCHER_NAME}_macos.tar.gz"
@@ -255,10 +260,15 @@ jobs:
           set -euo pipefail
 
           echo "Logging in to get admin JWT..."
-          AUTH_JSON="$(curl -sS -X POST "$BACKEND_API_BASE/auth/login" \
+          AUTH_JSON="$(curl -sS --fail-with-body -X POST "$BACKEND_API_BASE/auth/login" \
             -H 'Content-Type: application/json' \
             --data "{\"token\":\"$ADMIN_SECRET_TOKEN\"}")"
-          TOKEN="$(echo "$AUTH_JSON" | jq -r '.access_token')"
+          TOKEN="$(echo "$AUTH_JSON" | jq -r '.access_token // empty')"
+          if [ -z "$TOKEN" ]; then
+            echo "Failed to get access token from login response"
+            echo "$AUTH_JSON"
+            exit 1
+          fi
 
           VERSION="${GITHUB_SHA}"
 
@@ -267,14 +277,14 @@ jobs:
             echo "No .flatpak found to upload"
             exit 1
           fi
-          curl -sS -X POST "$BACKEND_API_BASE/launchers/linux/flatpak?version=$VERSION" \
+          curl -sS --fail-with-body -X POST "$BACKEND_API_BASE/launchers/linux/flatpak?version=$VERSION" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @"$FLATPAK_FILE"
 
           FLATPAKREF_FILE="$(ls -1 packaging/flatpak/*.flatpakref 2>/dev/null | head -n 1 || true)"
           if [ -n "$FLATPAKREF_FILE" ]; then
-            curl -sS -X POST "$BACKEND_API_BASE/launchers/linux/flatpakref?version=$VERSION" \
+            curl -sS --fail-with-body -X POST "$BACKEND_API_BASE/launchers/linux/flatpakref?version=$VERSION" \
               -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/octet-stream" \
               --data-binary @"$FLATPAKREF_FILE"
