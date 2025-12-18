@@ -9,18 +9,14 @@ use crate::lang::LangMessage;
 use crate::utils;
 use shared::progress::ProgressBar;
 
-fn api_base() -> Option<String> {
-    build_config::get_auto_update_base().map(|url| url.trim_end_matches('/').to_string())
-}
-
 fn update_url() -> Option<String> {
-    api_base().map(|url| {
+    build_config::get_backend_api_base().map(|url| {
         #[cfg(target_os = "windows")]
-        return format!("{url}/api/v1/launchers/windows/exe");
+        return format!("{url}/launchers/windows/exe");
         #[cfg(target_os = "linux")]
-        return format!("{url}/api/v1/launchers/linux/bin");
+        return format!("{url}/launchers/linux/bin");
         #[cfg(target_os = "macos")]
-        return format!("{url}/api/v1/launchers/macos/archive");
+        return format!("{url}/launchers/macos/archive");
     })
 }
 

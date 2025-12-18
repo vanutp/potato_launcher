@@ -48,8 +48,8 @@ pub fn should_check_updates() -> bool {
         return false;
     }
 
-    if build_config::get_auto_update_base().is_none() {
-        info!("Auto update URL not set, skipping auto-update");
+    if build_config::get_backend_api_base().is_none() {
+        info!("Backend API base not set, skipping auto-update");
         return false;
     }
 

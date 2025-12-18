@@ -30,7 +30,7 @@ fn main() {
 
     let build_envs = ["LAUNCHER_NAME", "VERSION_MANIFEST_URL"];
 
-    let optional_envs = ["AUTO_UPDATE_BASE", "VERSION"];
+    let optional_envs = ["BACKEND_API_BASE", "VERSION"];
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = format!("{out_dir}/generated.rs");

@@ -12,8 +12,8 @@ pub fn get_default_version_manifest_url() -> String {
     VERSION_MANIFEST_URL.to_string()
 }
 
-pub fn get_auto_update_base() -> Option<String> {
-    AUTO_UPDATE_BASE.map(|url| url.to_string())
+pub fn get_backend_api_base() -> Option<String> {
+    BACKEND_API_BASE.map(|url| url.trim_end_matches('/').to_string())
 }
 
 pub fn get_version() -> Option<String> {

@@ -5,8 +5,9 @@ on:
     inputs:
       push:
         description: "Push images to GHCR (default: false)"
+        type: boolean
         required: false
-        default: "false"
+        default: false
   workflow_run:
     workflows: ['Check']
     types:
