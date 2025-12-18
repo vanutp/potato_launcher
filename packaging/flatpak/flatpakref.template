@@ -2,7 +2,7 @@
 Title={{ app_name }}
 Name={{ flatpak_id }}
 SuggestRemoteName={{ app_name_lower }}
-Url={{ auto_update_base }}/flatpak/
+Url={{ backend_api_base }}/flatpak/
 RuntimeRepo=https://dl.flathub.org/repo/flathub.flatpakrepo
 IsRuntime=false
 {{ gpg_key_line }}

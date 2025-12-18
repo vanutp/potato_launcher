@@ -16,7 +16,7 @@ def main():
     with open('flatpakref.template') as f:
         flatpakref_template = f.read()
 
-    auto_update_base = get_env('AUTO_UPDATE_BASE', '')
+    backend_api_base = get_env('BACKEND_API_BASE', '')
 
     variables = {
         'app_name': get_env('LAUNCHER_NAME'),
@@ -25,7 +25,7 @@ def main():
         'app_name_lower': get_env('LAUNCHER_NAME').lower().replace(' ', '_'),
         'app_description': get_env('LAUNCHER_DESCRIPTION', ''),
         'flatpak_keywords': get_env('FLATPAK_KEYWORDS', ''),
-        'auto_update_base': auto_update_base,
+        'backend_api_base': backend_api_base,
         'version': os.getenv('VERSION', ''),
     }
 
@@ -44,7 +44,7 @@ def main():
         f.write(manifest_template)
     with open(variables['flatpak_id'] + '.desktop', 'w') as f:
         f.write(desktop_template)
-    if auto_update_base:
+    if backend_api_base:
         with open(variables['flatpak_id'] + '.flatpakref', 'w') as f:
             f.write(flatpakref_template)
 

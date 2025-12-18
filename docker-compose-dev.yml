@@ -1,16 +1,12 @@
 services:
   backend:
-    image: ghcr.io/petr1furious/potato-launcher-backend:latest
+    image: potato-launcher-backend
     container_name: potato-launcher-backend
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
     user: "${PUID:-1000}:${PGID:-1000}"
     environment:
       ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
       ADMIN_SECRET_TOKEN: ${ADMIN_SECRET_TOKEN}
       DOWNLOAD_SERVER_BASE: ${DOWNLOAD_SERVER_BASE}
-      RESOURCES_URL_BASE: ${RESOURCES_URL_BASE-}
       REPLACE_DOWNLOAD_URLS: ${REPLACE_DOWNLOAD_URLS:-false}
       LAUNCHER_NAME: ${LAUNCHER_NAME:-Potato Launcher}
     volumes:
@@ -35,8 +31,15 @@ services:
       - ./state/filebrowser-db:/database
 
   nginx:
-    image: ghcr.io/petr1furious/potato-launcher-frontend:latest
+    image: potato-launcher-frontend
     container_name: potato-launcher-nginx
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_LAUNCHER_NAME: ${LAUNCHER_NAME:-Potato Launcher}
+        VITE_GITHUB_URL: ${VITE_GITHUB_URL}
     user: "${PUID:-1000}:${PGID:-1000}"
     depends_on:
       - backend

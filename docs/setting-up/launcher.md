@@ -35,7 +35,7 @@ To use this option, go to the "Settings" tab, then choose "Secrets and variables
   root. For example, `packaging/potato_launcher.png`
   
   If you are using the environment variables option, this can also be a URL.
-- **AUTO_UPDATE_BASE** (optional): An URL that will be used to download launcher updates. Doesn't impact instance download. Set it to `https://your.domain/launcher` if you want the launcher to update automatically (you want to). Also used to generate the `.flatpakref` file
+- **BACKEND_API_BASE** (optional): An URL that will be used to download launcher updates. Doesn't impact instance download. Set it to `https://your.domain/api/v1` if you want the launcher to update automatically (you want to). Also used to generate the `.flatpakref` file
 - **LAUNCHER_DESCRIPTION** (optional): The application description. Used in `.desktop` files in the Nix and Flatpak packages, can safely be omitted.
 - **LAUNCHER_KEYWORDS** (optional): The semicolon-separated list of additional keywords for the `.desktop` file. Can safely be omitted
 
