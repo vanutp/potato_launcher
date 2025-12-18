@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -61,6 +62,7 @@ const maxLauncherUploadBytes int64 = 300 * 1024 * 1024
 type ArtifactResponse struct {
 	ContentDisposition string `header:"Content-Disposition"`
 	ContentType        string `header:"Content-Type"`
+	ContentLength      string `header:"Content-Length"`
 	Body               []byte `content:"application/octet-stream"`
 }
 
@@ -88,6 +90,14 @@ func registerLaunchers(api huma.API, deps *Dependencies) {
 		dir := filepath.Join(deps.Config.LauncherDir, input.OS, input.Artifact)
 		path := filepath.Join(dir, filename)
 
+		info, err := os.Stat(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil, huma.Error404NotFound("artifact not uploaded")
+			}
+			return nil, huma.Error500InternalServerError("failed to stat artifact")
+		}
+
 		raw, err := os.ReadFile(path)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -99,6 +109,7 @@ func registerLaunchers(api huma.API, deps *Dependencies) {
 		return &ArtifactResponse{
 			ContentDisposition: fmt.Sprintf("attachment; filename=%q", filename),
 			ContentType:        "application/octet-stream",
+			ContentLength:      strconv.FormatInt(info.Size(), 10),
 			Body:               raw,
 		}, nil
 	})
