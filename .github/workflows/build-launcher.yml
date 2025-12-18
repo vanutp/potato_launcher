@@ -2,6 +2,12 @@ name: Build launcher
 
 on:
   workflow_dispatch:
+    inputs:
+      upload_launchers:
+        description: "Upload launcher artifacts via backend API"
+        type: boolean
+        required: false
+        default: false
   workflow_run:
     workflows: ['Check']
     types:
@@ -12,7 +18,7 @@ defaults:
     shell: bash
 
 env:
-  UPLOAD_LAUNCHERS: ${{ github.ref == 'refs/heads/master' && secrets.UPLOAD_API_BASE_URL != '' && secrets.ADMIN_SECRET_TOKEN != '' }}
+  UPLOAD_LAUNCHERS: ${{ (github.ref == 'refs/heads/master' || (github.event_name == 'workflow_dispatch' && inputs.upload_launchers)) && secrets.UPLOAD_API_BASE_URL != '' && secrets.ADMIN_SECRET_TOKEN != '' }}
 
 jobs:
   binaries:

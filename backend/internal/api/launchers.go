@@ -12,16 +12,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-type LauncherArtifact struct {
-	OS       string `json:"os"`
-	Artifact string `json:"artifact"`
-	Version  string `json:"version"`
-	Filename string `json:"filename"`
-	URL      string `json:"url"`
-	Size     int64  `json:"size"`
-	Updated  string `json:"updated"`
-}
-
 func getLauncherFilename(osName, artifact, launcherName string) (string, error) {
 	lowerName := strings.ToLower(strings.ReplaceAll(launcherName, " ", "_"))
 	switch osName {
