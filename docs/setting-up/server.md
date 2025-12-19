@@ -17,7 +17,6 @@ mkdir potato-launcher-backend
 cd potato-launcher-backend
 wget https://raw.githubusercontent.com/Petr1Furious/potato-launcher/refs/heads/master/docker-compose.yml
 wget -O .env https://raw.githubusercontent.com/Petr1Furious/potato-launcher/refs/heads/master/.env.example
-wget https://raw.githubusercontent.com/Petr1Furious/potato-launcher/refs/heads/master/nginx.conf
 ```
 
 1. Edit `.env` and set at least:
@@ -32,17 +31,20 @@ wget https://raw.githubusercontent.com/Petr1Furious/potato-launcher/refs/heads/m
 docker compose up -d
 ```
 
-By default, nginx is exposed on **port 8000** (see `docker-compose.yml`). You can change this to any other value and put it behind any reverse proxy.
+4. Setup a reverse proxy.
+
+- By default, nginx is exposed on **port 8000** (see `docker-compose.yml`), you can change it to any other value.
+- Choose any reverse proxy and setup TSL certificates. A couple of common options: [Caddy](https://caddyserver.com/docs/), [Traefik](https://doc.traefik.io/traefik/) (both with automatic Let’s Encrypt) and [nginx](https://nginx.org/en/docs/beginners_guide.html) + [Certbot](https://certbot.eff.org/instructions) (more manual approach).
 
 ## What gets served where
 
 When the setup is up:
 
-- **Web UI**: `http://<host>:8000/`
-- **Backend API**: `http://<host>:8000/api/v1/`
-- **API docs**: `http://<host>:8000/api/v1/docs`
-- **Generated instances & metadata**: `http://<host>:8000/data/`
-- **Admin panel** `http://<host>:8000/admin/` (requires login)
+- **Web UI**: `https://<your-domain>:8000/`
+- **Backend API**: `https://<your-domain>:8000/api/v1/`
+- **API docs**: `https://<your-domain>:8000/api/v1/docs`
+- **Generated instances & metadata**: `https://<your-domain>:8000/data/`
+- **Admin panel** `https://<your-domain>:8000/admin/` (requires login)
 
 ## Logging in
 

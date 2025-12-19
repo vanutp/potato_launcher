@@ -34,13 +34,11 @@ services:
   nginx:
     image: ghcr.io/petr1furious/potato-launcher-frontend:latest
     container_name: potato-launcher-nginx
-    user: "${PUID:-1000}:${PGID:-1000}"
     depends_on:
       - backend
       - filebrowser
     ports:
       - "8000:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./state/generated:/var/www/generated:ro
       - ./state/launcher:/var/www/launcher:ro

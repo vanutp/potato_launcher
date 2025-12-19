@@ -29,13 +29,12 @@ To use this option, go to the "Settings" tab, then choose "Secrets and variables
 ## Variables list
 
 - **LAUNCHER_NAME** (required): Your launcher name, for example "Potato Launcher". Can only contain Latin letters, numbers, spaces, `-`, `_` and `'`
-- **VERSION_MANIFEST_URL** (required): URL of a version manifest. You'll probably want to set it to `https://your.domain/data/version_manifest.json`. The vanilla URL is `https://piston-meta.mojang.com/mc/game/version_manifest_v2.json`
+- **VERSION_MANIFEST_URL** (required): URL of a version manifest. You'll probably want to set it to `https://<your-domain>/data/version_manifest.json`. The vanilla URL is `https://piston-meta.mojang.com/mc/game/version_manifest_v2.json`
 - **LAUNCHER_APP_ID** (required): An application ID in a [reverse domain notation](https://en.wikipedia.org/wiki/Reverse_domain_name_notation). Used in macOS and Flatpak packages. For example, `me.petr1furious.PotatoLauncher`
-- **LAUNCHER_ICON** (required): A path to the launcher icon, relative to the repository
-  root. For example, `packaging/potato_launcher.png`
+- **LAUNCHER_ICON** (required): A path to the launcher icon, relative to the repository root. For example, `packaging/potato_launcher.png`
 
   If you are using the environment variables option, this can also be a URL.
-- **BACKEND_API_BASE** (optional): An URL that will be used to download launcher updates. Doesn't impact instance download. Set it to `https://your.domain/api/v1` if you want the launcher to update automatically (you want to). Also used to generate the `.flatpakref` file
+- **BACKEND_API_BASE** (optional): An URL that will be used to download launcher updates. Doesn't impact instance download. Set it to `https://<your-domain>/api/v1` if you want the launcher to update automatically (you want to). Also used to generate the `.flatpakref` file
 - **LAUNCHER_DESCRIPTION** (optional): The application description. Used in `.desktop` files in the Nix and Flatpak packages, can safely be omitted.
 - **LAUNCHER_KEYWORDS** (optional): The semicolon-separated list of additional keywords for the `.desktop` file. Can safely be omitted
 
