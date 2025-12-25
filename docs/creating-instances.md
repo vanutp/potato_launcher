@@ -36,6 +36,21 @@ cargo run --release -p instance_builder -- -s <path to spec.json>
 
 This will create a `generated` directory, which should then be uploaded to your server. If you followed the [Server configuration](/setting-up/server) guide, you should upload the contents of this directory (not the directory itself) to the `data` subdirectory of your launcher dir, e.g. to `/srv/potatosmp/data`. You can use the `exec_after_all` setting to automate this process.
 
+## Manual (remote server build via SSH)
+
+If you already have the backend deployed and you want to automate uploading files and building instances, you can:
+
+- Pick the backend **internal directory** on the server, e.g. `/srv/potato-launcher/state/internal`
+- Upload your `spec.json` into `<internal-dir>/spec.json`
+- Upload your raw modpack files into `<internal-dir>/uploaded-instances/<instance-name>/`
+- Run `instance_builder` inside the running backend container (`potato-launcher-backend` by default)
+
+This repository includes a helper script that automates the above, see `./scripts/remote-instance-build.sh --help` for all options.
+
+::: warning
+The helper script **does not** modify `include_from`. If your instances use `include`, you must set `include_from` in `spec.json` to the correct **in-container** path that points at the uploaded files (default is `/data/internal/uploaded-instances/<instance-name>`).
+:::
+
 ## JSON structure
 
 ```json

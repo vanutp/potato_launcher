@@ -11,8 +11,7 @@ services:
       REPLACE_DOWNLOAD_URLS: ${REPLACE_DOWNLOAD_URLS:-false}
       LAUNCHER_NAME: ${LAUNCHER_NAME:-Potato Launcher}
     volumes:
-      - ./state/metadata:/data/metadata
-      - ./state/uploaded-instances:/data/uploaded-instances
+      - ./state/internal:/data/internal
       - ./state/generated:/data/generated
       - ./state/workdir:/data/workdir
       - ./state/launcher:/data/launcher
@@ -28,7 +27,7 @@ services:
       - --port=80
       - --baseurl=/filebrowser
     volumes:
-      - ./state/uploaded-instances:/srv
+      - ./state/internal:/srv
       - ./state/filebrowser-db:/database
 
   nginx:

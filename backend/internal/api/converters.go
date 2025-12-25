@@ -31,33 +31,8 @@ func toAPIInstance(v models.BuilderInstance) APIInstance {
 	}
 }
 
-func slugifyName(name string) string {
-	name = strings.TrimSpace(strings.ToLower(name))
-	if name == "" {
-		return "instance"
-	}
-	var builder strings.Builder
-	lastDash := false
-	for _, r := range name {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			builder.WriteRune(r)
-			lastDash = false
-			continue
-		}
-		if !lastDash {
-			builder.WriteRune('-')
-			lastDash = true
-		}
-	}
-	slug := strings.Trim(builder.String(), "-")
-	if slug == "" {
-		return "instance"
-	}
-	return slug
-}
-
 func getInstanceDir(cfg *config.Config, instanceName string) string {
-	return filepath.Join(cfg.UploadedInstancesDir, slugifyName(instanceName))
+	return filepath.Join(cfg.UploadedInstancesDir, instanceName)
 }
 
 func ensureIncludeFrom(cfg *config.Config, instance *models.BuilderInstance) {

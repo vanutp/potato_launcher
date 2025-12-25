@@ -54,8 +54,7 @@ Open the Web UI and log in using your `ADMIN_SECRET_TOKEN`.
 
 All persistent state lives under `./state/` by default:
 
-- `state/metadata`: instance spec + settings
-- `state/uploaded-instances`: modpack file source (use Filebrowser to manage)
+- `state/internal`: instances spec + uploaded instances storage (use Filebrowser to manage)
 - `state/generated`: generated output served under `/data`
 - `state/launcher`: uploaded launcher artifacts
 - `state/filebrowser-db`: Filebrowser database

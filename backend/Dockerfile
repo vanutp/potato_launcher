@@ -20,10 +20,10 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/server ./cmd/server
 
 
 FROM debian:bookworm-slim AS runtime
-ENV SPEC_FILE=/data/metadata/spec.json \
+ENV SPEC_FILE=/data/internal/spec.json \
     GENERATED_DIR=/data/generated \
     WORKDIR_DIR=/data/workdir \
-    UPLOADED_INSTANCES_DIR=/data/uploaded-instances \
+    UPLOADED_INSTANCES_DIR=/data/internal/uploaded-instances \
     TEMP_DIR=/tmp/potato \
     HOST=0.0.0.0 \
     PORT=8000
@@ -35,7 +35,7 @@ WORKDIR /app
 COPY --from=backend-builder /out/server /usr/local/bin/server
 COPY --from=instance-builder /src/target/release/instance_builder /usr/local/bin/instance_builder
 
-RUN mkdir -p /data/uploaded-instances /data/generated /data/workdir /data/metadata
+RUN mkdir -p /data/internal/uploaded-instances /data/generated /data/workdir
 
 EXPOSE 8000
 ENTRYPOINT ["/usr/local/bin/server"]

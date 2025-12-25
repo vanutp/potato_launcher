@@ -131,29 +131,7 @@ const updateAuthField = (field: keyof AuthBackend, value: string | AuthType) => 
 
 const authTypeLabel = computed(() => editData.auth_backend.type);
 
-const slugifyName = (name: string) => {
-  const s = name.trim().toLowerCase();
-  if (!s) return 'instance';
-  let out = '';
-  let lastDash = false;
-  for (const ch of s) {
-    const isAlpha = ch >= 'a' && ch <= 'z';
-    const isNum = ch >= '0' && ch <= '9';
-    if (isAlpha || isNum) {
-      out += ch;
-      lastDash = false;
-      continue;
-    }
-    if (!lastDash) {
-      out += '-';
-      lastDash = true;
-    }
-  }
-  out = out.replace(/^-+|-+$/g, '');
-  return out || 'instance';
-};
-
-const filebrowserUrl = computed(() => `/filebrowser/files/${slugifyName(props.instance.name)}`);
+const filebrowserUrl = computed(() => `/filebrowser/files/${props.instance.name}`);
 </script>
 
 <template>
