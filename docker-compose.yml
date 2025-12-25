@@ -27,7 +27,7 @@ services:
       - --port=80
       - --baseurl=/filebrowser
     volumes:
-      - ./state/internal:/srv
+      - ./state/internal/uploaded-instances:/srv
       - ./state/filebrowser-db:/database
 
   nginx:

@@ -22,9 +22,10 @@ Key options:
   --internal-dir DIR          Remote absolute path to the backend 'internal' directory (or set PL_INTERNAL_DIR)
   --container NAME            Container name for backend (default potato-launcher-backend; or PL_CONTAINER)
   --spec PATH                 Local spec.json path (or PL_SPEC)
+  --docker-host VALUE         Remote DOCKER_HOST for rootless docker (or set PL_DOCKER_HOST). Example: unix:///run/user/1000/docker.sock
 
 Container paths (optional; can also be set via env vars):
-  --container-spec PATH       Spec path inside container (default /data/metadata/spec.json; or PL_CONTAINER_SPEC)
+  --container-spec PATH       Spec path inside container (default /data/internal/spec.json; or PL_CONTAINER_SPEC)
   --container-generated DIR   Generated dir inside container (default /data/generated; or PL_CONTAINER_GENERATED)
   --container-workdir DIR     Workdir dir inside container (default /data/workdir; or PL_CONTAINER_WORKDIR)
 
@@ -49,10 +50,11 @@ SSH_PORT="${PL_SSH_PORT:-22}"
 INTERNAL_DIR="${PL_INTERNAL_DIR:-}"
 CONTAINER="${PL_CONTAINER:-potato-launcher-backend}"
 SPEC="${PL_SPEC:-}"
+DOCKER_HOST_REMOTE="${PL_DOCKER_HOST:-}"
 
 declare -a INSTANCE_MAPPINGS=() # entries: "Instance Name=/abs/or/rel/path"
 
-CONTAINER_SPEC="${PL_CONTAINER_SPEC:-/data/metadata/spec.json}"
+CONTAINER_SPEC="${PL_CONTAINER_SPEC:-/data/internal/spec.json}"
 CONTAINER_GENERATED="${PL_CONTAINER_GENERATED:-/data/generated}"
 CONTAINER_WORKDIR="${PL_CONTAINER_WORKDIR:-/data/workdir}"
 
@@ -67,6 +69,7 @@ while [[ $# -gt 0 ]]; do
     --internal-dir) INTERNAL_DIR="${2:-}"; shift 2 ;;
     --container) CONTAINER="${2:-}"; shift 2 ;;
     --spec) SPEC="${2:-}"; shift 2 ;;
+    --docker-host) DOCKER_HOST_REMOTE="${2:-}"; shift 2 ;;
     --container-spec) CONTAINER_SPEC="${2:-}"; shift 2 ;;
     --container-generated) CONTAINER_GENERATED="${2:-}"; shift 2 ;;
     --container-workdir) CONTAINER_WORKDIR="${2:-}"; shift 2 ;;
@@ -97,7 +100,7 @@ if ! command -v ssh >/dev/null 2>&1; then
 fi
 
 ssh_base=(ssh -p "$SSH_PORT")
-rsync_base=(rsync -az --delete --mkpath -e "ssh -p $SSH_PORT")
+rsync_base=(rsync -az --delete -e "ssh -p $SSH_PORT")
 
 run_cmd() {
   if [[ "$DRY_RUN" -eq 1 ]]; then
@@ -137,6 +140,7 @@ if [[ "$DO_BUILD" -eq 1 ]]; then
   remote_cmd=$(
     cat <<EOF
 set -euo pipefail
+${DOCKER_HOST_REMOTE:+export DOCKER_HOST=$(printf %q "$DOCKER_HOST_REMOTE")}
 docker exec ${CONTAINER} instance_builder -s ${CONTAINER_SPEC} ${CONTAINER_GENERATED} ${CONTAINER_WORKDIR}
 EOF
   )
