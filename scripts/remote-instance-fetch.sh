@@ -45,7 +45,7 @@ INTERNAL_DIR="${PL_INTERNAL_DIR:-}"
 
 SPEC_OUT=""
 
-declare -a INSTANCE_MAPPINGS=() # entries: "Instance Name=/local/dir"
+declare -a INSTANCE_MAPPINGS=()
 
 DO_DELETE=0
 DRY_RUN=0
@@ -70,7 +70,8 @@ done
 [[ -n "$INTERNAL_DIR" ]] || die "--internal-dir is required (or set PL_INTERNAL_DIR)"
 [[ "$INTERNAL_DIR" == /* ]] || die "--internal-dir must be an absolute path (got: $INTERNAL_DIR)"
 
-if [[ -z "$SPEC_OUT" && ${#INSTANCE_MAPPINGS[@]} -eq 0 ]]; then
+instance_count=${#INSTANCE_MAPPINGS[@]}
+if [[ -z "$SPEC_OUT" && "$instance_count" -eq 0 ]]; then
   die "nothing to fetch: use --spec-out PATH and/or one/more --instance \"NAME=DIR\""
 fi
 
@@ -110,7 +111,7 @@ if [[ -n "$SPEC_OUT" ]]; then
   run_cmd "${rsync_base[@]}" "${REMOTE}:$(quote_remote_path "$remote_spec")" "$SPEC_OUT"
 fi
 
-for mapping in "${INSTANCE_MAPPINGS[@]}"; do
+for mapping in "${INSTANCE_MAPPINGS[@]+"${INSTANCE_MAPPINGS[@]}"}"; do
   inst="${mapping%%=*}"
   local_dir="${mapping#*=}"
   [[ -n "$inst" ]] || die "bad --instance mapping '$mapping': empty name"
