@@ -149,17 +149,6 @@ const filebrowserUrl = computed(() => `/filebrowser/files/${props.instance.name}
               }}
             </CardDescription>
           </div>
-          <div v-if="!isEditing" class="flex flex-wrap gap-2">
-            <Button size="sm" class="gap-2" @click="handleEdit">
-              <Pencil class="h-4 w-4" />
-              Update
-            </Button>
-            <Button v-if="!showDeleteConfirm" size="sm" variant="destructive" class="gap-2"
-              @click="showDeleteConfirm = true">
-              <Trash2 class="h-4 w-4" />
-              Delete
-            </Button>
-          </div>
         </div>
       </CardHeader>
       <CardContent class="space-y-6">
@@ -242,6 +231,22 @@ const filebrowserUrl = computed(() => `/filebrowser/files/${props.instance.name}
               </dd>
             </div>
           </dl>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <Button class="gap-2" @click="handleEdit">
+              <Pencil class="h-4 w-4" />
+              Update
+            </Button>
+            <Button variant="outline" type="button" as-child>
+              <a :href="filebrowserUrl" target="_blank" rel="noopener noreferrer">
+                Manage instance files
+              </a>
+            </Button>
+            <Button v-if="!showDeleteConfirm" variant="destructive" class="gap-2"
+              @click="showDeleteConfirm = true">
+              <Trash2 class="h-4 w-4" />
+              Delete
+            </Button>
+          </div>
         </template>
       </CardContent>
     </Card>

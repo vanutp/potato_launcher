@@ -5,7 +5,6 @@ import type { AuthBackend, InstanceBase, IncludeRule } from '@/types/api';
 import { AuthType, LoaderType } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useInstanceForm } from '@/composables/useInstanceForm';
 import InstanceFormFields from '@/components/InstanceFormFields.vue';
 import { formatError } from '@/services/api';
