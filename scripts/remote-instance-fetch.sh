@@ -97,18 +97,11 @@ run_cmd() {
   "$@"
 }
 
-quote_remote_path() {
-  # Return a single-quoted string safe for remote shell parsing, usable in rsync src "host:<quoted>".
-  local s="$1"
-  s="${s//\'/\'\\\'\'}"
-  printf "'%s'" "$s"
-}
-
 if [[ -n "$SPEC_OUT" ]]; then
   remote_spec="${INTERNAL_DIR%/}/spec.json"
   mkdir -p "$(dirname "$SPEC_OUT")"
   log "Fetching spec -> ${SPEC_OUT}"
-  run_cmd "${rsync_base[@]}" "${REMOTE}:$(quote_remote_path "$remote_spec")" "$SPEC_OUT"
+  run_cmd "${rsync_base[@]}" "${REMOTE}:${remote_spec}" "$SPEC_OUT"
 fi
 
 for mapping in "${INSTANCE_MAPPINGS[@]+"${INSTANCE_MAPPINGS[@]}"}"; do
@@ -120,7 +113,7 @@ for mapping in "${INSTANCE_MAPPINGS[@]+"${INSTANCE_MAPPINGS[@]}"}"; do
   remote_instance_dir="${INTERNAL_DIR%/}/uploaded-instances/${inst}/"
   mkdir -p "$local_dir"
   log "Fetching instance '${inst}' -> ${local_dir}/"
-  run_cmd "${rsync_base[@]}" "${REMOTE}:$(quote_remote_path "$remote_instance_dir")" "${local_dir%/}/"
+  run_cmd "${rsync_base[@]}" "${REMOTE}:${remote_instance_dir}" "${local_dir%/}/"
 done
 
 log "Done."

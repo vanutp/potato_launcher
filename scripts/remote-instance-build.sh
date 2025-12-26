@@ -113,17 +113,9 @@ run_cmd() {
   "$@"
 }
 
-quote_remote_path() {
-  # Return a single-quoted string safe for remote shell parsing, usable in rsync dest "host:<quoted>".
-  # This preserves spaces and most special characters.
-  local s="$1"
-  s="${s//\'/\'\\\'\'}"
-  printf "'%s'" "$s"
-}
-
 REMOTE_SPEC_HOST="${INTERNAL_DIR%/}/spec.json"
 log "Syncing spec -> ${REMOTE}:${REMOTE_SPEC_HOST}"
-run_cmd "${rsync_base[@]}" "$SPEC" "${REMOTE}:$(quote_remote_path "$REMOTE_SPEC_HOST")"
+run_cmd "${rsync_base[@]}" "$SPEC" "${REMOTE}:${REMOTE_SPEC_HOST}"
 
 # sync each instance to <internal-dir>/uploaded-instances/<instance-name>/
 for mapping in "${INSTANCE_MAPPINGS[@]}"; do
@@ -134,7 +126,7 @@ for mapping in "${INSTANCE_MAPPINGS[@]}"; do
   remote_instance_host="${INTERNAL_DIR%/}/uploaded-instances/${inst}/"
   log "Syncing instance '$inst' ($dir) -> ${REMOTE}:${remote_instance_host}"
   # trailing slash to sync contents into the directory
-  run_cmd "${rsync_base[@]}" "${dir%/}/" "${REMOTE}:$(quote_remote_path "$remote_instance_host")"
+  run_cmd "${rsync_base[@]}" "${dir%/}/" "${REMOTE}:${remote_instance_host}"
 done
 
 if [[ "$DO_BUILD" -eq 1 ]]; then

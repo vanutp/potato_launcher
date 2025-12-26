@@ -1,5 +1,7 @@
 # Creating instances
 
+**Note on terminology:** Potato Launcher calls these **instances**. In most cases instances will be modpacks, but technically you can deploy vanilla versions too.
+
 ## Recommended: use the new Web UI
 
 If you deployed the full server setup (see [Server setup](/setting-up/server)), you can manage instances from the browser. Typical workflow:
