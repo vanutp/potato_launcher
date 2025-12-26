@@ -101,6 +101,9 @@ fi
 
 ssh_base=(ssh -p "$SSH_PORT")
 rsync_base=(rsync -az --delete -e "ssh -p $SSH_PORT")
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  rsync_base+=(--dry-run)
+fi
 
 run_cmd() {
   if [[ "$DRY_RUN" -eq 1 ]]; then
