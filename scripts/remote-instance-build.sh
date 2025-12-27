@@ -12,6 +12,7 @@ die() { printf >&2 "error: %s\n" "$*"; exit 1; }
 usage() {
   cat <<'EOF'
 Usage:
+  # Sync spec + modpacks, then build
   scripts/remote-instance-build.sh --remote user@host --internal-dir /abs/path/to/internal --spec ./spec.json \
     --instance "Instance A=./packs/a" \
     --instance "Instance B=./packs/b"
@@ -21,7 +22,7 @@ Key options:
   --ssh-port PORT             SSH port (default 22; or PL_SSH_PORT)
   --internal-dir DIR          Remote absolute path to the backend 'internal' directory (or set PL_INTERNAL_DIR)
   --container NAME            Container name for backend (default potato-launcher-backend; or PL_CONTAINER)
-  --spec PATH                 Local spec.json path (or PL_SPEC)
+  --spec PATH                 Local spec.json path (optional; or PL_SPEC)
   --docker-host VALUE         Remote DOCKER_HOST for rootless docker (or set PL_DOCKER_HOST). Example: unix:///run/user/1000/docker.sock
 
 Container paths (optional; can also be set via env vars):
@@ -30,7 +31,7 @@ Container paths (optional; can also be set via env vars):
   --container-workdir DIR     Workdir dir inside container (default /data/workdir; or PL_CONTAINER_WORKDIR)
 
 Modpacks:
-  --instance "NAME=DIR"        Repeatable; sync DIR for instance NAME
+  --instance "NAME=DIR"        Repeatable; sync DIR for instance NAME (optional)
 
 Execution:
   --dry-run                   Print what would happen without changing remote
@@ -85,11 +86,13 @@ done
 [[ -n "$REMOTE" ]] || die "--remote is required (or set PL_REMOTE)"
 [[ -n "$INTERNAL_DIR" ]] || die "--internal-dir is required (or set PL_INTERNAL_DIR)"
 [[ "$INTERNAL_DIR" == /* ]] || die "--internal-dir must be an absolute path (got: $INTERNAL_DIR)"
-[[ -n "$SPEC" ]] || die "--spec is required (or set PL_SPEC)"
-[[ -f "$SPEC" ]] || die "spec file not found: $SPEC"
+if [[ -n "$SPEC" && ! -f "$SPEC" ]]; then
+  die "spec file not found: $SPEC"
+fi
 
-if [[ ${#INSTANCE_MAPPINGS[@]} -eq 0 ]]; then
-  die "no modpacks specified (use one/more --modpack \"NAME=DIR\")"
+instance_count=${#INSTANCE_MAPPINGS[@]}
+if [[ -z "$SPEC" && "$instance_count" -eq 0 && "$DO_BUILD" -eq 0 ]]; then
+  die "nothing to do: provide --spec and/or --instance, or omit --no-build to trigger a remote build"
 fi
 
 if ! command -v rsync >/dev/null 2>&1; then
@@ -108,17 +111,18 @@ fi
 run_cmd() {
   if [[ "$DRY_RUN" -eq 1 ]]; then
     log "[dry-run] $*"
-    return 0
   fi
   "$@"
 }
 
-REMOTE_SPEC_HOST="${INTERNAL_DIR%/}/spec.json"
-log "Syncing spec -> ${REMOTE}:${REMOTE_SPEC_HOST}"
-run_cmd "${rsync_base[@]}" "$SPEC" "${REMOTE}:${REMOTE_SPEC_HOST}"
+if [[ -n "$SPEC" ]]; then
+  REMOTE_SPEC_HOST="${INTERNAL_DIR%/}/spec.json"
+  log "Syncing spec -> ${REMOTE}:${REMOTE_SPEC_HOST}"
+  run_cmd "${rsync_base[@]}" "$SPEC" "${REMOTE}:${REMOTE_SPEC_HOST}"
+fi
 
 # sync each instance to <internal-dir>/uploaded-instances/<instance-name>/
-for mapping in "${INSTANCE_MAPPINGS[@]}"; do
+for mapping in "${INSTANCE_MAPPINGS[@]+"${INSTANCE_MAPPINGS[@]}"}"; do
   inst="${mapping%%=*}"
   dir="${mapping#*=}"
   [[ -d "$dir" ]] || die "instance dir not found for '$inst': $dir"
@@ -132,16 +136,15 @@ done
 if [[ "$DO_BUILD" -eq 1 ]]; then
   log "Triggering remote build via docker exec in container: $CONTAINER"
   remote_exec=( "${ssh_base[@]}" "$REMOTE" )
-  remote_cmd=$(
-    cat <<EOF
-set -euo pipefail
-${DOCKER_HOST_REMOTE:+export DOCKER_HOST=$(printf %q "$DOCKER_HOST_REMOTE")}
-docker exec ${CONTAINER} instance_builder -s ${CONTAINER_SPEC} ${CONTAINER_GENERATED} ${CONTAINER_WORKDIR}
-EOF
-  )
+  docker_exec_cmd="docker exec ${CONTAINER} instance_builder -s ${CONTAINER_SPEC} ${CONTAINER_GENERATED} ${CONTAINER_WORKDIR}"
+  if [[ -n "$DOCKER_HOST_REMOTE" ]]; then
+    remote_cmd="DOCKER_HOST=$(printf %q "$DOCKER_HOST_REMOTE") ${docker_exec_cmd}"
+  else
+    remote_cmd="${docker_exec_cmd}"
+  fi
 
   if [[ "$DRY_RUN" -eq 1 ]]; then
-    log "[dry-run] ssh -p $SSH_PORT $REMOTE <<'REMOTE'\n$remote_cmd\nREMOTE"
+    log "[dry-run] ssh -p $SSH_PORT $REMOTE $remote_cmd"
   else
     "${remote_exec[@]}" "bash -lc $(printf '%q' "$remote_cmd")"
   fi
