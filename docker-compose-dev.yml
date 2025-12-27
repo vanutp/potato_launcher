@@ -12,6 +12,7 @@ services:
       DOWNLOAD_SERVER_BASE: ${DOWNLOAD_SERVER_BASE}
       REPLACE_DOWNLOAD_URLS: ${REPLACE_DOWNLOAD_URLS:-false}
       LAUNCHER_NAME: ${LAUNCHER_NAME:-Potato Launcher}
+    restart: unless-stopped
     volumes:
       - ./state/internal:/data/internal
       - ./state/generated:/data/generated
@@ -28,6 +29,7 @@ services:
       - --root=/srv
       - --port=80
       - --baseurl=/filebrowser
+    restart: unless-stopped
     volumes:
       - ./state/internal/uploaded-instances:/srv
       - ./state/filebrowser-db:/database
@@ -45,6 +47,7 @@ services:
     depends_on:
       - backend
       - filebrowser
+    restart: unless-stopped
     ports:
       - "8000:80"
     volumes:
