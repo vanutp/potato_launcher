@@ -18,7 +18,9 @@ defaults:
     shell: bash
 
 env:
-  PUSH_IMAGES: ${{ vars.PUSH_IMAGES && (github.ref == 'refs/heads/master' || (github.event_name == 'workflow_dispatch' && inputs.push)) }}
+  # `vars.*` values are strings. Also, `&&` returns operands (can be empty string), which breaks boolean-typed inputs like docker/build-push-action's `push`.
+  # Force a strict boolean decision here.
+  PUSH_IMAGES: ${{ (vars.PUSH_IMAGES == 'true') && ((github.event_name == 'workflow_dispatch' && inputs.push) || (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'master')) }}
 
 jobs:
   docker-images:
@@ -35,7 +37,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # VITE_LAUNCHER_NAME should match LAUNCHER_NAME used elsewhere (fallback to build.env)
           if [ -n "${{ vars.LAUNCHER_NAME }}" ]; then
             LAUNCHER_NAME="${{ vars.LAUNCHER_NAME }}"
           else
@@ -47,14 +48,12 @@ jobs:
           fi
           echo "VITE_LAUNCHER_NAME=$LAUNCHER_NAME" >> "$GITHUB_ENV"
 
-          # Default to same-origin proxy (nginx config exposes backend under /api)
           if [ -n "${{ vars.VITE_API_BASE_URL }}" ]; then
             echo "VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL }}" >> "$GITHUB_ENV"
           else
             echo "VITE_API_BASE_URL=/api/v1" >> "$GITHUB_ENV"
           fi
 
-          # Default to this repository if not provided
           if [ -n "${{ vars.VITE_GITHUB_URL }}" ]; then
             echo "VITE_GITHUB_URL=${{ vars.VITE_GITHUB_URL }}" >> "$GITHUB_ENV"
           else
@@ -81,7 +80,7 @@ jobs:
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Login to GHCR
-        if: ${{ env.PUSH_IMAGES }}
+        if: ${{ fromJSON(env.PUSH_IMAGES || 'false') }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -93,7 +92,7 @@ jobs:
         with:
           context: .
           file: backend/Dockerfile
-          push: ${{ env.PUSH_IMAGES }}
+          push: ${{ fromJSON(env.PUSH_IMAGES || 'false') }}
           tags: |
             ghcr.io/${{ steps.vars.outputs.owner }}/potato-launcher-backend:sha-${{ steps.vars.outputs.sha }}
             ghcr.io/${{ steps.vars.outputs.owner }}/potato-launcher-backend:latest
@@ -103,7 +102,7 @@ jobs:
         with:
           context: frontend
           file: frontend/Dockerfile
-          push: ${{ env.PUSH_IMAGES }}
+          push: ${{ fromJSON(env.PUSH_IMAGES || 'false') }}
           build-args: |
             VITE_API_BASE_URL=${{ env.VITE_API_BASE_URL }}
             VITE_LAUNCHER_NAME=${{ env.VITE_LAUNCHER_NAME }}

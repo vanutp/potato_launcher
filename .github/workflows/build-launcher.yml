@@ -72,6 +72,11 @@ jobs:
         env:
           VERSION_MANIFEST_URL: ${{ vars.VERSION_MANIFEST_URL }}
           BACKEND_API_BASE: ${{ vars.BACKEND_API_BASE }}
+          LAUNCHER_APP_ID: ${{ vars.LAUNCHER_APP_ID }}
+          LAUNCHER_ICON: ${{ vars.LAUNCHER_ICON }}
+          LAUNCHER_DESCRIPTION: ${{ vars.LAUNCHER_DESCRIPTION }}
+          LAUNCHER_KEYWORDS: ${{ vars.LAUNCHER_KEYWORDS }}
+          GPG_PUBLIC_KEY: ${{ vars.GPG_PUBLIC_KEY }}
         run: |
           python packaging/configure.py
           mkdir -p build
