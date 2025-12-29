@@ -31,7 +31,7 @@ Container paths (optional; can also be set via env vars):
   --container-workdir DIR     Workdir dir inside container (default /data/workdir; or PL_CONTAINER_WORKDIR)
 
 Modpacks:
-  --instance "NAME=DIR"        Repeatable; sync DIR for instance NAME (optional)
+  --instance "NAME=DIR"        Repeatable; sync DIR for instance NAME (optional; or PL_INSTANCES)
 
 Execution:
   --dry-run                   Print what would happen without changing remote
@@ -39,6 +39,8 @@ Execution:
 
 Notes:
   - This script does NOT rewrite include_from, you have to set it yourself (typically "/data/internal/uploaded-instances/<instance-name>").
+  - PL_INSTANCES format: one or more NAME=DIR entries separated by ',', ';' or newlines.
+  - You can also pass multiple mappings in a single --instance by separating with ',', ';' or newlines.
   - Spec is synced to:
       <internal-dir>/spec.json
     and modpacks are synced to:
@@ -54,6 +56,12 @@ SPEC="${PL_SPEC:-}"
 DOCKER_HOST_REMOTE="${PL_DOCKER_HOST:-}"
 
 declare -a INSTANCE_MAPPINGS=() # entries: "Instance Name=/abs/or/rel/path"
+declare -a INSTANCE_MAPPINGS_RAW=() # may contain mappings separated by ',', ';' or newlines
+
+INSTANCES_ENV="${PL_INSTANCES-}"
+if [[ -n "${INSTANCES_ENV}" ]]; then
+  INSTANCE_MAPPINGS_RAW+=("${INSTANCES_ENV}")
+fi
 
 CONTAINER_SPEC="${PL_CONTAINER_SPEC:-/data/internal/spec.json}"
 CONTAINER_GENERATED="${PL_CONTAINER_GENERATED:-/data/generated}"
@@ -74,7 +82,7 @@ while [[ $# -gt 0 ]]; do
     --container-spec) CONTAINER_SPEC="${2:-}"; shift 2 ;;
     --container-generated) CONTAINER_GENERATED="${2:-}"; shift 2 ;;
     --container-workdir) CONTAINER_WORKDIR="${2:-}"; shift 2 ;;
-    --instance) INSTANCE_MAPPINGS+=("${2:-}"); shift 2 ;;
+    --instance) INSTANCE_MAPPINGS_RAW+=("${2:-}"); shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
     --no-build) DO_BUILD=0; shift ;;
     *)
@@ -82,6 +90,15 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "${#INSTANCE_MAPPINGS_RAW[@]}" -gt 0 ]]; then
+  for raw in "${INSTANCE_MAPPINGS_RAW[@]+"${INSTANCE_MAPPINGS_RAW[@]}"}"; do
+    while IFS= read -r mapping; do
+      [[ -z "${mapping}" ]] && continue
+      INSTANCE_MAPPINGS+=("${mapping}")
+    done < <(printf '%s\n' "${raw}" | tr ',;' '\n')
+  done
+fi
 
 [[ -n "$REMOTE" ]] || die "--remote is required (or set PL_REMOTE)"
 [[ -n "$INTERNAL_DIR" ]] || die "--internal-dir is required (or set PL_INTERNAL_DIR)"

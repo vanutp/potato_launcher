@@ -184,13 +184,20 @@ pub enum CopyFilesError {
     InvalidPath,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct SyncMappingStats {
+    pub total_files: usize,
+    pub copied_files: usize,
+    pub deleted_files: usize,
+}
+
 // copy mapped files and directories
 // and delete all other files and directores in the target directory
 // mapping: target -> source
 pub async fn sync_mapping(
     target_dir: &Path,
     mapping: &HashMap<PathBuf, PathBuf>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<SyncMappingStats> {
     let mut mappings_files = HashMap::new();
     for (target, source) in mapping {
         if !target.starts_with(target_dir) {
@@ -210,31 +217,37 @@ pub async fn sync_mapping(
         }
     }
 
+    let mut deleted_files: usize = 0;
     let paths = get_files_in_dir(target_dir)?;
     for path in paths {
         if !mappings_files.contains_key(&path) {
             fs::remove_file(&path).await?;
+            deleted_files += 1;
         }
     }
 
     remove_empty_dirs(target_dir).await?;
 
-    // Helper function for file copying operation
-    async fn copy_file_if_needed(target: PathBuf, source: PathBuf) -> anyhow::Result<()> {
+    async fn copy_file_if_needed(target: PathBuf, source: PathBuf) -> anyhow::Result<bool> {
         fs::create_dir_all(target.parent().ok_or(CopyFilesError::InvalidPath)?).await?;
         if target.is_dir() {
             fs::remove_dir(&target).await?;
         }
-        if !target.exists() || hash_file(&source).await? != hash_file(&target).await? {
+        let should_copy =
+            !target.exists() || hash_file(&source).await? != hash_file(&target).await?;
+        if should_copy {
             // copy and let umask set the permissions instead of fs::copy
             let mut src = File::open(&source).await?;
             let mut dst = File::create(&target).await?;
             io::copy(&mut src, &mut dst).await?;
         }
-        Ok(())
+        Ok(should_copy)
     }
 
     const MAX_CONCURRENT_FILE_OPERATIONS: usize = 50;
+
+    let total_files = mappings_files.len();
+    let mut copied_files: usize = 0;
 
     let mut tasks = FuturesUnordered::new();
     let mut mapping_iter = mappings_files.iter();
@@ -246,14 +259,20 @@ pub async fn sync_mapping(
     }
 
     while let Some(result) = tasks.next().await {
-        result?;
+        if result? {
+            copied_files += 1;
+        }
 
         if let Some((target, source)) = mapping_iter.next() {
             tasks.push(copy_file_if_needed(target.clone(), source.clone()));
         }
     }
 
-    Ok(())
+    Ok(SyncMappingStats {
+        total_files,
+        copied_files,
+        deleted_files,
+    })
 }
 
 #[cfg(test)]

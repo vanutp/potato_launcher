@@ -5,6 +5,7 @@
 
 .DS_Store
 
+*.json
 instance_builder/*.json
 !instance_builder/spec.example.json
 instance_builder/generated/
@@ -33,7 +34,7 @@ gpg/
 # backend
 out/
 
-.env
+.env*
 generated/
 workdir/
 state/

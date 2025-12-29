@@ -1,7 +1,7 @@
 services:
   backend:
     image: potato-launcher-backend
-    container_name: potato-launcher-backend
+    container_name: ${CONTAINER_NAME_PREFIX:-potato-launcher}-backend
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -21,7 +21,7 @@ services:
 
   filebrowser:
     image: filebrowser/filebrowser:latest
-    container_name: potato-launcher-filebrowser
+    container_name: ${CONTAINER_NAME_PREFIX:-potato-launcher}-filebrowser
     user: "${PUID:-1000}:${PGID:-1000}"
     command:
       - --noauth
@@ -36,7 +36,7 @@ services:
 
   nginx:
     image: potato-launcher-frontend
-    container_name: potato-launcher-nginx
+    container_name: ${CONTAINER_NAME_PREFIX:-potato-launcher}-nginx
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -49,7 +49,7 @@ services:
       - filebrowser
     restart: unless-stopped
     ports:
-      - "8000:80"
+      - "${PORT:-8000}:80"
     volumes:
       - ./state/generated:/var/www/generated:ro
       - ./state/launcher:/var/www/launcher:ro

@@ -298,9 +298,13 @@ impl Spec {
             info!("Finished generating version {}", &version.name);
         }
 
-        info!("Copying {} files to output directory", mapping.len());
-        debug!("Paths to copy: {mapping:?}");
-        sync_mapping(output_dir, &mapping).await?;
+        info!("Syncing {} entries", mapping.len());
+        debug!("Sync mapping (target->source): {mapping:?}");
+        let stats = sync_mapping(output_dir, &mapping).await?;
+        info!(
+            "Synced {} files (copied {}, deleted {})",
+            stats.total_files, stats.copied_files, stats.deleted_files
+        );
 
         let manifest_path = get_manifest_path(output_dir);
         version_manifest.save_to_file(&manifest_path).await?;

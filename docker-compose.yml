@@ -1,7 +1,7 @@
 services:
   backend:
     image: ghcr.io/petr1furious/potato-launcher-backend:latest
-    container_name: potato-launcher-backend
+    container_name: ${CONTAINER_NAME_PREFIX:-potato-launcher}-backend
     user: "${PUID:-1000}:${PGID:-1000}"
     environment:
       ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
@@ -19,7 +19,7 @@ services:
 
   filebrowser:
     image: filebrowser/filebrowser:latest
-    container_name: potato-launcher-filebrowser
+    container_name: ${CONTAINER_NAME_PREFIX:-potato-launcher}-filebrowser
     user: "${PUID:-1000}:${PGID:-1000}"
     command:
       - --noauth
@@ -34,13 +34,13 @@ services:
 
   nginx:
     image: ghcr.io/petr1furious/potato-launcher-frontend:latest
-    container_name: potato-launcher-nginx
+    container_name: ${CONTAINER_NAME_PREFIX:-potato-launcher}-nginx
     depends_on:
       - backend
       - filebrowser
     restart: unless-stopped
     ports:
-      - "8000:80"
+      - "${PORT:-8000}:80"
     volumes:
       - ./state/generated:/var/www/generated:ro
       - ./state/launcher:/var/www/launcher:ro
