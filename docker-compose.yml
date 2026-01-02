@@ -39,6 +39,9 @@ services:
       - backend
       - filebrowser
     restart: unless-stopped
+    environment:
+      LAUNCHER_NAME: ${LAUNCHER_NAME:-Potato Launcher}
+      VITE_GITHUB_URL: ${VITE_GITHUB_URL-}
     ports:
       - "${PORT:-8000}:80"
     volumes:

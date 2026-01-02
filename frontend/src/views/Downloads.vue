@@ -5,8 +5,8 @@ import { Monitor, Terminal, BookOpen } from 'lucide-vue-next';
 import GithubIcon from '@/components/icons/GithubIcon.vue';
 import AppleIcon from '@/components/icons/AppleIcon.vue';
 
-const launcherName = import.meta.env.VITE_LAUNCHER_NAME || 'Potato Launcher';
-const githubUrl = import.meta.env.VITE_GITHUB_URL;
+const launcherName = window.config?.VITE_LAUNCHER_NAME || import.meta.env.VITE_LAUNCHER_NAME || 'Potato Launcher';
+const githubUrl = window.config?.VITE_GITHUB_URL || import.meta.env.VITE_GITHUB_URL;
 
 const apiDownloadUrl = (os: 'windows' | 'macos' | 'linux', artifact: string) =>
   `/api/v1/launchers/${os}/${artifact}`;

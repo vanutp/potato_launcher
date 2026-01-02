@@ -1,11 +1,21 @@
 /// <reference types="vite/client" />
 
-interface ImportMetaEnv {
-  readonly VITE_API_BASE_URL?: string;
-  readonly VITE_DOWNLOAD_SERVER_BASE?: string;
-  readonly VITE_RESOURCES_URL_BASE?: string;
-}
+export { };
 
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_LAUNCHER_NAME?: string;
+    readonly VITE_GITHUB_URL?: string;
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+
+  interface Window {
+    config?: {
+      VITE_GITHUB_URL?: string;
+      VITE_LAUNCHER_NAME?: string;
+    };
+  }
 }

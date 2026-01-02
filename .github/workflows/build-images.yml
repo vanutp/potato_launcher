@@ -48,12 +48,6 @@ jobs:
           fi
           echo "VITE_LAUNCHER_NAME=$LAUNCHER_NAME" >> "$GITHUB_ENV"
 
-          if [ -n "${{ vars.VITE_API_BASE_URL }}" ]; then
-            echo "VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL }}" >> "$GITHUB_ENV"
-          else
-            echo "VITE_API_BASE_URL=/api/v1" >> "$GITHUB_ENV"
-          fi
-
           if [ -n "${{ vars.VITE_GITHUB_URL }}" ]; then
             echo "VITE_GITHUB_URL=${{ vars.VITE_GITHUB_URL }}" >> "$GITHUB_ENV"
           else
@@ -104,7 +98,6 @@ jobs:
           file: frontend/Dockerfile
           push: ${{ fromJSON(env.PUSH_IMAGES || 'false') }}
           build-args: |
-            VITE_API_BASE_URL=${{ env.VITE_API_BASE_URL }}
             VITE_LAUNCHER_NAME=${{ env.VITE_LAUNCHER_NAME }}
             VITE_GITHUB_URL=${{ env.VITE_GITHUB_URL }}
           tags: |

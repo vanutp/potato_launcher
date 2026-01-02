@@ -47,7 +47,7 @@ class ApiService {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const authHeaders = authService.getAuthHeaders();
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL!}${endpoint}`, {
+    const response = await fetch(`/api/v1${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders,

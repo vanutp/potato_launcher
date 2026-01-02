@@ -123,7 +123,7 @@ onMounted(() => {
     <Card>
       <CardHeader>
         <CardTitle>Create New Instance</CardTitle>
-        <CardDescription>Provision a new entry for Potato Launcher.</CardDescription>
+        <CardDescription>Create a new instance for the launcher.</CardDescription>
       </CardHeader>
       <CardContent>
         <form class="space-y-5" @submit.prevent="handleSubmit">

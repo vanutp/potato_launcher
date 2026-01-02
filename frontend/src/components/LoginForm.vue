@@ -65,9 +65,6 @@ const handleTokenChange = (value: string | number) => {
             <span v-else>Sign In</span>
           </Button>
         </form>
-        <p class="text-center text-sm text-muted-foreground">
-          Use the token provided when Potato Launcher provisioning completes.
-        </p>
         <div class="text-center pt-2 border-t">
           <router-link to="/" class="text-sm text-primary hover:underline">
             Download Launcher
