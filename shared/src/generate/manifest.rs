@@ -1,4 +1,7 @@
-use std::path::Path;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     files::hash_file,
@@ -18,6 +21,7 @@ pub async fn get_version_info(
     version_metadata: &Vec<VersionMetadata>,
     version_name: &str,
     download_server_base: Option<&str>,
+    replaced_metadata: &HashMap<String, PathBuf>,
 ) -> anyhow::Result<VersionInfo> {
     // is used in local instances to be compliant with the manifest format
     let download_server_base = download_server_base.unwrap_or("empty-url");
@@ -26,10 +30,14 @@ pub async fn get_version_info(
     let mut metadata_info = vec![];
     for metadata in version_metadata {
         let rel_metadata_path = rel_versions_dir.join(get_rel_metadata_path(&metadata.id));
+        let metadata_path = replaced_metadata
+            .get(&metadata.id)
+            .cloned()
+            .unwrap_or_else(|| work_dir.join(&rel_metadata_path));
         metadata_info.push(MetadataInfo {
             id: metadata.id.clone(),
             url: url_from_rel_path(&rel_metadata_path, download_server_base)?,
-            sha1: hash_file(&work_dir.join(&rel_metadata_path)).await?,
+            sha1: hash_file(&metadata_path).await?,
         });
     }
 

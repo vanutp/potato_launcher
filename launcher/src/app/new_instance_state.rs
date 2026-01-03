@@ -238,6 +238,7 @@ fn create_new_instance(
             &generator_result.metadata,
             &instance_name,
             None,
+            &HashMap::new(),
         )
         .await?;
 

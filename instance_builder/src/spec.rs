@@ -199,6 +199,7 @@ impl Spec {
             let mut workdir_paths_to_copy = vec![];
 
             let mut result = generator.generate(work_dir).await?;
+            let mut replaced_metadata = HashMap::new();
             if self.replace_download_urls {
                 let versions_dir = get_versions_dir(output_dir);
                 let replaced_metadata_dir = get_replaced_metadata_dir(work_dir);
@@ -224,9 +225,12 @@ impl Spec {
 
                     synced_metadata.insert(metadata.id.clone());
 
+                    let replaced_metadata_path =
+                        get_metadata_path(&replaced_metadata_dir, &metadata.id);
+                    replaced_metadata.insert(metadata.id.clone(), replaced_metadata_path.clone());
                     mapping.insert(
                         get_metadata_path(&versions_dir, &metadata.id),
-                        get_metadata_path(&replaced_metadata_dir, &metadata.id),
+                        replaced_metadata_path,
                     );
                 }
             } else {
@@ -281,6 +285,7 @@ impl Spec {
                 &result.metadata,
                 &version.name,
                 Some(self.download_server_base.as_str()),
+                &replaced_metadata,
             )
             .await?;
 
